@@ -2,11 +2,9 @@ package ru.wohlsoft.adlmidiplayer;
 
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.os.AsyncTask;
+import android.content.Intent;
 import android.os.Environment;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -24,12 +22,8 @@ import android.content.pm.PackageManager;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.app.ActivityCompat;
 import android.widget.Toast;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class Player extends AppCompatActivity {
 
@@ -46,7 +40,6 @@ public class Player extends AppCompatActivity {
     private boolean             m_ADL_vibrato = false;
     private boolean             m_ADL_scalable = false;
     private boolean             m_ADL_adlibdrums = false;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -182,55 +175,32 @@ public class Player extends AppCompatActivity {
         });
     }
 
-
-    private class SoundTask extends AsyncTask<String, Integer, Integer> {
-        @Override
-        protected Integer doInBackground(String... params)
-        {
-            Context ctx = getApplicationContext();
-            Notification b = new Notification.Builder(ctx)
-                .setContentTitle("Playing " + m_lastFile)
-                .setContentText("Playing music!")
-                .setSmallIcon(R.drawable.ic_stat_name)
-                .build();
-
-            b.flags |= Notification.FLAG_NO_CLEAR|Notification.FLAG_ONGOING_EVENT;
-
-            NotificationManager notificationManager =
-                    (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-
-            notificationManager.notify(0, b);
-
-            AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, 44100,
-                    AudioFormat.CHANNEL_OUT_STEREO,
-                    AudioFormat.ENCODING_PCM_16BIT,
-                    BUF_SIZE*2, AudioTrack.MODE_STREAM);
-            short[] sample_buffer = new short[BUF_SIZE];
-            audioTrack.play();
-            while(isPlaying)
-            {
-                int got = adl_play(MIDIDevice, sample_buffer);
-                audioTrack.write(sample_buffer, 0, got);
-            }
-
-            notificationManager.cancelAll();
-
-            return 0;
-        }
-    }
-
-    private SoundTask soundPlayer = null;
-
     private void playerPlay()
     {
         if(isPlaying)
             return;
-        if(soundPlayer == null)
-        {
-            isPlaying=true;
-            soundPlayer = new SoundTask();
-            soundPlayer.execute("YAY");
-        }
+
+        if(MIDIDevice==0)
+            return;
+
+        isPlaying = true;
+        Context ctx = getApplicationContext();
+        Intent notificationIntent = new Intent(ctx, Player.class);
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+        PendingIntent intent = PendingIntent.getActivity(ctx, 0, notificationIntent, 0);
+
+        Notification b = new Notification.Builder(ctx)
+                .setContentTitle("Playing " + m_lastFile)
+                .setContentText("Playing music!")
+                .setSmallIcon(R.drawable.ic_stat_name)
+                .setContentIntent(intent)
+                .build();
+        b.flags |= Notification.FLAG_NO_CLEAR|Notification.FLAG_ONGOING_EVENT;
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        notificationManager.notify(0, b);
+
+        startPlaying(MIDIDevice);
     }
 
     private void playerStop()
@@ -238,18 +208,10 @@ public class Player extends AppCompatActivity {
         if(!isPlaying)
             return;
         isPlaying = false;
-        if(soundPlayer != null)
-        {
-            try {
-                soundPlayer.get(1000, TimeUnit.MILLISECONDS);
-            }
-            catch(InterruptedException x)
-            {}
-            catch(TimeoutException e)
-            {}
-            catch(ExecutionException e) {}
-            soundPlayer = null;
-        }
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        notificationManager.cancelAll();
+
+        stopPlaying();
     }
 
     private void uninitPlayer()
@@ -360,6 +322,17 @@ public class Player extends AppCompatActivity {
      * which is packaged with this application.
      */
     public native String stringFromJNI();
+
+    /**
+     * Start OpenSLES player with fetching specified ADLMIDI device
+     * @param device pointer to currently constructed ADLMIDI device
+     */
+    public native void startPlaying(long device);
+
+    /**
+     * Stop OpenSLES player
+     */
+    public native void stopPlaying();
 
 //    /* Sets number of emulated sound cards (from 1 to 100). Emulation of multiple sound cards exchanges polyphony limits*/
 //    extern int adl_setNumCards(struct ADL_MIDIPlayer*device, int numCards);
