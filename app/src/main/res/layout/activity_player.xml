@@ -24,35 +24,14 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/sample_text"
-        android:id="@+id/openFile"
-        tools:text="@string/open"
-        android:layout_alignRight="@+id/playPause"
-        android:layout_alignEnd="@+id/playPause"
-        android:layout_alignLeft="@+id/playPause"
-        android:layout_alignStart="@+id/playPause"
-        android:text="@string/open" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_alignLeft="@+id/openFile"
         android:layout_alignStart="@+id/openFile"
         android:id="@+id/quitapp"
         tools:text="@string/quit"
-        android:layout_alignRight="@+id/playPause"
-        android:layout_alignEnd="@+id/playPause"
-        android:text="@string/quit" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/playPause"
-        tools:text="@string/playpause"
-        android:layout_below="@+id/openFile"
-        android:layout_centerHorizontal="true"
-        android:text="@string/playpause" />
+        android:text="@string/quit"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true" />
 
     <CheckBox
         android:text="deepTremolo"
@@ -122,5 +101,87 @@
         android:layout_below="@+id/textView"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="numberSigned"
+        android:ems="10"
+        android:layout_below="@+id/bankNo"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="13dp"
+        android:id="@+id/numChips"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:text="2" />
+
+    <TextView
+        android:text="@string/numChips"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/bankNo"
+        android:id="@+id/numChipsLabel"
+        tools:text="@string/numChips"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true" />
+
+    <TextView
+        android:text="@string/num4opChans"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/numChips"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:id="@+id/num4opChansLabel"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
+        tools:text="@string/num4opChans" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="numberSigned"
+        android:ems="10"
+        android:layout_below="@+id/num4opChansLabel"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:id="@+id/num4opChans"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
+        android:singleLine="true"
+        android:text="7" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/openFile"
+        tools:text="@string/open"
+        android:text="@string/open"
+        android:layout_below="@+id/sample_text"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/playPause"
+        tools:text="@string/playpause"
+        android:text="@string/playpause"
+        android:layout_below="@+id/sample_text"
+        android:layout_toRightOf="@+id/openFile"
+        android:layout_toEndOf="@+id/openFile" />
+
+    <Button
+        android:text="@string/restart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/sample_text"
+        android:layout_toRightOf="@+id/playPause"
+        android:layout_toEndOf="@+id/playPause"
+        android:id="@+id/restart"
+        tools:text="@string/restart" />
 
 </RelativeLayout>

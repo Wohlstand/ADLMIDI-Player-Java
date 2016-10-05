@@ -9,10 +9,13 @@ import android.os.Environment;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.KeyEvent;
+import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Button;
@@ -40,6 +43,8 @@ public class Player extends AppCompatActivity {
     private boolean             m_ADL_vibrato = false;
     private boolean             m_ADL_scalable = false;
     private boolean             m_ADL_adlibdrums = false;
+    private int                 m_ADL_numCards = 2;
+    private int                 m_ADL_num4opChannels = 7;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -143,6 +148,53 @@ public class Player extends AppCompatActivity {
            }
         );
 
+        EditText numChips = (EditText)findViewById(R.id.numChips);
+        numChips.setOnEditorActionListener(new EditText.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                m_ADL_numCards = Integer.parseInt(v.getText().toString());
+                if(m_ADL_numCards<=1) {
+                    m_ADL_numCards = 1;
+                    v.setText("1");
+                } else if(m_ADL_numCards>100) {
+                    m_ADL_numCards = 100;
+                    v.setText("100");
+                }
+
+                Toast toast = Toast.makeText(getApplicationContext(),
+                        "Num of chips changed!", Toast.LENGTH_SHORT);
+                toast.show();
+
+                if(m_ADL_numCards > 6*m_ADL_numCards) {
+                    m_ADL_numCards = 6*m_ADL_numCards;
+                    EditText num4opChannels = (EditText)findViewById(R.id.num4opChans);
+                    num4opChannels.setText(Integer.toString(m_ADL_numCards));
+                }
+
+                return true;
+            }
+        });
+
+        EditText num4opChannels = (EditText)findViewById(R.id.num4opChans);
+        num4opChannels.setOnEditorActionListener(new EditText.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                m_ADL_num4opChannels = Integer.parseInt(v.getText().toString());
+                if(m_ADL_numCards<=0) {
+                    m_ADL_numCards = 0;
+                    v.setText("1");
+                } else if(m_ADL_numCards > 6*m_ADL_numCards) {
+                    m_ADL_numCards = 6*m_ADL_numCards;
+                    v.setText(Integer.toString(m_ADL_numCards));
+                }
+
+                Toast toast = Toast.makeText(getApplicationContext(),
+                        "Num of cards changed!", Toast.LENGTH_SHORT);
+                toast.show();
+                return true;
+            }
+        });
+
         // Example of a call to a native method
         TextView tv = (TextView) findViewById(R.id.sample_text);
         tv.setText(stringFromJNI());
@@ -171,6 +223,14 @@ public class Player extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 OnPlayClick(view);
+            }
+        });
+
+        Button restartBtn = (Button) findViewById(R.id.restart);
+        restartBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                OnRestartClick(view);
             }
         });
     }
@@ -227,6 +287,8 @@ public class Player extends AppCompatActivity {
         uninitPlayer();
         MIDIDevice = adl_init(44100);
         adl_setBank(MIDIDevice, m_ADL_bank);
+        adl_setNumCards(MIDIDevice, m_ADL_numCards);
+        adl_setNumFourOpsChn(MIDIDevice, m_ADL_num4opChannels);
         adl_setHTremolo(MIDIDevice, m_ADL_tremolo?1:0);
         adl_setHVibrato(MIDIDevice, m_ADL_vibrato?1:0);
         adl_setScaleModulators(MIDIDevice, m_ADL_scalable?1:0);
@@ -240,6 +302,17 @@ public class Player extends AppCompatActivity {
             playerPlay();
         } else {
             playerStop();
+        }
+    }
+
+    public void OnRestartClick(View view)
+    {
+        if(isPlaying && (MIDIDevice>0))
+        {
+            playerStop();
+            initPlayer();
+            adl_openFile(MIDIDevice, m_lastFile);
+            playerPlay();
         }
     }
 

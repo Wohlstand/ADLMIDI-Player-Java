@@ -9,4 +9,7 @@
     <string name="playpause">Play/Pause</string>
     <string name="quit">Quit</string>
     <string name="scalemod">Scalable modulation</string>
+    <string name="num4opChans">Total number of 4-op channels</string>
+    <string name="numChips">Number of emulated chips</string>
+    <string name="restart">Restart</string>
 </resources>
