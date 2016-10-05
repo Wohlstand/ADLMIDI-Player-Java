@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Плеер ADLMIDI</string>
+    <string name="adlibdrums">Режим ударных AdLib</string>
+    <string name="bankNo">Муз. банк</string>
+    <string name="htremolo">Усиленное тремоло</string>
+    <string name="hvibrato">Усиленное вибрато</string>
+    <string name="open">Открыть</string>
+    <string name="playpause">Воспр./Приост.</string>
+    <string name="quit">Выйти</string>
+    <string name="scalemod">Регулируемая модуляция</string>
+</resources>

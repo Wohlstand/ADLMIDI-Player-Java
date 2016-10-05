@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ADLMIDI Player</string>
+    <string name="adlibdrums">AdLib drums mode</string>
+    <string name="bankNo">Music bank</string>
+    <string name="htremolo">Deep Tremolo</string>
+    <string name="hvibrato">Deep Vibrato</string>
+    <string name="open">Open</string>
+    <string name="playpause">Play/Pause</string>
+    <string name="quit">Quit</string>
+    <string name="scalemod">Scalable modulation</string>
+</resources>
