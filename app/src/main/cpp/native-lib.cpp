@@ -43,7 +43,7 @@ static SLPlayItf    bqPlayerPlay;
 static SLAndroidSimpleBufferQueueItf    bqPlayerBufferQueue;
 static SLMuteSoloItf                    bqPlayerMuteSolo;
 static SLVolumeItf                      bqPlayerVolume;
-#define BUFFER_SIZE 10240
+#define BUFFER_SIZE 40960
 #define BUFFER_SIZE_IN_SAMPLES (BUFFER_SIZE / 2)
 
 // Double buffering.
