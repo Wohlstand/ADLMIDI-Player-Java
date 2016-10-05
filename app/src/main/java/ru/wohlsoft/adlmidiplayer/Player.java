@@ -165,10 +165,10 @@ public class Player extends AppCompatActivity {
                         "Num of chips changed!", Toast.LENGTH_SHORT);
                 toast.show();
 
-                if(m_ADL_numCards > 6*m_ADL_numCards) {
-                    m_ADL_numCards = 6*m_ADL_numCards;
+                if(m_ADL_num4opChannels > 6*m_ADL_numCards) {
+                    m_ADL_num4opChannels = 6*m_ADL_numCards;
                     EditText num4opChannels = (EditText)findViewById(R.id.num4opChans);
-                    num4opChannels.setText(Integer.toString(m_ADL_numCards));
+                    num4opChannels.setText(Integer.toString(m_ADL_num4opChannels));
                 }
 
                 return true;
@@ -180,16 +180,16 @@ public class Player extends AppCompatActivity {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 m_ADL_num4opChannels = Integer.parseInt(v.getText().toString());
-                if(m_ADL_numCards<=0) {
-                    m_ADL_numCards = 0;
-                    v.setText("1");
-                } else if(m_ADL_numCards > 6*m_ADL_numCards) {
-                    m_ADL_numCards = 6*m_ADL_numCards;
-                    v.setText(Integer.toString(m_ADL_numCards));
+                if(m_ADL_num4opChannels<=0) {
+                    m_ADL_num4opChannels = 0;
+                    v.setText("0");
+                } else if(m_ADL_num4opChannels > 6*m_ADL_numCards) {
+                    m_ADL_num4opChannels = 6*m_ADL_numCards;
+                    v.setText(Integer.toString(m_ADL_num4opChannels));
                 }
 
                 Toast toast = Toast.makeText(getApplicationContext(),
-                        "Num of cards changed!", Toast.LENGTH_SHORT);
+                        "Num of 4-op channels changed!", Toast.LENGTH_SHORT);
                 toast.show();
                 return true;
             }

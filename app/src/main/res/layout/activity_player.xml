@@ -34,7 +34,7 @@
         android:layout_alignParentEnd="true" />
 
     <CheckBox
-        android:text="deepTremolo"
+        android:text="@string/htremolo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@+id/playPause"
@@ -47,7 +47,7 @@
         tools:text="@string/htremolo" />
 
     <CheckBox
-        android:text="deepVibrato"
+        android:text="@string/hvibrato"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@+id/deepTremolo"
@@ -59,7 +59,7 @@
         tools:text="@string/hvibrato" />
 
     <CheckBox
-        android:text="scalableMod"
+        android:text="@string/scalemod"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@+id/deepVibrato"
@@ -71,7 +71,7 @@
         tools:text="@string/scalemod" />
 
     <CheckBox
-        android:text="adlDrums"
+        android:text="@string/adlibdrums"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@+id/scalableModulation"
