@@ -5,32 +5,17 @@ branches:
   only:
     - master
 
+jdk: oraclejdk8
 language: android
+sudo: false
+install: ant deps
 
 android:
   components:
-    - tools
-    - build-tools-24.0.3
-    - android-24
     - platform-tools
+    - tools
+    - build-tools-22.0.1
+    - android-22
     - extra-android-support
-  licenses:
-    - '.+'
 
-sudo: required
-
-jdk:
-  - oraclejdk8
-
-install: true
-
-script:
-  - sudo apt-get update && sudo apt-get install oracle-java8-installer
-- java -version
-
-before_script:
-  - chmod +x gradlew
-
-script:
-- ./gradlew assembleDebug --stacktrace
 
