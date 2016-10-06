@@ -8,7 +8,6 @@ branches:
 jdk: oraclejdk8
 language: android
 sudo: false
-install: ant deps
 
 android:
   components:
