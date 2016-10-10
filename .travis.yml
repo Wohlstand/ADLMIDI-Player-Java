@@ -7,7 +7,7 @@ branches:
 
 jdk: oraclejdk8
 language: android
-sudo: required
+sudo: false
 
 android:
   components:
@@ -22,9 +22,12 @@ android:
     - 'build-tools-.+'
 
 before_install:
-  - sudo apt-get install cmake
+  - echo y | android update sdk --no-ui --filter build-tools-24.0.3,android-24,extra-android-m2repository
   - wget https://dl.google.com/android/repository/android-ndk-r13-linux-x86_64.zip -O ndk.zip
   - unzip ndk.zip -d . > /dev/null
   - export ANDROID_NDK_HOME=`pwd`/android-ndk-r13
   - export PATH=${PATH}:${ANDROID_NDK_HOME}
-  - echo y | android update sdk --no-ui --filter build-tools-24.0.3,android-24,extra-android-m2repository
+  - wget "http://www.cmake.org/files/v3.3/cmake-3.3.1-Linux-x86_64.tar.gz" -O cmake.tar.gz
+  - mkdir -p /usr/local/android-sdk/cmake
+  - tar -xf cmake.tar.gz -C /usr/local/android-sdk/cmake
+  - export PATH=${DEPS_DIR}/cmake/bin:${PATH}
