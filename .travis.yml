@@ -38,3 +38,11 @@ before_install:
   - wget https://github.com/Commit451/android-cmake-installer/releases/download/1.1.0/install-cmake.sh
   - chmod +x install-cmake.sh
   - bash ./install-cmake.sh
+
+# Emulator Management: Create, Start and Wait
+before_script:
+  - echo no | android create avd --force -n test -t android-24 --abi armeabi-v7a
+  - emulator -avd test -no-audio -no-window &
+  - android-wait-for-emulator
+  - adb shell input keyevent 82 &
+
