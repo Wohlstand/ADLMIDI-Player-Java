@@ -7,7 +7,7 @@ branches:
 
 jdk: oraclejdk8
 language: android
-sudo: false
+sudo: required
 
 android:
   components:
@@ -22,6 +22,7 @@ android:
     - 'build-tools-.+'
 
 before_install:
+  - sudo apt-get install cmake
   - wget https://dl.google.com/android/repository/android-ndk-r13-linux-x86_64.zip -O ndk.zip
   - unzip ndk.zip -d . > /dev/null
   - export ANDROID_NDK_HOME=`pwd`/android-ndk-r13
