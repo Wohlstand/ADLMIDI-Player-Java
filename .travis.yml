@@ -22,12 +22,18 @@ android:
     - 'build-tools-.+'
 
 before_install:
+  # By default, we get an older version of libstdc++6 so we need to update it
+  # http://askubuntu.com/questions/575505/glibcxx-3-4-20-not-found-how-to-fix-this-error
+  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+  - sudo apt-get update
+  - sudo apt-get install libstdc++6
+
   - echo y | android update sdk --no-ui --filter build-tools-24.0.3,android-24,extra-android-m2repository
   - wget https://dl.google.com/android/repository/android-ndk-r13-linux-x86_64.zip -O ndk.zip
   - unzip ndk.zip -d . > /dev/null
   - export ANDROID_NDK_HOME=`pwd`/android-ndk-r13
   - export PATH=${PATH}:${ANDROID_NDK_HOME}
-  - wget --no-check-certificate http://www.cmake.org/files/v3.3/cmake-3.3.1-Linux-x86_64.tar.gz -O cmake.tar.gz
-  - sudo mkdir -p /usr/local/android-sdk
-  - sudo tar -xf cmake.tar.gz -C /usr/local/android-sdk
-  - export PATH=/usr/local/android-sdk/cmake/bin:${PATH}
+  
+  - wget https://github.com/Commit451/android-cmake-installer/releases/download/1.1.0/install-cmake.sh
+  - chmod +x install-cmake.sh
+  - bash ./install-cmake.sh
