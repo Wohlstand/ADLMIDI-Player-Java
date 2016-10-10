@@ -27,7 +27,7 @@ before_install:
   - unzip ndk.zip -d . > /dev/null
   - export ANDROID_NDK_HOME=`pwd`/android-ndk-r13
   - export PATH=${PATH}:${ANDROID_NDK_HOME}
-  - wget "http://www.cmake.org/files/v3.3/cmake-3.3.1-Linux-x86_64.tar.gz" -O cmake.tar.gz
+  - wget http://www.cmake.org/files/v3.3/cmake-3.3.1-Linux-x86_64.tar.gz -O cmake.tar.gz
   - mkdir -p /usr/local/android-sdk/cmake
   - tar -xf cmake.tar.gz -C /usr/local/android-sdk/cmake
   - export PATH=${DEPS_DIR}/cmake/bin:${PATH}
