@@ -20,5 +20,3 @@ android:
     - 'android-sdk-license-.+'
     - 'google-gdk-license-.+'
 
-before_install:
- - echo y | android update sdk --no-ui --filter build-tools-24.0.0,android-24,extra-android-m2repository
