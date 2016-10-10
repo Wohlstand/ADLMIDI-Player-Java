@@ -9,6 +9,7 @@ import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
@@ -153,7 +154,11 @@ public class OpenFileDialog extends AlertDialog.Builder {
 
     private static Point getScreenSize(Context context) {
         Point screeSize = new Point();
-        getDefaultDisplay(context).getSize(screeSize);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
+            getDefaultDisplay(context).getSize(screeSize);
+        } else {
+            screeSize.set( getDefaultDisplay(context).getWidth(), getDefaultDisplay(context).getHeight() );
+        }
         return screeSize;
     }
 
@@ -194,12 +199,16 @@ public class OpenFileDialog extends AlertDialog.Builder {
 
     private TextView createBackItem(Context context) {
         TextView textView = createTextView(context, android.R.style.TextAppearance_DeviceDefault_Small);
-        Drawable drawable = getContext().getResources().getDrawable(android.R.drawable.ic_menu_directions, context.getTheme());
+        Drawable drawable = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            drawable = getContext().getResources().getDrawable(android.R.drawable.ic_menu_directions, context.getTheme());
+        } else {
+            drawable = getContext().getResources().getDrawable(android.R.drawable.ic_menu_directions);
+        }
         drawable.setBounds(0, 0, 60, 60);
         textView.setCompoundDrawables(drawable, null, null, null);
         textView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         textView.setOnClickListener(new View.OnClickListener() {
-
             @Override
             public void onClick(View view) {
                 File file = new File(currentPath);
@@ -231,7 +240,7 @@ public class OpenFileDialog extends AlertDialog.Builder {
                 else
                     titleText = titleText.substring(2);
             }
-            title.setText("..." + titleText);
+            title.setText( String.format("...%s", titleText) );
         } else {
             title.setText(titleText);
         }
