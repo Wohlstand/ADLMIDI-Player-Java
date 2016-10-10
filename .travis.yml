@@ -16,6 +16,7 @@ android:
     - build-tools-24.0.3
     - android-24
     - extra-android-support
+    - sys-img-armeabi-v7a-android-24
   licenses:
     - 'android-sdk-license-.+'
     - 'google-gdk-license-.+'

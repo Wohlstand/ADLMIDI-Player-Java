@@ -5,6 +5,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Environment;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -26,10 +27,11 @@ import android.support.v4.app.ActivityCompat;
 import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class Player extends AppCompatActivity {
 
-    private int                 MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 1;
+    //private int                 MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 1;
     private boolean             permission_readAllowed = false;
     public final int            BUF_SIZE = 10240;
     private long                MIDIDevice = 0;
@@ -50,9 +52,12 @@ public class Player extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_player);
 
-        permission_readAllowed =
-                ContextCompat.checkSelfPermission(this,
-                        Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        permission_readAllowed = true;
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            permission_readAllowed =
+                    ContextCompat.checkSelfPermission(this,
+                            Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        }
 
         //Fill bank number box
         List<String> spinnerArray =  new ArrayList<String>();
@@ -154,10 +159,10 @@ public class Player extends AppCompatActivity {
                 m_ADL_numCards = Integer.parseInt(v.getText().toString());
                 if(m_ADL_numCards<=1) {
                     m_ADL_numCards = 1;
-                    v.setText("1");
+                    v.setText(String.format(Locale.getDefault(), "%d", 1));
                 } else if(m_ADL_numCards>100) {
                     m_ADL_numCards = 100;
-                    v.setText("100");
+                    v.setText(String.format(Locale.getDefault(), "%d", 100));
                 }
 
                 Toast toast = Toast.makeText(getApplicationContext(),
@@ -167,7 +172,7 @@ public class Player extends AppCompatActivity {
                 if(m_ADL_num4opChannels > 6*m_ADL_numCards) {
                     m_ADL_num4opChannels = 6*m_ADL_numCards;
                     EditText num4opChannels = (EditText)findViewById(R.id.num4opChans);
-                    num4opChannels.setText(Integer.toString(m_ADL_num4opChannels));
+                    num4opChannels.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
                 }
 
                 return true;
@@ -181,10 +186,10 @@ public class Player extends AppCompatActivity {
                 m_ADL_num4opChannels = Integer.parseInt(v.getText().toString());
                 if(m_ADL_num4opChannels<=0) {
                     m_ADL_num4opChannels = 0;
-                    v.setText("0");
+                    v.setText(String.format(Locale.getDefault(), "%d", 0));
                 } else if(m_ADL_num4opChannels > 6*m_ADL_numCards) {
                     m_ADL_num4opChannels = 6*m_ADL_numCards;
-                    v.setText(Integer.toString(m_ADL_num4opChannels));
+                    v.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
                 }
 
                 Toast toast = Toast.makeText(getApplicationContext(),
@@ -249,12 +254,22 @@ public class Player extends AppCompatActivity {
 
         PendingIntent intent = PendingIntent.getActivity(ctx, 0, notificationIntent, 0);
 
-        Notification b = new Notification.Builder(ctx)
-                .setContentTitle("Playing " + m_lastFile)
-                .setContentText("Playing music!")
-                .setSmallIcon(R.drawable.ic_stat_name)
-                .setContentIntent(intent)
-                .build();
+        Notification b = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
+            b = new Notification.Builder(ctx)
+                    .setContentTitle("Playing " + m_lastFile)
+                    .setContentText("Playing music!")
+                    .setSmallIcon(R.drawable.ic_stat_name)
+                    .setContentIntent(intent)
+                    .build();
+        } else {
+            b = new Notification.Builder(ctx)
+                    .setContentTitle("Playing " + m_lastFile)
+                    .setContentText("Playing music!")
+                    .setSmallIcon(R.drawable.ic_stat_name)
+                    .setContentIntent(intent)
+                    .getNotification();
+        }
         b.flags |= Notification.FLAG_NO_CLEAR|Notification.FLAG_ONGOING_EVENT;
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         notificationManager.notify(0, b);
@@ -317,9 +332,9 @@ public class Player extends AppCompatActivity {
 
     public void OnOpenFileClick(View view) {
         // Here, thisActivity is the current activity
-        if (ContextCompat.checkSelfPermission(this,
-                Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED)
+        if( (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) &&
+                (ContextCompat.checkSelfPermission(this,
+                 Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) )
         {
             // Should we show an explanation?
             if(ActivityCompat.shouldShowRequestPermissionRationale(this,
@@ -336,10 +351,12 @@ public class Player extends AppCompatActivity {
                 b.show();
             } else {
                 // No explanation needed, we can request the permission.
-                ActivityCompat.requestPermissions(this,
-                        new String[] { Manifest.permission.READ_EXTERNAL_STORAGE},
-                        MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE);
-                // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    ActivityCompat.requestPermissions(this,
+                            new String[] { Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+                }
+                //MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE
+                // MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE is an
                 // app-defined int constant. The callback method gets the
                 // result of the request.
             }
