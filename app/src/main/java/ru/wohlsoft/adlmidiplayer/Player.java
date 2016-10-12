@@ -5,6 +5,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
@@ -36,15 +37,17 @@ public class Player extends AppCompatActivity {
     public final int            BUF_SIZE = 10240;
     private long                MIDIDevice = 0;
     private volatile boolean    isPlaying = false;
-    private String              m_lastFile = "";
-    private String              m_lastPath = Environment.getExternalStorageDirectory().getPath();;
 
+    private SharedPreferences   m_setup = null;
+
+    private String              m_lastFile = "";
+    private String              m_lastPath = Environment.getExternalStorageDirectory().getPath();
     private int                 m_ADL_bank = 62;
     private boolean             m_ADL_tremolo = false;
     private boolean             m_ADL_vibrato = false;
     private boolean             m_ADL_scalable = false;
     private boolean             m_ADL_adlibdrums = false;
-    private int                 m_ADL_numCards = 2;
+    private int                 m_adl_numChips = 2;
     private int                 m_ADL_num4opChannels = 7;
 
     @Override
@@ -58,6 +61,17 @@ public class Player extends AppCompatActivity {
                     ContextCompat.checkSelfPermission(this,
                             Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
         }
+
+        m_setup = getPreferences(Context.MODE_PRIVATE);
+
+        m_lastPath              = m_setup.getString("lastPath", m_lastPath);
+        m_ADL_bank              = m_setup.getInt("adlBank", m_ADL_bank);
+        m_ADL_tremolo           = m_setup.getBoolean("flagTremolo", m_ADL_tremolo);
+        m_ADL_vibrato           = m_setup.getBoolean("flagVibrato", m_ADL_vibrato);
+        m_ADL_scalable          = m_setup.getBoolean("flagScalable", m_ADL_scalable);
+        m_ADL_adlibdrums        = m_setup.getBoolean("flagAdlibDrums", m_ADL_adlibdrums);
+        m_adl_numChips          = m_setup.getInt("numChips", m_adl_numChips);
+        m_ADL_num4opChannels    = m_setup.getInt("num4opChannels", m_ADL_num4opChannels);
 
         //Fill bank number box
         List<String> spinnerArray =  new ArrayList<String>();
@@ -88,6 +102,9 @@ public class Player extends AppCompatActivity {
                         adl_openFile(MIDIDevice, m_lastFile);
                     }
                 }
+
+                m_setup.edit().putInt("adlBank", m_ADL_bank).apply();
+
                 Toast toast = Toast.makeText(getApplicationContext(),
                         "Bank changed to: " + selectedItemPosition, Toast.LENGTH_SHORT);
                 toast.show();
@@ -103,6 +120,7 @@ public class Player extends AppCompatActivity {
                    m_ADL_tremolo = isChecked;
                    if(MIDIDevice != 0)
                         adl_setHTremolo(MIDIDevice, m_ADL_tremolo ? 1 : 0);
+                   m_setup.edit().putBoolean("flagTremolo", m_ADL_tremolo).apply();
                    Toast toast = Toast.makeText(getApplicationContext(),
                            "Deep tremolo toggled!", Toast.LENGTH_SHORT);
                    toast.show();
@@ -117,6 +135,7 @@ public class Player extends AppCompatActivity {
                    m_ADL_vibrato = isChecked;
                    if(MIDIDevice != 0)
                        adl_setHVibrato(MIDIDevice, m_ADL_vibrato ? 1 : 0);
+                   m_setup.edit().putBoolean("flagVibrato", m_ADL_vibrato).apply();
                    Toast toast = Toast.makeText(getApplicationContext(),
                            "Deep vibrato toggled!", Toast.LENGTH_SHORT);
                    toast.show();
@@ -131,6 +150,7 @@ public class Player extends AppCompatActivity {
                        m_ADL_scalable = isChecked;
                        if(MIDIDevice != 0)
                            adl_setScaleModulators(MIDIDevice, m_ADL_scalable ? 1 : 0);
+                       m_setup.edit().putBoolean("flagScalable", m_ADL_scalable).apply();
                        Toast toast = Toast.makeText(getApplicationContext(),
                                "Scalabme modulation toggled toggled!", Toast.LENGTH_SHORT);
                        toast.show();
@@ -145,6 +165,7 @@ public class Player extends AppCompatActivity {
                    m_ADL_adlibdrums = isChecked;
                    if(MIDIDevice != 0)
                        adl_setPercMode(MIDIDevice, m_ADL_adlibdrums ? 1 : 0);
+                   m_setup.edit().putBoolean("flagAdlibDrums", m_ADL_adlibdrums).apply();
                    Toast toast = Toast.makeText(getApplicationContext(),
                            "AdLib percussion mode toggled!", Toast.LENGTH_SHORT);
                    toast.show();
@@ -155,39 +176,42 @@ public class Player extends AppCompatActivity {
         NumberPicker numChips = (NumberPicker)findViewById(R.id.numChips);
         numChips.setMinValue(1);
         numChips.setMaxValue(100);
-        numChips.setValue(m_ADL_numCards);
+        numChips.setValue(m_adl_numChips);
         numChips.setWrapSelectorWheel(false);
         TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
-        numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_numCards));
+        numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_adl_numChips));
 
         numChips.setOnValueChangedListener(new NumberPicker.OnValueChangeListener()
         {
             @Override
             public void onValueChange(NumberPicker picker, int oldVal, int newVal)
             {
-                m_ADL_numCards = picker.getValue();
-                if(m_ADL_numCards<=1) {
-                    m_ADL_numCards = 1;
+                m_adl_numChips = picker.getValue();
+                if(m_adl_numChips <=1) {
+                    m_adl_numChips = 1;
                     picker.setValue(1);
-                } else if(m_ADL_numCards>100) {
-                    m_ADL_numCards = 100;
+                } else if(m_adl_numChips >100) {
+                    m_adl_numChips = 100;
                     picker.setValue(100);
                 }
                 NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
-                if(m_ADL_num4opChannels > 6*m_ADL_numCards) {
-                    m_ADL_num4opChannels = 6*m_ADL_numCards;
+                if(m_ADL_num4opChannels > 6* m_adl_numChips) {
+                    m_ADL_num4opChannels = 6* m_adl_numChips;
                     num4opChannels.setValue( m_ADL_num4opChannels );
+                    m_setup.edit().putInt("num4opChannels", m_ADL_num4opChannels).apply();
                 }
-                num4opChannels.setMaxValue(m_ADL_numCards*6);
+                num4opChannels.setMaxValue(m_adl_numChips *6);
 
                 TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
-                numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_numCards));
+                numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_adl_numChips));
+
+                m_setup.edit().putInt("numChips", m_adl_numChips).apply();
             }
         });
 
         NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
         num4opChannels.setMinValue(0);
-        num4opChannels.setMaxValue(m_ADL_numCards*6);
+        num4opChannels.setMaxValue(m_adl_numChips *6);
         num4opChannels.setValue(m_ADL_num4opChannels);
         num4opChannels.setWrapSelectorWheel(false);
         TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
@@ -200,12 +224,13 @@ public class Player extends AppCompatActivity {
                 if(m_ADL_num4opChannels<=0) {
                     m_ADL_num4opChannels = 0;
                     picker.setValue(0);
-                } else if(m_ADL_num4opChannels > 6*m_ADL_numCards) {
-                    m_ADL_num4opChannels = 6*m_ADL_numCards;
+                } else if(m_ADL_num4opChannels > 6* m_adl_numChips) {
+                    m_ADL_num4opChannels = 6* m_adl_numChips;
                     picker.setValue(m_ADL_num4opChannels);
                 }
                 TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
                 num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
+                m_setup.edit().putInt("num4opChannels", m_ADL_num4opChannels).apply();
             }
         });
 
@@ -322,7 +347,7 @@ public class Player extends AppCompatActivity {
         uninitPlayer();
         MIDIDevice = adl_init(44100);
         adl_setBank(MIDIDevice, m_ADL_bank);
-        adl_setNumCards(MIDIDevice, m_ADL_numCards);
+        adl_setNumCards(MIDIDevice, m_adl_numChips);
         adl_setNumFourOpsChn(MIDIDevice, m_ADL_num4opChannels);
         adl_setHTremolo(MIDIDevice, m_ADL_tremolo?1:0);
         adl_setHVibrato(MIDIDevice, m_ADL_vibrato?1:0);
@@ -409,6 +434,7 @@ public class Player extends AppCompatActivity {
                             initPlayer();
                             m_lastFile = fileName;
                             m_lastPath = lastPath;
+                            m_setup.edit().putString("lastPath", m_lastPath).apply();
                             if(adl_openFile(MIDIDevice, m_lastFile) < 0)
                             {
                                 AlertDialog.Builder b = new AlertDialog.Builder(getParent());
