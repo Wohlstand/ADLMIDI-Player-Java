@@ -114,6 +114,7 @@ public class Player extends AppCompatActivity {
         });
 
         CheckBox deepTremolo = (CheckBox)findViewById(R.id.deepTremolo);
+        deepTremolo.setChecked(m_ADL_tremolo);
         deepTremolo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                @Override
                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -129,6 +130,7 @@ public class Player extends AppCompatActivity {
         );
 
         CheckBox deepVibrato = (CheckBox)findViewById(R.id.deepVibrato);
+        deepVibrato.setChecked(m_ADL_vibrato);
         deepVibrato.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                @Override
                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -144,6 +146,7 @@ public class Player extends AppCompatActivity {
         );
 
         CheckBox scalableMod = (CheckBox)findViewById(R.id.scalableModulation);
+        scalableMod.setChecked(m_ADL_scalable);
         scalableMod.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                    @Override
                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -159,6 +162,7 @@ public class Player extends AppCompatActivity {
         );
 
         CheckBox adlDrums = (CheckBox)findViewById(R.id.adlibDrumsMode);
+        adlDrums.setChecked(m_ADL_adlibdrums);
         adlDrums.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                @Override
                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
