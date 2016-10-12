@@ -7,15 +7,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.view.KeyEvent;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
-import android.widget.EditText;
+import android.widget.NumberPicker;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Button;
@@ -152,50 +152,60 @@ public class Player extends AppCompatActivity {
            }
         );
 
-        EditText numChips = (EditText)findViewById(R.id.numChips);
-        numChips.setOnEditorActionListener(new EditText.OnEditorActionListener() {
+        NumberPicker numChips = (NumberPicker)findViewById(R.id.numChips);
+        numChips.setMinValue(1);
+        numChips.setMaxValue(100);
+        numChips.setValue(m_ADL_numCards);
+        numChips.setWrapSelectorWheel(false);
+        TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
+        numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_numCards));
+
+        numChips.setOnValueChangedListener(new NumberPicker.OnValueChangeListener()
+        {
             @Override
-            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                m_ADL_numCards = Integer.parseInt(v.getText().toString());
+            public void onValueChange(NumberPicker picker, int oldVal, int newVal)
+            {
+                m_ADL_numCards = picker.getValue();
                 if(m_ADL_numCards<=1) {
                     m_ADL_numCards = 1;
-                    v.setText(String.format(Locale.getDefault(), "%d", 1));
+                    picker.setValue(1);
                 } else if(m_ADL_numCards>100) {
                     m_ADL_numCards = 100;
-                    v.setText(String.format(Locale.getDefault(), "%d", 100));
+                    picker.setValue(100);
                 }
-
-                Toast toast = Toast.makeText(getApplicationContext(),
-                        "Num of chips changed!", Toast.LENGTH_SHORT);
-                toast.show();
-
+                NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
                 if(m_ADL_num4opChannels > 6*m_ADL_numCards) {
                     m_ADL_num4opChannels = 6*m_ADL_numCards;
-                    EditText num4opChannels = (EditText)findViewById(R.id.num4opChans);
-                    num4opChannels.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
+                    num4opChannels.setValue( m_ADL_num4opChannels );
                 }
+                num4opChannels.setMaxValue(m_ADL_numCards*6);
 
-                return true;
+                TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
+                numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_numCards));
             }
         });
 
-        EditText num4opChannels = (EditText)findViewById(R.id.num4opChans);
-        num4opChannels.setOnEditorActionListener(new EditText.OnEditorActionListener() {
+        NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
+        num4opChannels.setMinValue(0);
+        num4opChannels.setMaxValue(m_ADL_numCards*6);
+        num4opChannels.setValue(m_ADL_num4opChannels);
+        num4opChannels.setWrapSelectorWheel(false);
+        TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
+        num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
+
+        num4opChannels.setOnValueChangedListener(new NumberPicker.OnValueChangeListener() {
             @Override
-            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                m_ADL_num4opChannels = Integer.parseInt(v.getText().toString());
+            public void onValueChange(NumberPicker picker, int oldVal, int newVal) {
+                m_ADL_num4opChannels = picker.getValue();
                 if(m_ADL_num4opChannels<=0) {
                     m_ADL_num4opChannels = 0;
-                    v.setText(String.format(Locale.getDefault(), "%d", 0));
+                    picker.setValue(0);
                 } else if(m_ADL_num4opChannels > 6*m_ADL_numCards) {
                     m_ADL_num4opChannels = 6*m_ADL_numCards;
-                    v.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
+                    picker.setValue(m_ADL_num4opChannels);
                 }
-
-                Toast toast = Toast.makeText(getApplicationContext(),
-                        "Num of 4-op channels changed!", Toast.LENGTH_SHORT);
-                toast.show();
-                return true;
+                TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
+                num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
             }
         });
 
@@ -209,8 +219,19 @@ public class Player extends AppCompatActivity {
             public void onClick(View view) {
                 playerStop();
                 uninitPlayer();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    finishAffinity();
+                } else {
+                    finish();
+                }
                 System.gc();
-                finish();
+                Handler handler = new Handler();
+                handler.postDelayed(new Runnable(){
+                    @Override
+                    public void run(){
+                        System.exit(0);
+                    }
+                }, 1000);
             }
         });
 

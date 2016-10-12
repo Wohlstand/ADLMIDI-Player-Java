@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/activity_player"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
-    android:paddingBottom="@dimen/activity_vertical_margin"
     tools:context="ru.wohlsoft.adlmidiplayer.Player">
+    <RelativeLayout
+        android:id="@+id/activity_playerZ"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="@dimen/activity_vertical_margin"
+        android:paddingLeft="@dimen/activity_horizontal_margin"
+        android:paddingRight="@dimen/activity_horizontal_margin"
+        android:paddingTop="@dimen/activity_vertical_margin">
 
     <TextView
         android:id="@+id/sample_text"
@@ -19,32 +23,53 @@
         android:layout_alignParentRight="true"
         android:layout_alignParentEnd="true"
         android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true" />
 
     <Button
+        tools:text="@string/open"
+        android:text="@string/open"
+        android:id="@+id/openFile"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignLeft="@+id/openFile"
-        android:layout_alignStart="@+id/openFile"
-        android:id="@+id/quitapp"
-        tools:text="@string/quit"
-        android:text="@string/quit"
+        android:layout_below="@+id/sample_text"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"/>
+
+    <Button
+        tools:text="@string/playpause"
+        android:text="@string/playpause"
+        android:id="@+id/playPause"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/sample_text"
+        android:layout_toRightOf="@+id/openFile"
+        android:layout_toEndOf="@+id/openFile"/>
+
+    <Button
+        tools:text="@string/restart"
+        android:text="@string/restart"
+        android:id="@+id/restart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/sample_text"
         android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true" />
+        android:layout_alignParentEnd="true"
+        android:layout_toRightOf="@+id/playPause"
+        android:layout_toEndOf="@+id/playPause" />
 
     <CheckBox
         android:text="@string/htremolo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/playPause"
         android:layout_marginTop="24dp"
         android:id="@+id/deepTremolo"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
+        android:layout_below="@+id/openFile"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
-        tools:text="@string/htremolo" />
+        tools:text="@string/htremolo"
+        android:layout_toLeftOf="@+id/restart"
+        android:layout_toStartOf="@+id/restart" />
 
     <CheckBox
         android:text="@string/hvibrato"
@@ -54,9 +79,9 @@
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
         android:id="@+id/deepVibrato"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        tools:text="@string/hvibrato" />
+        tools:text="@string/hvibrato"
+        android:layout_alignRight="@+id/deepTremolo"
+        android:layout_alignEnd="@+id/deepTremolo" />
 
     <CheckBox
         android:text="@string/scalemod"
@@ -66,9 +91,9 @@
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
         android:id="@+id/scalableModulation"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        tools:text="@string/scalemod" />
+        tools:text="@string/scalemod"
+        android:layout_alignRight="@+id/deepVibrato"
+        android:layout_alignEnd="@+id/deepVibrato" />
 
     <CheckBox
         android:text="@string/adlibdrums"
@@ -78,15 +103,15 @@
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
         android:id="@+id/adlibDrumsMode"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        tools:text="@string/adlibdrums" />
+        tools:text="@string/adlibdrums"
+        android:layout_alignRight="@+id/scalableModulation"
+        android:layout_alignEnd="@+id/scalableModulation" />
 
     <TextView
         android:text="@string/bankNo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/textView"
+        android:id="@+id/musicBankLabel"
         android:layout_below="@+id/adlibDrumsMode"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
@@ -98,90 +123,96 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/bankNo"
-        android:layout_below="@+id/textView"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
-
-    <EditText
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:inputType="numberSigned"
-        android:ems="10"
-        android:layout_below="@+id/bankNo"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginTop="13dp"
-        android:id="@+id/numChips"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:text="2" />
-
-    <TextView
-        android:text="@string/numChips"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/bankNo"
-        android:id="@+id/numChipsLabel"
-        tools:text="@string/numChips"
+        android:layout_below="@+id/musicBankLabel"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
         android:layout_alignParentRight="true"
         android:layout_alignParentEnd="true" />
 
-    <TextView
-        android:text="@string/num4opChans"
+
+        <NumberPicker
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:inputType="numberSigned"
+            android:ems="10"
+            android:id="@+id/numChips"
+            android:layout_below="@+id/numChipsLabel"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:descendantFocusability="blocksDescendants"
+            android:orientation="horizontal"/>
+
+        <NumberPicker
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:inputType="numberSigned"
+            android:ems="10"
+            android:id="@+id/num4opChans"
+            android:descendantFocusability="blocksDescendants"
+            android:orientation="horizontal"
+            android:layout_alignBaseline="@+id/numChips"
+            android:layout_alignBottom="@+id/numChips"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/quitapp"
+            tools:text="@string/quit"
+            android:text="@string/quit"
+            android:layout_below="@+id/numChips"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true" />
+
+        <TextView
+            android:text="@string/num4opChans"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/num4opChansLabel"
+            tools:text="@string/num4opChans"
+            android:layout_marginTop="29dp"
+            android:layout_below="@+id/numChipsLabel"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true" />
+
+        <TextView
+        android:text="@string/numChips"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/numChips"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:id="@+id/num4opChansLabel"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        tools:text="@string/num4opChans" />
+            android:id="@+id/numChipsLabel"
+        tools:text="@string/numChips"
+            android:layout_below="@+id/bankNo"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginTop="19dp" />
 
-    <EditText
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:inputType="numberSigned"
-        android:ems="10"
-        android:layout_below="@+id/num4opChansLabel"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:id="@+id/num4opChans"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:singleLine="true"
-        android:text="7" />
+        <TextView
+            android:text="TextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/numChipsCount"
+            android:layout_toRightOf="@+id/numChips"
+            android:layout_toEndOf="@+id/numChips"
+            android:layout_alignBottom="@+id/numChips"
+            android:layout_alignTop="@+id/numChips"
+            android:textAllCaps="false"
+            android:textStyle="normal|italic" />
 
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/openFile"
-        tools:text="@string/open"
-        android:text="@string/open"
-        android:layout_below="@+id/sample_text"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
+        <TextView
+            android:text="TextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignTop="@+id/num4opChans"
+            android:layout_toLeftOf="@+id/num4opChans"
+            android:layout_toStartOf="@+id/num4opChans"
+            android:id="@+id/num4opChansCount"
+            android:layout_above="@+id/quitapp"
+            android:textAlignment="center"
+            android:textStyle="normal|italic" />
 
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/playPause"
-        tools:text="@string/playpause"
-        android:text="@string/playpause"
-        android:layout_below="@+id/sample_text"
-        android:layout_toRightOf="@+id/openFile"
-        android:layout_toEndOf="@+id/openFile" />
+    </RelativeLayout>
+</ScrollView>
 
-    <Button
-        android:text="@string/restart"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/sample_text"
-        android:layout_toRightOf="@+id/playPause"
-        android:layout_toEndOf="@+id/playPause"
-        android:id="@+id/restart"
-        tools:text="@string/restart" />
-
-</RelativeLayout>
