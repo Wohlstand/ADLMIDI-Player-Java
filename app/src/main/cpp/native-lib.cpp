@@ -347,3 +347,9 @@ Java_ru_wohlsoft_adlmidiplayer_Player_adl_1getBankName(JNIEnv *env, jobject inst
     return env->NewStringUTF(banknames[(int)bank]);
 }
 
+JNIEXPORT void JNICALL
+Java_ru_wohlsoft_adlmidiplayer_Player_adl_1setLogarithmicVolumes(JNIEnv *env, jobject instance,
+                                                                 jlong device, jint logvol)
+{
+    adl_setLogarithmicVolumes(ADLDEV, (int)logvol);
+}

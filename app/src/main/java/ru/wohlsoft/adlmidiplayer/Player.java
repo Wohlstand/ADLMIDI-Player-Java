@@ -47,6 +47,7 @@ public class Player extends AppCompatActivity {
     private boolean             m_ADL_vibrato = false;
     private boolean             m_ADL_scalable = false;
     private boolean             m_ADL_adlibdrums = false;
+    private boolean             m_ADL_logvolumes = false;
     private int                 m_adl_numChips = 2;
     private int                 m_ADL_num4opChannels = 7;
 
@@ -70,6 +71,7 @@ public class Player extends AppCompatActivity {
         m_ADL_vibrato           = m_setup.getBoolean("flagVibrato", m_ADL_vibrato);
         m_ADL_scalable          = m_setup.getBoolean("flagScalable", m_ADL_scalable);
         m_ADL_adlibdrums        = m_setup.getBoolean("flagAdlibDrums", m_ADL_adlibdrums);
+        m_ADL_logvolumes        = m_setup.getBoolean("flagLogVolumes", m_ADL_logvolumes);
         m_adl_numChips          = m_setup.getInt("numChips", m_adl_numChips);
         m_ADL_num4opChannels    = m_setup.getInt("num4opChannels", m_ADL_num4opChannels);
 
@@ -175,6 +177,22 @@ public class Player extends AppCompatActivity {
                    toast.show();
                }
            }
+        );
+
+        CheckBox logVolumes = (CheckBox)findViewById(R.id.logVols);
+        logVolumes.setChecked(m_ADL_logvolumes);
+        logVolumes.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    m_ADL_logvolumes = isChecked;
+                    if(MIDIDevice != 0)
+                        adl_setLogarithmicVolumes(MIDIDevice, m_ADL_logvolumes ? 1 : 0);
+                    m_setup.edit().putBoolean("flagLogVolumes", m_ADL_logvolumes).apply();
+                    Toast toast = Toast.makeText(getApplicationContext(),
+                            "Logariphmic volumes mode toggled!", Toast.LENGTH_SHORT);
+                    toast.show();
+                }
+            }
         );
 
         NumberPicker numChips = (NumberPicker)findViewById(R.id.numChips);
@@ -357,6 +375,7 @@ public class Player extends AppCompatActivity {
         adl_setHVibrato(MIDIDevice, m_ADL_vibrato?1:0);
         adl_setScaleModulators(MIDIDevice, m_ADL_scalable?1:0);
         adl_setPercMode(MIDIDevice, m_ADL_adlibdrums?1:0);
+        adl_setLogarithmicVolumes(MIDIDevice, m_ADL_logvolumes?1:0);
     }
 
     public void OnPlayClick(View view)
@@ -482,6 +501,7 @@ public class Player extends AppCompatActivity {
 //    extern int adl_setBank(struct ADL_MIDIPlayer* device, int bank);
 //
     public native int adl_setBank(long device, int bank);
+
 ///* Returns total number of available banks */
 //    extern int adl_getBanksCount();
     public native int adl_getBanksCount();
@@ -512,9 +532,15 @@ public class Player extends AppCompatActivity {
 //    extern void adl_setLoopEnabled(struct ADL_MIDIPlayer* device, int loopEn);
 //
     public native void adl_setLoopEnabled(long device, int loopEn);
+
+///    /*Enable or disable Logariphmic volume changer */
+//    extern void adl_setLogarithmicVolumes(struct ADL_MIDIPlayer* device, int logvol);
+    public native void adl_setLogarithmicVolumes(long device, int logvol);
+
 ///*Returns string which contains last error message*/
 //    extern const char* adl_errorString();
     public native String adl_errorString();
+
 //
 //    /*Initialize ADLMIDI Player device*/
 //    extern struct ADL_MIDIPlayer* adl_init(long sample_rate);

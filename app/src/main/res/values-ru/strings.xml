@@ -12,4 +12,5 @@
     <string name="num4opChans">Всего 4-х операторных каналов</string>
     <string name="numChips">Число эмулируемых чипов</string>
     <string name="restart">Рестарт</string>
+    <string name="logvolumes">Логарифмич. громкости</string>
 </resources>

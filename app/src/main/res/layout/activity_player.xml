@@ -112,7 +112,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/musicBankLabel"
-        android:layout_below="@+id/adlibDrumsMode"
+        android:layout_below="@+id/logVols"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
         android:layout_alignParentRight="true"
@@ -212,6 +212,17 @@
             android:layout_above="@+id/quitapp"
             android:textAlignment="center"
             android:textStyle="normal|italic" />
+
+        <CheckBox
+            android:text="@string/logvolumes"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/adlibDrumsMode"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:id="@+id/logVols"
+            android:layout_alignRight="@+id/adlibDrumsMode"
+            android:layout_alignEnd="@+id/adlibDrumsMode" />
 
     </RelativeLayout>
 </ScrollView>
