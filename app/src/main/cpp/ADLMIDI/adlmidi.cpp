@@ -607,7 +607,7 @@ class MIDIplay
 public:
     MIDIplay():
         cmf_percussion_mode(false),
-        config(0),
+        config(NULL),
         trackStart(false),
         loopStart(false),
         loopEnd(false),
