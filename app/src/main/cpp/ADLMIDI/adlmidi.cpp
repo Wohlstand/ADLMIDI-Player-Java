@@ -48,6 +48,7 @@
 #include <deque>  // deque
 #include <cmath>  // exp, log, ceil
 #include <stdio.h>
+#include <limits> // numeric_limit
 
 #include <deque>
 #include <algorithm>
@@ -57,7 +58,6 @@
 #include "dbopl.h"
 #else
 #include "nukedopl3.h"
-#include <limits>
 #endif
 
 #include "adldata.hh"
@@ -147,9 +147,9 @@ struct OPL3
         std::vector<_opl3_chip> cards;
 #endif
     private:
-        std::vector<unsigned short> ins; // index to adl[], cached, needed by Touch()
-        std::vector<unsigned char> pit;  // value poked to B0, cached, needed by NoteOff)(
-        std::vector<unsigned char> regBD;
+        std::vector<uint16_t>   ins; // index to adl[], cached, needed by Touch()
+        std::vector<uint8_t>    pit;  // value poked to B0, cached, needed by NoteOff)(
+        std::vector<uint8_t>    regBD;
 
         std::vector<adlinsdata> dynamic_metainstruments; // Replaces adlins[] when CMF file
         std::vector<adldata>    dynamic_instruments;     // Replaces adl[]    when CMF file
@@ -202,10 +202,10 @@ struct OPL3
         // 7 = percussion Hihat
         // 8 = percussion slave
 
-        void Poke(size_t card, unsigned index, unsigned value)
+        void Poke(size_t card, uint32_t index, uint32_t value)
         {
 #ifdef ADLMIDI_USE_DOSBOX_OPL
-            cards[card].WriteReg(index, value);
+            cards[card].WriteReg(index, static_cast<uint8_t>(value));
 #else
             OPL3_WriteReg(&cards[card], static_cast<Bit16u>(index), static_cast<Bit8u>(value));
 #endif
@@ -213,7 +213,7 @@ struct OPL3
         void PokeN(size_t card, uint16_t index, uint8_t value)
         {
 #ifdef ADLMIDI_USE_DOSBOX_OPL
-            cards[card].WriteReg(static_cast<Bit32u>(index), static_cast<Bit32u>(value));
+            cards[card].WriteReg(static_cast<Bit32u>(index), value);
 #else
             OPL3_WriteReg(&cards[card], index, value);
 #endif
@@ -428,18 +428,31 @@ struct OPL3
         void Reset()
         {
             LogarithmicVolumes = false;
-            cards.resize(NumCards);
+#ifdef ADLMIDI_USE_DOSBOX_OPL
+            DBOPL::Handler emptyChip;
+            memset(&emptyChip, 0, sizeof(DBOPL::Handler));
+#else
+            _opl3_chip emptyChip;
+            memset(&emptyChip, 0, sizeof(_opl3_chip));
+#endif
+            cards.clear();
+            ins.clear();
+            pit.clear();
+            regBD.clear();
+            cards.resize(NumCards, emptyChip);
             NumChannels = NumCards * 23;
-            ins.resize(NumChannels,     189);
-            pit.resize(NumChannels,       0);
-            regBD.resize(NumCards);
-            four_op_category.resize(NumChannels);
+            ins.resize(NumChannels, 189);
+            pit.resize(NumChannels,   0);
+            regBD.resize(NumCards,    0);
+            four_op_category.resize(NumChannels, 0);
 
             for(unsigned p = 0, a = 0; a < NumCards; ++a)
             {
-                for(unsigned b = 0; b < 18; ++b) four_op_category[p++] = 0;
+                for(unsigned b = 0; b < 18; ++b)
+                    four_op_category[p++] = 0;
 
-                for(unsigned b = 0; b < 5; ++b) four_op_category[p++] = 8;
+                for(unsigned b = 0; b < 5; ++b)
+                    four_op_category[p++] = 8;
             }
 
             static const uint16_t data[] =
@@ -652,7 +665,7 @@ class MIDIplay
                   activenotes() { }
         };
         std::vector<MIDIchannel> Ch;
-        bool cmf_percussion_mode = false;
+        bool cmf_percussion_mode;
 
         // Additional information about AdLib channels
         struct AdlChannel
@@ -773,6 +786,33 @@ class MIDIplay
                 if(!(byte & 0x80)) break;
             }
 
+            return result;
+        }
+        uint64_t ReadVarLenEx(size_t tk, bool &ok)
+        {
+            uint64_t result = 0;
+            ok = false;
+
+            for(;;)
+            {
+                if(tk >= TrackData.size())
+                    return 1;
+
+                if(tk >= CurrentPosition.track.size())
+                    return 2;
+
+                size_t ptr = CurrentPosition.track[tk].ptr;
+
+                if(ptr >= TrackData[tk].size())
+                    return 3;
+
+                unsigned char byte = TrackData[tk][CurrentPosition.track[tk].ptr++];
+                result = (result << 7) + (byte & 0x7F);
+
+                if(!(byte & 0x80)) break;
+            }
+
+            ok = true;
             return result;
         }
 
@@ -1115,7 +1155,9 @@ InvFmt:
                 }
             }
 
-            TrackData.resize(TrackCount);
+            TrackData.clear();
+            TrackData.resize(TrackCount, std::vector<uint8_t>());
+            CurrentPosition.track.clear();
             CurrentPosition.track.resize(TrackCount);
             InvDeltaTicks = fraction<long>(1, 1000000l * static_cast<long>(DeltaTicks));
             //Tempo       = 1000000l * InvDeltaTicks;
@@ -1209,8 +1251,19 @@ InvFmt:
                     if(is_GMF || is_MUS) // Note: CMF does include the track end tag.
                         TrackData[tk].insert(TrackData[tk].end(), EndTag + 0, EndTag + 4);
 
+                    bool ok = false;
                     // Read next event time
-                    CurrentPosition.track[tk].delay = static_cast<long>(ReadVarLen(tk));
+                    uint64_t tkDelay = ReadVarLenEx(tk, ok);
+
+                    if(ok)
+                        CurrentPosition.track[tk].delay = static_cast<long>(tkDelay);
+                    else
+                    {
+                        std::stringstream msg;
+                        msg << fr._fileName << ": invalid variable length in the track " << tk << "! (error code " << tkDelay << ")";
+                        ADLMIDI_ErrorString = msg.str();
+                        return false;
+                    }
                 }
             }
 
@@ -2336,14 +2389,6 @@ retry_arpeggio:
 
                 size_t n_users = ch[c].users.size();
 
-                /*if(true)
-                {
-                    UI.GotoXY(64,c+1); UI.Color(2);
-                    std::fprintf(stderr, "%7ld/%7ld,%3u\r",
-                        ch[c].keyoff,
-                        (unsigned) n_users);
-                    UI.x = 0;
-                }*/
                 if(n_users > 1)
                 {
                     AdlChannel::users_t::const_iterator i = ch[c].users.begin();
@@ -2610,7 +2655,7 @@ ADLMIDI_EXPORT void adl_setLoopEnabled(ADL_MIDIPlayer *device, int loopEn)
 {
     if(!device) return;
 
-    device->QuitWithoutLooping = (loopEn != 0);
+    device->QuitWithoutLooping = (loopEn == 0);
 }
 
 ADLMIDI_EXPORT void adl_setLogarithmicVolumes(struct ADL_MIDIPlayer *device, int logvol)
@@ -2773,8 +2818,8 @@ ADLMIDI_EXPORT int adl_play(ADL_MIDIPlayer *device, int sampleCount, short *out)
     if(device->QuitFlag) return 0;
 
     ssize_t gotten_len = 0;
-    ssize_t n_samples = 512;
-    ssize_t n_samples_2 = n_samples * 2;
+    ssize_t n_periodCountStereo = 512;
+    ssize_t n_periodCountPhys = n_periodCountStereo * 2;
     int left = sampleCount;
 
     while(left > 0)
@@ -2808,66 +2853,67 @@ ADLMIDI_EXPORT int adl_play(ADL_MIDIPlayer *device, int sampleCount, short *out)
             const double eat_delay = device->delay < device->maxdelay ? device->delay : device->maxdelay;
             device->delay -= eat_delay;
             device->carry += device->PCM_RATE * eat_delay;
-            n_samples = static_cast<ssize_t>(device->carry);
-            device->carry -= n_samples;
+            n_periodCountStereo = static_cast<ssize_t>(device->carry);
+            n_periodCountPhys = n_periodCountStereo * 2;
+            device->carry -= n_periodCountStereo;
 
             if(device->SkipForward > 0)
                 device->SkipForward -= 1;
             else
             {
-                left -= n_samples_2;
 #ifdef ADLMIDI_USE_DOSBOX_OPL
-                std::vector<int> buf; //int buf[n_samples * 2];
+                std::vector<int> out_buf; //int buf[n_samples * 2];
 #else
-                std::vector<int16_t> buf;
+                std::vector<int16_t> out_buf;
 #endif
-                buf.resize(1024 /*n_samples * 2*/);
-                ssize_t in_count = (n_samples > 512) ? 512 : n_samples;
+                out_buf.resize(1024 /*n_samples * 2*/);
+                ssize_t in_generatedStereo = (n_periodCountStereo > 512) ? 512 : n_periodCountStereo;
+                ssize_t in_generatedPhys = in_generatedStereo * 2;
                 //fill buffer with zeros
-                size_t in_countSamples = static_cast<size_t>(in_count * 2);
+                size_t in_countStereoU = static_cast<size_t>(in_generatedStereo * 2);
 
                 if(device->NumCards == 1)
                 {
 #ifdef ADLMIDI_USE_DOSBOX_OPL
-                    Bitu cnt = static_cast<Bitu>(in_count);
-                    reinterpret_cast<MIDIplay *>(device->adl_midiPlayer)->opl.cards[0].GenerateArr(buf.data(), &cnt);
-                    in_count = static_cast<ssize_t>(cnt);
+                    reinterpret_cast<MIDIplay *>(device->adl_midiPlayer)->opl.cards[0].GenerateArr(out_buf.data(), &in_generatedStereo);
+                    in_generatedPhys = in_generatedStereo * 2;
 #else
-                    OPL3_GenerateStream(&(reinterpret_cast<MIDIplay *>(device->adl_midiPlayer))->opl.cards[0], buf.data(), static_cast<Bit32u>(in_count));
+                    OPL3_GenerateStream(&(reinterpret_cast<MIDIplay *>(device->adl_midiPlayer))->opl.cards[0], out_buf.data(), static_cast<Bit32u>(in_generatedStereo));
 #endif
                     /* Process it */
-                    SendStereoAudio(device, sampleCount, in_count, buf.data(), gotten_len, out);
+                    SendStereoAudio(device, sampleCount, in_generatedStereo, out_buf.data(), gotten_len, out);
                 }
-                else if(n_samples > 0)
+                else if(n_periodCountStereo > 0)
                 {
 #ifdef ADLMIDI_USE_DOSBOX_OPL
-                    std::vector<int> in;
-                    in.resize(1024); /*n_samples * 2 */
-                    ssize_t in_count = n_samples;
+                    std::vector<int32_t> in_mixBuffer;
+                    in_mixBuffer.resize(1024); //n_samples * 2
+                    ssize_t in_generatedStereo = n_periodCountStereo;
 #endif
-                    memset(buf.data(), 0, in_countSamples * sizeof(short));
+                    memset(out_buf.data(), 0, in_countStereoU * sizeof(short));
 
+                    /* Generate data from every chip and mix result */
                     for(unsigned card = 0; card < device->NumCards; ++card)
                     {
 #ifdef ADLMIDI_USE_DOSBOX_OPL
-                        Bitu cnt = static_cast<Bitu>(in_count);
-                        reinterpret_cast<MIDIplay *>(device->adl_midiPlayer)->opl.cards[card].GenerateArr(in.data(), &cnt);
-                        in_count = static_cast<ssize_t>(cnt);
-                        size_t in_sCount = static_cast<size_t>(in_count * 2);
+                        reinterpret_cast<MIDIplay *>(device->adl_midiPlayer)->opl.cards[card].GenerateArr(in_mixBuffer.data(), &in_generatedStereo);
+                        in_generatedPhys = in_generatedStereo * 2;
+                        size_t in_samplesCount = static_cast<size_t>(in_generatedPhys);
 
-                        for(size_t a = 0; a < in_sCount; ++a)
-                            buf[a] += in[a];
+                        for(size_t a = 0; a < in_samplesCount; ++a)
+                            out_buf[a] += in_mixBuffer[a];
 
 #else
-                        OPL3_GenerateStreamMix(&(reinterpret_cast<MIDIplay *>(device->adl_midiPlayer))->opl.cards[card], buf.data(), static_cast<Bit32u>(in_count));
+                        OPL3_GenerateStreamMix(&(reinterpret_cast<MIDIplay *>(device->adl_midiPlayer))->opl.cards[card], out_buf.data(), static_cast<Bit32u>(in_generatedStereo));
 #endif
                     }
 
                     /* Process it */
-                    SendStereoAudio(device, sampleCount, in_count, buf.data(), gotten_len, out);
+                    SendStereoAudio(device, sampleCount, in_generatedStereo, out_buf.data(), gotten_len, out);
                 }
 
-                gotten_len += (n_samples * 2) - device->stored_samples;
+                left -= in_generatedPhys;
+                gotten_len += (in_generatedPhys) - device->stored_samples;
             }
 
             device->delay = reinterpret_cast<MIDIplay *>(device->adl_midiPlayer)->Tick(eat_delay, device->mindelay);

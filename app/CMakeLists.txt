@@ -9,6 +9,8 @@ cmake_minimum_required(VERSION 3.4.1)
 # You can define multiple libraries, and CMake builds it for you.
 # Gradle automatically packages shared libraries with your APK.
 
+add_definitions(-DADLMIDI_USE_DOSBOX_OPL)
+
 add_library( # Sets the name of the library.
              native-lib
 
@@ -20,7 +22,8 @@ add_library( # Sets the name of the library.
              # file are automatically included.
              src/main/cpp/ADLMIDI/adldata.cpp
              src/main/cpp/ADLMIDI/adlmidi.cpp
-             src/main/cpp/ADLMIDI/nukedopl3.c
+             # src/main/cpp/ADLMIDI/nukedopl3.c
+             src/main/cpp/ADLMIDI/dbopl.cpp
              src/main/cpp/native-lib.cpp )
 
 # Searches for a specified prebuilt library and stores the path as a
