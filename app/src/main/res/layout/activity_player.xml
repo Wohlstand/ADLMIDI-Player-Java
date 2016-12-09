@@ -107,12 +107,34 @@
         android:layout_alignRight="@+id/scalableModulation"
         android:layout_alignEnd="@+id/scalableModulation" />
 
+        <TextView
+            android:text="@string/volumesModel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/volumeRangesModelLabel"
+            android:layout_below="@+id/logVols"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true"
+            tools:text="@string/volumesModel" />
+
+        <Spinner
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/volumeRangesModel"
+            android:layout_below="@+id/volumeRangesModelLabel"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true" />
+
     <TextView
         android:text="@string/bankNo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/musicBankLabel"
-        android:layout_below="@+id/logVols"
+        android:layout_below="@+id/volumeRangesModel"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
         android:layout_alignParentRight="true"

@@ -50,6 +50,7 @@ public class Player extends AppCompatActivity {
     private boolean             m_ADL_logvolumes = false;
     private int                 m_adl_numChips = 2;
     private int                 m_ADL_num4opChannels = 7;
+    private int                 m_ADL_volumeModel = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +75,7 @@ public class Player extends AppCompatActivity {
         m_ADL_logvolumes        = m_setup.getBoolean("flagLogVolumes", m_ADL_logvolumes);
         m_adl_numChips          = m_setup.getInt("numChips", m_adl_numChips);
         m_ADL_num4opChannels    = m_setup.getInt("num4opChannels", m_ADL_num4opChannels);
+        m_ADL_volumeModel       = m_setup.getInt("volumeModel", m_ADL_volumeModel);
 
         //Fill bank number box
         List<String> spinnerArray =  new ArrayList<String>();
@@ -114,6 +116,40 @@ public class Player extends AppCompatActivity {
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
+
+        Spinner sVolModel = (Spinner) findViewById(R.id.volumeRangesModel);
+        final String[] volumeModelItems = {"[Auto]", "Generic", "CMF", "DMX", "Apogee", "9X" };
+
+        ArrayAdapter<String> adapterVM = new ArrayAdapter<String>(
+                this, android.R.layout.simple_spinner_item, volumeModelItems);
+        adapterVM.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sVolModel.setAdapter(adapterVM);
+        sVolModel.setSelection(m_ADL_volumeModel);
+
+        sVolModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(AdapterView<?> parent,
+                                       View itemSelected, int selectedItemPosition, long selectedId) {
+                m_ADL_volumeModel = selectedItemPosition;
+                if(!m_lastFile.isEmpty() && (MIDIDevice!=0)) {
+                    if (isPlaying) {
+                        playerStop();
+                        initPlayer();
+                        adl_openFile(MIDIDevice, m_lastFile);
+                        playerPlay();
+                    }
+                    else {
+                        initPlayer();
+                        adl_openFile(MIDIDevice, m_lastFile);
+                    }
+                }
+
+                m_setup.edit().putInt("volumeModel", m_ADL_volumeModel).apply();
+            }
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+
 
         CheckBox deepTremolo = (CheckBox)findViewById(R.id.deepTremolo);
         deepTremolo.setChecked(m_ADL_tremolo);
@@ -376,6 +412,7 @@ public class Player extends AppCompatActivity {
         adl_setScaleModulators(MIDIDevice, m_ADL_scalable?1:0);
         adl_setPercMode(MIDIDevice, m_ADL_adlibdrums?1:0);
         adl_setLogarithmicVolumes(MIDIDevice, m_ADL_logvolumes?1:0);
+        adl_setVolumeRangeModel(MIDIDevice, m_ADL_volumeModel);
     }
 
     public void OnPlayClick(View view)
@@ -536,6 +573,10 @@ public class Player extends AppCompatActivity {
 ///    /*Enable or disable Logariphmic volume changer */
 //    extern void adl_setLogarithmicVolumes(struct ADL_MIDIPlayer* device, int logvol);
     public native void adl_setLogarithmicVolumes(long device, int logvol);
+
+//    /*Set different volume range model */
+//    extern void adl_setVolumeRangeModel(struct ADL_MIDIPlayer *device, int volumeModel);
+    public native void adl_setVolumeRangeModel(long device, int volumeModel);
 
 ///*Returns string which contains last error message*/
 //    extern const char* adl_errorString();

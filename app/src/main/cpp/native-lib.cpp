@@ -353,3 +353,10 @@ Java_ru_wohlsoft_adlmidiplayer_Player_adl_1setLogarithmicVolumes(JNIEnv *env, jo
 {
     adl_setLogarithmicVolumes(ADLDEV, (int)logvol);
 }
+
+JNIEXPORT void JNICALL
+Java_ru_wohlsoft_adlmidiplayer_Player_adl_1setVolumeRangeModel(JNIEnv *env, jobject instance,
+                                                               jlong device, jint volumeModel) {
+
+    adl_setVolumeRangeModel(ADLDEV, (int)volumeModel);
+}

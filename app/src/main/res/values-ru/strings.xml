@@ -13,4 +13,11 @@
     <string name="numChips">Число эмулируемых чипов</string>
     <string name="restart">Рестарт</string>
     <string name="logvolumes">Логарифмич. громкости</string>
+    <string name="volumesModel">Модель диапазонов громкости</string>
+    <string name="vrmAuto">[Авто]</string>
+    <string name="vrmGeneric">Общий</string>
+    <string name="vrmCMF">CMF</string>
+    <string name="vrmDMX">DMX</string>
+    <string name="vrmApogee">Apogee</string>
+    <string name="vrm9x">9X</string>
 </resources>
