@@ -22,6 +22,10 @@ add_library( # Sets the name of the library.
              # file are automatically included.
              src/main/cpp/ADLMIDI/adldata.cpp
              src/main/cpp/ADLMIDI/adlmidi.cpp
+             src/main/cpp/ADLMIDI/adlmidi_load.cpp
+             src/main/cpp/ADLMIDI/adlmidi_midiplay.cpp
+             src/main/cpp/ADLMIDI/adlmidi_opl3.cpp
+             src/main/cpp/ADLMIDI/adlmidi_private.cpp
              # src/main/cpp/ADLMIDI/nukedopl3.c
              src/main/cpp/ADLMIDI/dbopl.cpp
              src/main/cpp/native-lib.cpp )
