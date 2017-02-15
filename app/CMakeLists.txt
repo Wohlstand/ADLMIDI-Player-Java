@@ -11,6 +11,8 @@ cmake_minimum_required(VERSION 3.4.1)
 
 add_definitions(-DADLMIDI_USE_DOSBOX_OPL)
 
+set( CMAKE_CXX_STANDARD 11 )
+
 add_library( # Sets the name of the library.
              native-lib
 
@@ -26,6 +28,8 @@ add_library( # Sets the name of the library.
              src/main/cpp/ADLMIDI/adlmidi_midiplay.cpp
              src/main/cpp/ADLMIDI/adlmidi_opl3.cpp
              src/main/cpp/ADLMIDI/adlmidi_private.cpp
+             src/main/cpp/ADLMIDI/adlmidi_xmi2mid.c
+             src/main/cpp/ADLMIDI/adlmidi_mus2mid.c
              # src/main/cpp/ADLMIDI/nukedopl3.c
              src/main/cpp/ADLMIDI/dbopl.cpp
              src/main/cpp/native-lib.cpp )
@@ -54,3 +58,4 @@ target_link_libraries( # Specifies the target library.
                        OpenSLES )
 
 # target_link_libraries( native-audio-jni android log OpenSLES)
+

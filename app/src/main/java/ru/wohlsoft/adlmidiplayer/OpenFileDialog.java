@@ -113,9 +113,13 @@ public class OpenFileDialog extends AlertDialog.Builder {
         filenameFilter = new FilenameFilter() {
             @Override
             public boolean accept(File file, String fileName) {
+                Pattern filt = Pattern.compile(filter, Pattern.CASE_INSENSITIVE);
                 File tempFile = new File(String.format("%s/%s", file.getPath(), fileName));
-                if (tempFile.isFile())
-                    return tempFile.getName().matches(filter);
+                if (tempFile.isFile()) {
+                    Matcher m = filt.matcher(tempFile.getName());
+                    return m.matches();
+                }
+
                 return true;
             }
         };

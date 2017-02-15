@@ -477,7 +477,7 @@ public class Player extends AppCompatActivity {
                 return;
             }
             OpenFileDialog fileDialog = new OpenFileDialog(this)
-                    .setFilter(".*\\.mid|.*\\.MID|.*\\.kar|.*\\.KAR|.*\\.rmi|.*\\.RMI|.*\\.imf|.*\\.IMF|.*\\.cmf|.*\\.CMF")
+                    .setFilter(".*\\.mid|.*\\.kar|.*\\.rmi|.*\\.imf|.*\\.cmf|.*\\.mus|.*\\.xmi")
                     .setCurrentDirectory(m_lastPath)
                     .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
                     {
@@ -495,11 +495,10 @@ public class Player extends AppCompatActivity {
                             m_lastFile = fileName;
                             m_lastPath = lastPath;
                             m_setup.edit().putString("lastPath", m_lastPath).apply();
-                            if(adl_openFile(MIDIDevice, m_lastFile) < 0)
-                            {
+                            if(adl_openFile(MIDIDevice, m_lastFile) < 0) {
                                 AlertDialog.Builder b = new AlertDialog.Builder(getParent());
                                 b.setTitle("Failed to open file");
-                                b.setMessage("Can't open music file because " + adl_errorString());
+                                b.setMessage("Can't open music file because of " + adl_errorString());
                                 b.setNegativeButton(android.R.string.ok, null);
                                 b.show();
                                 m_lastFile = "";
