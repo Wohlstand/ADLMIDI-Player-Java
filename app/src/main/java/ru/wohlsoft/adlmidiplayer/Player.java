@@ -477,7 +477,7 @@ public class Player extends AppCompatActivity {
                 return;
             }
             OpenFileDialog fileDialog = new OpenFileDialog(this)
-                    .setFilter(".*\\.mid|.*\\.kar|.*\\.rmi|.*\\.imf|.*\\.cmf|.*\\.mus|.*\\.xmi")
+                    .setFilter(".*\\.mid|.*\\.midi|.*\\.kar|.*\\.rmi|.*\\.imf|.*\\.cmf|.*\\.mus|.*\\.xmi")
                     .setCurrentDirectory(m_lastPath)
                     .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
                     {
