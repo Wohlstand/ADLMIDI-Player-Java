@@ -11,8 +11,6 @@ cmake_minimum_required(VERSION 3.4.1)
 
 add_definitions(-DADLMIDI_USE_DOSBOX_OPL)
 
-set( CMAKE_CXX_STANDARD 11 )
-
 add_library( # Sets the name of the library.
              native-lib
 
