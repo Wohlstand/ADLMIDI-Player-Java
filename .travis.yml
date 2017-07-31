@@ -28,8 +28,8 @@ android:
     - extra-google-m2repository
     - extra-android-m2repository
     # Specify at least one system image
-    - sys-img-armeabi-v7a-android-$ANDROID_API_LEVEL
-    - sys-img-armeabi-v7a-google_apis-$ANDROID_API_LEVEL
+    - sys-img-armeabi-v7a-android-24
+    - sys-img-armeabi-v7a-google_apis-24
     #- sys-img-armeabi-v7a-android-22
     #- sys-img-armeabi-v7a-google_apis-22
   licenses:
@@ -59,7 +59,8 @@ before_install:
 # Emulator Management: Create, Start and Wait
 before_script:
   #- echo no | android create avd --force -n test -t android-22 --abi armeabi-v7a --tag google_apis  #--tag ${ANDROID_TAG}
-  - echo no | android create avd --force -n test -t android-$ANDROID_API_LEVEL --abi ${ANDROID_ABI}
+  - android
+  - echo no | android create avd --force -n test -t android-24 --abi ${ANDROID_ABI}
   - emulator -avd test -no-audio -no-window &
   - android-wait-for-emulator
   - adb shell input keyevent 82 &
