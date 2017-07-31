@@ -45,8 +45,8 @@ before_install:
   - sudo apt-get install libstdc++6
 
   - echo y | android update sdk --no-ui --all --filter "tools"
-  - echo y | android update sdk --no-ui --all --filter sys-img-armeabi-v7a-android-${ANDROID_API_LEVEL}
-  - echo y | android update sdk --no-ui --all --filter build-tools-${ANDROID_BUILD_TOOLS_VERSION},android-${ANDROID_API_LEVEL},extra-android-m2repository
+  - echo y | android update sdk --no-ui --all --filter sys-img-armeabi-v7a-android-24
+  - echo y | android update sdk --no-ui --all --filter build-tools-23.0.1,android-24,extra-android-m2repository
   - wget https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_REVISION}-linux-x86_64.zip -O ndk.zip
   - unzip ndk.zip -d . > /dev/null
   - export ANDROID_NDK_HOME=`pwd`/android-ndk-${ANDROID_NDK_REVISION}
