@@ -45,7 +45,6 @@ before_install:
   - sudo apt-get install libstdc++6
 
   - echo y | android update sdk --no-ui --all --filter "tools"
-  - echo y | android update sdk --no-ui --all --filter sys-img-armeabi-v7a-android-24
   - echo y | android update sdk --no-ui --all --filter build-tools-23.0.1,android-24,extra-android-m2repository
   - wget https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_REVISION}-linux-x86_64.zip -O ndk.zip
   - unzip ndk.zip -d . > /dev/null
@@ -59,6 +58,7 @@ before_install:
 # Emulator Management: Create, Start and Wait
 before_script:
   #- echo no | android create avd --force -n test -t android-22 --abi armeabi-v7a --tag google_apis  #--tag ${ANDROID_TAG}
+  - echo y | android update sdk --no-ui --all --filter sys-img-armeabi-v7a-android-24
   - android list targets
   - echo no | android create avd --force -n test -t android-24 --abi ${ANDROID_ABI}
   - emulator -avd test -no-audio -no-window &
