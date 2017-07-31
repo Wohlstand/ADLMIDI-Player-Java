@@ -59,7 +59,7 @@ before_install:
 # Emulator Management: Create, Start and Wait
 before_script:
   #- echo no | android create avd --force -n test -t android-22 --abi armeabi-v7a --tag google_apis  #--tag ${ANDROID_TAG}
-  - android
+  - android list targets
   - echo no | android create avd --force -n test -t android-24 --abi ${ANDROID_ABI}
   - emulator -avd test -no-audio -no-window &
   - android-wait-for-emulator
