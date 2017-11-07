@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.os.AsyncTask;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
@@ -38,6 +39,33 @@ public class Player extends AppCompatActivity {
     public final int            BUF_SIZE = 10240;
     private long                MIDIDevice = 0;
     private volatile boolean    isPlaying = false;
+
+    private class SeekSyncThread extends AsyncTask<Integer, Void, Void> {
+        @Override
+        protected Void doInBackground(Integer... params) {
+            while(!isCancelled()) {
+                try {
+                    Thread.sleep(1000);
+                    if(isPlaying && (MIDIDevice != 0)) {
+                        runOnUiThread(new Runnable()
+                        {
+                            @Override
+                            public void run() {
+                                SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
+                                musPos.setProgress((int)adl_positionTell(MIDIDevice));
+                            }
+                        });
+                    }
+                } catch (InterruptedException e) {
+                    //e.printStackTrace();
+                }
+            }
+
+            return null;
+        }
+    }
+
+    private SeekSyncThread      seekSyncThread;
 
     private SharedPreferences   m_setup = null;
 
@@ -146,6 +174,7 @@ public class Player extends AppCompatActivity {
 
                 m_setup.edit().putInt("volumeModel", m_ADL_volumeModel).apply();
             }
+
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
@@ -349,7 +378,7 @@ public class Player extends AppCompatActivity {
             //private double dstPos = 0;
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if(isPlaying && (MIDIDevice != 0))
+                if(isPlaying && (MIDIDevice != 0) && fromUser)
                     adl_positionSeek(MIDIDevice, (double)progress);
             }
 
@@ -361,7 +390,6 @@ public class Player extends AppCompatActivity {
             public void onStopTrackingTouch(SeekBar seekBar) {
             }
         });
-
     }
 
     private void playerPlay()
@@ -400,13 +428,17 @@ public class Player extends AppCompatActivity {
         notificationManager.notify(0, b);
 
         startPlaying(MIDIDevice);
+        seekSyncThread = new SeekSyncThread();
+        seekSyncThread.execute(0);
     }
 
-    private void playerStop()
-    {
+    private void playerStop() {
         if(!isPlaying)
             return;
+
         isPlaying = false;
+        seekSyncThread.cancel(true);
+
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         notificationManager.cancelAll();
 
@@ -518,7 +550,7 @@ public class Player extends AppCompatActivity {
                             m_lastPath = lastPath;
                             m_setup.edit().putString("lastPath", m_lastPath).apply();
                             if(adl_openFile(MIDIDevice, m_lastFile) < 0) {
-                                AlertDialog.Builder b = new AlertDialog.Builder(getParent());
+                                AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
                                 b.setTitle("Failed to open file");
                                 b.setMessage("Can't open music file because of " + adl_errorInfo(MIDIDevice));
                                 b.setNegativeButton(android.R.string.ok, null);
