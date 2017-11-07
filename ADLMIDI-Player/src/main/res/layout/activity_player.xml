@@ -154,16 +154,18 @@
 
         <SeekBar
             android:id="@+id/musPos"
-            style="@style/Widget.AppCompat.SeekBar.Discrete"
+            style="@style/Widget.AppCompat.SeekBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="35px"
+            android:layout_marginBottom="35px"
             android:layout_alignParentEnd="true"
             android:layout_alignParentLeft="true"
             android:layout_alignParentRight="true"
             android:layout_alignParentStart="true"
             android:layout_below="@+id/bankNo"
-            android:max="10"
-            android:progress="3" />
+            android:max="100"
+            android:progress="0" />
 
         <NumberPicker
             android:id="@+id/numChips"
