@@ -48,32 +48,281 @@ uint64_t MIDIplay::ReadLEint(const void *buffer, size_t nbytes)
     return result;
 }
 
-uint64_t MIDIplay::ReadVarLenEx(size_t tk, bool &ok)
+bool MIDIplay::LoadBank(const std::string &filename)
 {
-    uint64_t result = 0;
-    ok = false;
+    fileReader file;
+    file.openFile(filename.c_str());
+    return LoadBank(file);
+}
 
-    for(;;)
+bool MIDIplay::LoadBank(void *data, unsigned long size)
+{
+    fileReader file;
+    file.openData(data, size);
+    return LoadBank(file);
+}
+
+
+
+/* WOPL-needed misc functions */
+static uint16_t toUint16LE(const uint8_t *arr)
+{
+    uint16_t num = arr[0];
+    num |= ((arr[1] << 8) & 0xFF00);
+    return num;
+}
+
+static uint16_t toUint16BE(const uint8_t *arr)
+{
+    uint16_t num = arr[1];
+    num |= ((arr[0] << 8) & 0xFF00);
+    return num;
+}
+
+static int16_t toSint16BE(const uint8_t *arr)
+{
+    int16_t num = *reinterpret_cast<const int8_t *>(&arr[0]);
+    num *= 1 << 8;
+    num |= arr[1];
+    return num;
+}
+
+static const char       *wopl3_magic = "WOPL3-BANK\0";
+static const uint16_t   wopl_latest_version = 2;
+
+enum WOPL_InstrumentFlags
+{
+    WOPL_Flags_NONE      = 0,
+    WOPL_Flag_Enable4OP  = 0x01,
+    WOPL_Flag_Pseudo4OP  = 0x02
+};
+
+struct WOPL_Inst
+{
+    bool fourOps;
+    char padding[7];
+    struct adlinsdata adlins;
+    struct adldata    op[2];
+};
+
+static bool readInstrument(MIDIplay::fileReader &file, WOPL_Inst &ins, bool isPercussion = false)
+{
+    uint8_t idata[62];
+    if(file.read(idata, 1, 62) != 62)
+        return false;
+
+    //strncpy(ins.name, char_p(idata), 32);
+    ins.op[0].finetune = (int8_t)toSint16BE(idata + 32);
+    ins.op[1].finetune = (int8_t)toSint16BE(idata + 34);
+    //ins.velocity_offset = int8_t(idata[36]);
+
+    ins.adlins.voice2_fine_tune = 0.0;
+    int8_t voice2_fine_tune = int8_t(idata[37]);
+    if(voice2_fine_tune != 0)
     {
-        if(tk >= TrackData.size())
-            return 1;
-
-        if(tk >= CurrentPosition.track.size())
-            return 2;
-
-        size_t ptr = CurrentPosition.track[tk].ptr;
-
-        if(ptr >= TrackData[tk].size())
-            return 3;
-
-        unsigned char byte = TrackData[tk][CurrentPosition.track[tk].ptr++];
-        result = (result << 7) + (byte & 0x7F);
-
-        if(!(byte & 0x80)) break;
+        if(voice2_fine_tune == 1)
+            ins.adlins.voice2_fine_tune = 0.000025;
+        else if(voice2_fine_tune == -1)
+            ins.adlins.voice2_fine_tune = -0.000025;
+        else
+            ins.adlins.voice2_fine_tune = ((voice2_fine_tune * 15.625) / 1000.0);
     }
 
-    ok = true;
-    return result;
+    ins.adlins.tone = isPercussion ? idata[38] : 0;
+
+    /* TODO: add those fields into next version of WOPL format
+     * and re-generate those values on file save! */
+    ins.adlins.ms_sound_kon  = 1000;
+    ins.adlins.ms_sound_koff = 500;
+    /* ----------------------------------------------------- */
+
+    uint8_t flags       = idata[39];
+    ins.adlins.flags = (flags & WOPL_Flag_Enable4OP) && (flags & WOPL_Flag_Pseudo4OP) ? adlinsdata::Flag_Pseudo4op : 0;
+    ins.fourOps      = (flags & WOPL_Flag_Enable4OP) || (flags & WOPL_Flag_Pseudo4OP);
+
+    ins.op[0].feedconn = (idata[40]);
+    ins.op[1].feedconn = (idata[41]);
+
+    for(size_t op = 0, slt = 0; op < 4; op++, slt++)
+    {
+        size_t off = 42 + size_t(op) * 5;
+        //        ins.setAVEKM(op,    idata[off + 0]);//AVEKM
+        //        ins.setAtDec(op,    idata[off + 2]);//AtDec
+        //        ins.setSusRel(op,   idata[off + 3]);//SusRel
+        //        ins.setWaveForm(op, idata[off + 4]);//WaveForm
+        //        ins.setKSLL(op,     idata[off + 1]);//KSLL
+        ins.op[slt].carrier_E862 =
+            ((static_cast<uint32_t>(idata[off + 4]) << 24) & 0xFF000000)    //WaveForm
+            | ((static_cast<uint32_t>(idata[off + 3]) << 16) & 0x00FF0000)  //SusRel
+            | ((static_cast<uint32_t>(idata[off + 2]) << 8) & 0x0000FF00)   //AtDec
+            | ((static_cast<uint32_t>(idata[off + 0]) << 0) & 0x000000FF);  //AVEKM
+        ins.op[slt].carrier_40 = idata[off + 1];//KSLL
+
+        op++;
+        off = 42 + size_t(op) * 5;
+        ins.op[slt].modulator_E862 =
+            ((static_cast<uint32_t>(idata[off + 4]) << 24) & 0xFF000000)    //WaveForm
+            | ((static_cast<uint32_t>(idata[off + 3]) << 16) & 0x00FF0000)  //SusRel
+            | ((static_cast<uint32_t>(idata[off + 2]) << 8) & 0x0000FF00)   //AtDec
+            | ((static_cast<uint32_t>(idata[off + 0]) << 0) & 0x000000FF);  //AVEKM
+        ins.op[slt].modulator_40 = idata[off + 1];//KSLL
+    }
+    return true;
+}
+
+bool MIDIplay::LoadBank(MIDIplay::fileReader &fr)
+{
+    size_t  fsize;
+    ADL_UNUSED(fsize);
+    if(!fr.isValid())
+    {
+        errorStringOut = "Custom bank: Invalid data stream!";
+        return false;
+    }
+
+    char magic[32];
+    memset(magic, 0, 32);
+
+    uint16_t version = 0;
+
+    uint16_t count_melodic_banks     = 1;
+    uint16_t count_percusive_banks   = 1;
+
+    if(fr.read(magic, 1, 11) != 11)
+    {
+        errorStringOut = "Custom bank: Can't read magic number!";
+        return false;
+    }
+
+    if(strncmp(magic, wopl3_magic, 11) != 0)
+    {
+        errorStringOut = "Custom bank: Invalid magic number!";
+        return false;
+    }
+
+    uint8_t version_raw[2];
+    if(fr.read(version_raw, 1, 2) != 2)
+    {
+        errorStringOut = "Custom bank: Can't read version!";
+        return false;
+    }
+
+    version = toUint16LE(version_raw);
+    if(version > wopl_latest_version)
+    {
+        errorStringOut = "Custom bank: Unsupported WOPL version!";
+        return false;
+    }
+
+    uint8_t head[6];
+    memset(head, 0, 6);
+    if(fr.read(head, 1, 6) != 6)
+    {
+        errorStringOut = "Custom bank: Can't read header!";
+        return false;
+    }
+
+    count_melodic_banks     = toUint16BE(head);
+    count_percusive_banks   = toUint16BE(head + 2);
+
+    if((count_melodic_banks < 1) || (count_percusive_banks < 1))
+    {
+        errorStringOut = "Custom bank: Too few banks in this file!";
+        return false;
+    }
+
+    /*UNUSED YET*/
+    bool default_deep_vibrato   = ((head[4]>>0) & 0x01);
+    bool default_deep_tremolo   = ((head[4]>>1) & 0x01);
+
+    //5'th byte reserved for Deep-Tremolo and Deep-Vibrato flags
+    m_setup.HighTremoloMode = default_deep_tremolo;
+    m_setup.HighVibratoMode = default_deep_vibrato;
+    //6'th byte reserved for ADLMIDI's default volume model
+    m_setup.VolumeModel = (int)head[5];
+
+    opl.dynamic_melodic_banks.clear();
+    opl.dynamic_percussion_banks.clear();
+
+    if(version >= 2)//Read bank meta-entries
+    {
+        for(uint16_t i = 0; i < count_melodic_banks; i++)
+        {
+            uint8_t bank_meta[34];
+            if(fr.read(bank_meta, 1, 34) != 34)
+            {
+                errorStringOut = "Custom bank: Fail to read melodic bank meta-data!";
+                return false;
+            }
+            uint16_t bank = uint16_t(bank_meta[33]) * 256 + uint16_t(bank_meta[32]);
+            size_t offset = opl.dynamic_melodic_banks.size();
+            opl.dynamic_melodic_banks[bank] = offset;
+            //strncpy(bankMeta.name, char_p(bank_meta), 32);
+            //bankMeta.lsb = bank_meta[32];
+            //bankMeta.msb = bank_meta[33];
+        }
+
+        for(uint16_t i = 0; i < count_percusive_banks; i++)
+        {
+            uint8_t bank_meta[34];
+            if(fr.read(bank_meta, 1, 34) != 34)
+            {
+                errorStringOut = "Custom bank: Fail to read melodic bank meta-data!";
+                return false;
+            }
+            uint16_t bank = uint16_t(bank_meta[33]) * 256 + uint16_t(bank_meta[32]);
+            size_t offset = opl.dynamic_percussion_banks.size();
+            opl.dynamic_percussion_banks[bank] = offset;
+            //strncpy(bankMeta.name, char_p(bank_meta), 32);
+            //bankMeta.lsb = bank_meta[32];
+            //bankMeta.msb = bank_meta[33];
+        }
+    }
+
+    opl.setEmbeddedBank(m_setup.AdlBank);
+
+    uint16_t total = 128 * count_melodic_banks;
+    bool readPercussion = false;
+
+tryAgain:
+    for(uint16_t i = 0; i < total; i++)
+    {
+        WOPL_Inst ins;
+        memset(&ins, 0, sizeof(WOPL_Inst));
+        if(!readInstrument(fr, ins, readPercussion))
+        {
+            opl.setEmbeddedBank(m_setup.AdlBank);
+            errorStringOut = "Custom bank: Fail to read instrument!";
+            return false;
+        }
+
+        /*
+         * 0..127 - melodic, 128...255 - percussion.
+         * TODO: Make separated melodic and drum arrays and make MIDI bank ID support
+         */
+        ins.adlins.adlno1 = static_cast<uint16_t>(opl.dynamic_instruments.size() | opl.DynamicInstrumentTag);
+        opl.dynamic_instruments.push_back(ins.op[0]);
+        ins.adlins.adlno2 = ins.adlins.adlno1;
+        if(ins.fourOps)
+        {
+            ins.adlins.adlno2 = static_cast<uint16_t>(opl.dynamic_instruments.size() | opl.DynamicInstrumentTag);
+            opl.dynamic_instruments.push_back(ins.op[1]);
+        }
+        opl.dynamic_metainstruments.push_back(ins.adlins);
+    }
+
+    if(!readPercussion)
+    {
+        total = 128 * count_percusive_banks;
+        readPercussion = true;
+        goto tryAgain;
+    }
+
+    opl.AdlBank = ~0u; // Use dynamic banks!
+    //Percussion offset is count of instruments multipled to count of melodic banks
+    opl.dynamic_percussion_offset = 128 * count_melodic_banks;
+
+    return true;
 }
 
 bool MIDIplay::LoadMIDI(const std::string &filename)
@@ -82,10 +331,7 @@ bool MIDIplay::LoadMIDI(const std::string &filename)
     file.openFile(filename.c_str());
 
     if(!LoadMIDI(file))
-    {
-        std::perror(filename.c_str());
         return false;
-    }
 
     return true;
 }
@@ -99,76 +345,58 @@ bool MIDIplay::LoadMIDI(void *data, unsigned long size)
 
 bool MIDIplay::LoadMIDI(MIDIplay::fileReader &fr)
 {
-    #define qqq(x) (void)x
     size_t  fsize;
-    qqq(fsize);
+    ADL_UNUSED(fsize);
     //! Temp buffer for conversion
     AdlMIDI_CPtr<uint8_t> cvt_buf;
+    errorString.clear();
 
-    //std::FILE* fr = std::fopen(filename.c_str(), "rb");
+    #ifdef DISABLE_EMBEDDED_BANKS
+    if((opl.AdlBank != ~0u) || (opl.dynamic_metainstruments.size() < 256))
+    {
+        ADLMIDI_ErrorString = "Bank is not set! Please load any instruments bank by using of adl_openBankFile() or adl_openBankData() functions!";
+        return false;
+    }
+    #endif
+
     if(!fr.isValid())
     {
-        ADLMIDI_ErrorString = "Invalid data stream!";
+        errorStringOut = "Invalid data stream!\n";
+        #ifndef _WIN32
+        errorStringOut += std::strerror(errno);
+        #endif
         return false;
     }
 
     /**** Set all properties BEFORE starting of actial file reading! ****/
+    m_setup.stored_samples = 0;
+    m_setup.backup_samples_size = 0;
+    opl.HighTremoloMode     = m_setup.HighTremoloMode == -1 ? adlbanksetup[m_setup.AdlBank].deepTremolo : (bool)m_setup.HighTremoloMode;
+    opl.HighVibratoMode     = m_setup.HighVibratoMode == -1 ? adlbanksetup[m_setup.AdlBank].deepVibrato : (bool)m_setup.HighVibratoMode;
+    opl.AdlPercussionMode   = m_setup.AdlPercussionMode == -1 ? adlbanksetup[m_setup.AdlBank].adLibPercussions : (bool)m_setup.AdlPercussionMode;
+    opl.ScaleModulators     = m_setup.ScaleModulators == -1 ? adlbanksetup[m_setup.AdlBank].scaleModulators : (bool)m_setup.ScaleModulators;
+    opl.LogarithmicVolumes = m_setup.LogarithmicVolumes;
+    //opl.CartoonersVolumes = false;
+    opl.m_musicMode = OPL3::MODE_MIDI;
+    opl.ChangeVolumeRangesModel(static_cast<ADLMIDI_VolumeModels>(m_setup.VolumeModel));
+    if(m_setup.VolumeModel == ADLMIDI_VolumeModel_AUTO)//Use bank default volume model
+        opl.m_volumeScale = (OPL3::VolumesScale)adlbanksetup[m_setup.AdlBank].volumeModel;
 
-    config->stored_samples = 0;
-    config->backup_samples_size = 0;
-    opl.AdlPercussionMode = config->AdlPercussionMode;
-    opl.HighTremoloMode = config->HighTremoloMode;
-    opl.HighVibratoMode = config->HighVibratoMode;
-    opl.ScaleModulators = config->ScaleModulators;
-    opl.LogarithmicVolumes = config->LogarithmicVolumes;
-    opl.ChangeVolumeRangesModel(static_cast<ADLMIDI_VolumeModels>(config->VolumeModel));
-
-    if(config->VolumeModel == ADLMIDI_VolumeModel_AUTO)
-    {
-        switch(config->AdlBank)
-        {
-        default:
-            opl.m_volumeScale = OPL3::VOLUME_Generic;
-            break;
-
-        case 14://Doom 2
-        case 15://Heretic
-        case 16://Doom 1
-        case 64://Raptor
-            opl.m_volumeScale = OPL3::VOLUME_DMX;
-            break;
-
-        case 58://FatMan bank hardcoded in the Windows 9x drivers
-        case 65://Modded Wohlstand's Fatman bank
-        case 66://O'Connel's bank
-            opl.m_volumeScale = OPL3::VOLUME_9X;
-            break;
-
-        case 62://Duke Nukem 3D
-        case 63://Shadow Warrior
-        case 69://Blood
-        case 70://Lee
-        case 71://Nam
-            opl.m_volumeScale = OPL3::VOLUME_APOGEE;
-            break;
-        }
-    }
-
-    opl.NumCards    = config->NumCards;
-    opl.NumFourOps  = config->NumFourOps;
+    opl.NumCards    = m_setup.NumCards;
+    opl.NumFourOps  = m_setup.NumFourOps;
     cmf_percussion_mode = false;
-    opl.Reset();
+    opl.Reset(m_setup.PCM_RATE);
 
     trackStart       = true;
+    atEnd            = false;
     loopStart        = true;
-    loopStart_passed = false;
     invalidLoop      = false;
-    loopStart_hit    = false;
 
     bool is_GMF = false; // GMD/MUS files (ScummVM)
     //bool is_MUS = false; // MUS/DMX files (Doom)
     bool is_IMF = false; // IMF
     bool is_CMF = false; // Creative Music format (CMF/CTMF)
+    bool is_RSXX = false; // RSXX, such as Cartooners
 
     const size_t HeaderSize = 4 + 4 + 2 + 2 + 2; // 14
     char HeaderBuf[HeaderSize] = "";
@@ -197,10 +425,10 @@ riffskip:
         fr.seek(0, SEEK_END);
         size_t mus_len = fr.tell();
         fr.seek(0, SEEK_SET);
-        uint8_t *mus = (uint8_t*)malloc(mus_len);
+        uint8_t *mus = (uint8_t *)malloc(mus_len);
         if(!mus)
         {
-            ADLMIDI_ErrorString = "Out of memory!";
+            errorStringOut = "Out of memory!";
             return false;
         }
         fr.read(mus, 1, mus_len);
@@ -214,7 +442,7 @@ riffskip:
         if(mus) free(mus);
         if(m2mret < 0)
         {
-            ADLMIDI_ErrorString = "Invalid MUS/DMX data format!";
+            errorStringOut = "Invalid MUS/DMX data format!";
             return false;
         }
         cvt_buf.reset(mid);
@@ -228,17 +456,17 @@ riffskip:
         if(std::memcmp(HeaderBuf + 8, "XDIR", 4) != 0)
         {
             fr.close();
-            ADLMIDI_ErrorString = fr._fileName + ": Invalid format\n";
+            errorStringOut = fr._fileName + ": Invalid format\n";
             return false;
         }
 
         fr.seek(0, SEEK_END);
         size_t mus_len = fr.tell();
         fr.seek(0, SEEK_SET);
-        uint8_t *mus = (uint8_t*)malloc(mus_len);
+        uint8_t *mus = (uint8_t *)malloc(mus_len);
         if(!mus)
         {
-            ADLMIDI_ErrorString = "Out of memory!";
+            errorStringOut = "Out of memory!";
             return false;
         }
         fr.read(mus, 1, mus_len);
@@ -252,7 +480,7 @@ riffskip:
         if(mus) free(mus);
         if(m2mret < 0)
         {
-            ADLMIDI_ErrorString = "Invalid XMI data format!";
+            errorStringOut = "Invalid XMI data format!";
             return false;
         }
         cvt_buf.reset(mid);
@@ -320,72 +548,95 @@ riffskip:
 
         fr.seeku(mus_start, SEEK_SET);
         TrackCount = 1;
-        DeltaTicks = ticks;
+        DeltaTicks = (size_t)ticks;
         opl.AdlBank    = ~0u; // Ignore AdlBank number, use dynamic banks instead
         //std::printf("CMF deltas %u ticks %u, basictempo = %u\n", deltas, ticks, basictempo);
         opl.LogarithmicVolumes = true;
         opl.AdlPercussionMode = true;
+        opl.m_musicMode = OPL3::MODE_CMF;
         opl.m_volumeScale = OPL3::VOLUME_CMF;
     }
     else
     {
-        // Try parsing as an IMF file
+        // Try to identify RSXX format
+        if(HeaderBuf[0] == 0x7D)
         {
-            size_t end = static_cast<uint8_t>(HeaderBuf[0]) + 256 * static_cast<uint8_t>(HeaderBuf[1]);
-
-            if(!end || (end & 3))
-                goto not_imf;
-
-            size_t backup_pos = fr.tell();
-            int64_t sum1 = 0, sum2 = 0;
-            fr.seek(2, SEEK_SET);
-
-            for(unsigned n = 0; n < 42; ++n)
+            fr.seek(0x6D, SEEK_SET);
+            fr.read(HeaderBuf, 6, 1);
+            if(std::memcmp(HeaderBuf, "rsxx}u", 6) == 0)
             {
-                int64_t value1 = fr.getc();
-                value1 += fr.getc() << 8;
-                sum1 += value1;
-                int64_t value2 = fr.getc();
-                value2 += fr.getc() << 8;
-                sum2 += value2;
-            }
-
-            fr.seek(static_cast<long>(backup_pos), SEEK_SET);
-
-            if(sum1 > sum2)
-            {
-                is_IMF = true;
-                DeltaTicks = 1;
+                is_RSXX = true;
+                fr.seek(0x7D, SEEK_SET);
+                TrackCount = 1;
+                DeltaTicks = 60;
+                opl.LogarithmicVolumes = true;
+                //opl.CartoonersVolumes = true;
+                opl.m_musicMode = OPL3::MODE_RSXX;
+                opl.m_volumeScale = OPL3::VOLUME_CMF;
             }
         }
 
-        if(!is_IMF)
+        // Try parsing as an IMF file
+        if(!is_RSXX)
         {
-not_imf:
+            do
+            {
+                uint8_t raw[4];
+                size_t end = static_cast<uint8_t>(HeaderBuf[0]) + 256 * static_cast<uint8_t>(HeaderBuf[1]);
 
+                if(!end || (end & 3))
+                    break;
+
+                size_t backup_pos = fr.tell();
+                int64_t sum1 = 0, sum2 = 0;
+                fr.seek(2, SEEK_SET);
+
+                for(unsigned n = 0; n < 42; ++n)
+                {
+                    if(fr.read(raw, 1, 4) != 4)
+                        break;
+                    int64_t value1 = raw[0];
+                    value1 += raw[1] << 8;
+                    sum1 += value1;
+                    int64_t value2 = raw[2];
+                    value2 += raw[3] << 8;
+                    sum2 += value2;
+                }
+
+                fr.seek(static_cast<long>(backup_pos), SEEK_SET);
+
+                if(sum1 > sum2)
+                {
+                    is_IMF = true;
+                    DeltaTicks = 1;
+                }
+            } while(false);
+        }
+
+        if(!is_IMF && !is_RSXX)
+        {
             if(std::memcmp(HeaderBuf, "MThd\0\0\0\6", 8) != 0)
             {
-InvFmt:
                 fr.close();
-                ADLMIDI_ErrorString = fr._fileName + ": Invalid format\n";
+                errorStringOut = fr._fileName + ": Invalid format, Header signature is unknown!\n";
                 return false;
             }
 
-            /*size_t  Fmt =*/ ReadBEint(HeaderBuf + 8,  2);
-            TrackCount = ReadBEint(HeaderBuf + 10, 2);
-            DeltaTicks = ReadBEint(HeaderBuf + 12, 2);
+            /*size_t  Fmt =      ReadBEint(HeaderBuf + 8,  2);*/
+            TrackCount = (size_t)ReadBEint(HeaderBuf + 10, 2);
+            DeltaTicks = (size_t)ReadBEint(HeaderBuf + 12, 2);
         }
     }
 
     TrackData.clear();
     TrackData.resize(TrackCount, std::vector<uint8_t>());
-    CurrentPosition.track.clear();
-    CurrentPosition.track.resize(TrackCount);
+    //CurrentPosition.track.clear();
+    //CurrentPosition.track.resize(TrackCount);
     InvDeltaTicks = fraction<uint64_t>(1, 1000000l * static_cast<uint64_t>(DeltaTicks));
     //Tempo       = 1000000l * InvDeltaTicks;
     Tempo         = fraction<uint64_t>(1,            static_cast<uint64_t>(DeltaTicks));
     static const unsigned char EndTag[4] = {0xFF, 0x2F, 0x00, 0x00};
-    int totalGotten = 0;
+    size_t totalGotten = 0;
 
     for(size_t tk = 0; tk < TrackCount; ++tk)
     {
@@ -397,7 +648,8 @@ InvFmt:
             //std::fprintf(stderr, "Reading IMF file...\n");
             size_t end = static_cast<uint8_t>(HeaderBuf[0]) + 256 * static_cast<uint8_t>(HeaderBuf[1]);
             unsigned IMF_tempo = 1428;
-            static const unsigned char imf_tempo[] = {0xFF, 0x51, 0x4,
+            static const unsigned char imf_tempo[] = {0x0,//Zero delay!
+                                                      MidiEvent::T_SPECIAL, MidiEvent::ST_TEMPOCHANGE, 0x4,
                                                       static_cast<uint8_t>(IMF_tempo >> 24),
                                                       static_cast<uint8_t>(IMF_tempo >> 16),
                                                       static_cast<uint8_t>(IMF_tempo >> 8),
@@ -410,37 +662,39 @@ InvFmt:
             while(fr.tell() < end && !fr.eof())
             {
                 uint8_t special_event_buf[5];
-                special_event_buf[0] = 0xFF;
-                special_event_buf[1] = 0xE3;
+                uint8_t raw[4];
+                special_event_buf[0] = MidiEvent::T_SPECIAL;
+                special_event_buf[1] = MidiEvent::ST_RAWOPL;
                 special_event_buf[2] = 0x02;
-                special_event_buf[3] = static_cast<uint8_t>(fr.getc()); // port index
-                special_event_buf[4] = static_cast<uint8_t>(fr.getc()); // port value
-                uint32_t delay = static_cast<uint16_t>(fr.getc());
-                delay += 256 * static_cast<uint16_t>(fr.getc());
+                if(fr.read(raw, 1, 4) != 4)
+                    break;
+                special_event_buf[3] = raw[0]; // port index
+                special_event_buf[4] = raw[1]; // port value
+                uint32_t delay = static_cast<uint32_t>(raw[2]);
+                delay += 256 * static_cast<uint32_t>(raw[3]);
                 totalGotten += 4;
                 //if(special_event_buf[3] <= 8) continue;
                 //fprintf(stderr, "Put %02X <- %02X, plus %04X delay\n", special_event_buf[3],special_event_buf[4], delay);
                 TrackData[tk].insert(TrackData[tk].end(), special_event_buf, special_event_buf + 5);
-
                 //if(delay>>21) TrackData[tk].push_back( 0x80 | ((delay>>21) & 0x7F ) );
                 if(delay >> 14)
                     TrackData[tk].push_back(0x80 | ((delay >> 14) & 0x7F));
-
                 if(delay >> 7)
                     TrackData[tk].push_back(0x80 | ((delay >> 7) & 0x7F));
-
                 TrackData[tk].push_back(((delay >> 0) & 0x7F));
             }
 
             TrackData[tk].insert(TrackData[tk].end(), EndTag + 0, EndTag + 4);
-            CurrentPosition.track[tk].delay = 0;
-            CurrentPosition.began = true;
+            //CurrentPosition.track[tk].delay = 0;
+            //CurrentPosition.began = true;
             //std::fprintf(stderr, "Done reading IMF file\n");
             opl.NumFourOps = 0; //Don't use 4-operator channels for IMF playing!
+            opl.m_musicMode = OPL3::MODE_IMF;
         }
         else
         {
-            if(is_GMF || is_CMF) // Take the rest of the file
+            // Take the rest of the file
+            if(is_GMF || is_CMF || is_RSXX)
             {
                 size_t pos = fr.tell();
                 fr.seek(0, SEEK_END);
@@ -458,11 +712,13 @@ InvFmt:
             else
             {
                 fsize = fr.read(HeaderBuf, 1, 8);
-
                 if(std::memcmp(HeaderBuf, "MTrk", 4) != 0)
-                    goto InvFmt;
-
-                TrackLength = ReadBEint(HeaderBuf + 4, 4);
+                {
+                    fr.close();
+                    errorStringOut = fr._fileName + ": Invalid format, MTrk signature is not found!\n";
+                    return false;
+                }
+                TrackLength = (size_t)ReadBEint(HeaderBuf + 4, 4);
             }
 
             // Read track data
@@ -470,22 +726,23 @@ InvFmt:
             fsize = fr.read(&TrackData[tk][0], 1, TrackLength);
             totalGotten += fsize;
 
-            if(is_GMF /*|| is_MUS*/) // Note: CMF does include the track end tag.
+            if(is_GMF/*|| is_MUS*/) // Note: CMF does include the track end tag.
                 TrackData[tk].insert(TrackData[tk].end(), EndTag + 0, EndTag + 4);
+            if(is_RSXX)//Finalize raw track data with a zero
+                TrackData[tk].push_back(0);
 
-            bool ok = false;
-            // Read next event time
-            uint64_t tkDelay = ReadVarLenEx(tk, ok);
-
-            if(ok)
-                CurrentPosition.track[tk].delay = tkDelay;
-            else
-            {
-                std::stringstream msg;
-                msg << fr._fileName << ": invalid variable length in the track " << tk << "! (error code " << tkDelay << ")";
-                ADLMIDI_ErrorString = msg.str();
-                return false;
-            }
+            //bool ok = false;
+            //// Read next event time
+            //uint64_t tkDelay = ReadVarLenEx(tk, ok);
+            //if(ok)
+            //    CurrentPosition.track[tk].delay = tkDelay;
+            //else
+            //{
+            //    std::stringstream msg;
+            //    msg << fr._fileName << ": invalid variable length in the track " << tk << "! (error code " << tkDelay << ")";
+            //    ADLMIDI_ErrorString = msg.str();
+            //    return false;
+            //}
         }
     }
 
@@ -494,11 +751,18 @@ InvFmt:
 
     if(totalGotten == 0)
     {
-        ADLMIDI_ErrorString = fr._fileName + ": Empty track data";
+        errorStringOut = fr._fileName + ": Empty track data";
         return false;
     }
 
-    opl.Reset(); // Reset AdLib
+    //Build new MIDI events table (ALPHA!!!)
+    if(!buildTrackData())
+    {
+        errorStringOut = fr._fileName + ": MIDI data parsing error has occouped!\n" + errorString;
+        return false;
+    }
+
+    opl.Reset(m_setup.PCM_RATE); // Reset AdLib
     //opl.Reset(); // ...twice (just in case someone misprogrammed OPL3 previously)
     ch.clear();
     ch.resize(opl.NumChannels);

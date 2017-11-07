@@ -84,14 +84,14 @@ namespace DBOPL
         sm3AMAM,
         sm6Start,
         sm2Percussion,
-        sm3Percussion,
+        sm3Percussion
     } SynthMode;
 
     //Shifts for the values contained in chandata variable
     enum
     {
         SHIFT_KSLBASE = 16,
-        SHIFT_KEYCODE = 24,
+        SHIFT_KEYCODE = 24
     };
 
     struct Operator
@@ -103,7 +103,7 @@ namespace DBOPL
                 MASK_KSR = 0x10,
                 MASK_SUSTAIN = 0x20,
                 MASK_VIBRATO = 0x40,
-                MASK_TREMOLO = 0x80,
+                MASK_TREMOLO = 0x80
             };
 
             typedef enum
@@ -112,7 +112,7 @@ namespace DBOPL
                 RELEASE,
                 SUSTAIN,
                 DECAY,
-                ATTACK,
+                ATTACK
             } State;
 
             VolumeHandler volHandler;
@@ -277,6 +277,9 @@ namespace DBOPL
         void GenerateBlock2(Bitu samples, Bit32s *output);
         void GenerateBlock3(Bitu samples, Bit32s *output);
 
+        void GenerateBlock2_Mix(Bitu samples, Bit32s *output);
+        void GenerateBlock3_Mix(Bitu samples, Bit32s *output);
+
         void Generate(Bit32u samples);
         void Setup(Bit32u r);
 
@@ -293,6 +296,9 @@ namespace DBOPL
                       Bitu samples);
         void GenerateArr(Bit32s *out, Bitu *samples);
         void GenerateArr(Bit32s *out, ssize_t *samples);
+        void GenerateArr(Bit16s *out, ssize_t *samples);
+        void GenerateArrMix(Bit32s *out, ssize_t *samples);
+        void GenerateArrMix(Bit16s *out, ssize_t *samples);
         void Init(Bitu rate);
     };
 

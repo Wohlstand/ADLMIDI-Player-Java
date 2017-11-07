@@ -17,6 +17,7 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.NumberPicker;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Button;
@@ -341,6 +342,26 @@ public class Player extends AppCompatActivity {
                 OnRestartClick(view);
             }
         });
+
+
+        SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
+        musPos.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            //private double dstPos = 0;
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if(isPlaying && (MIDIDevice != 0))
+                    adl_positionSeek(MIDIDevice, (double)progress);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
+        });
+
     }
 
     private void playerPlay()
@@ -412,6 +433,7 @@ public class Player extends AppCompatActivity {
         adl_setScaleModulators(MIDIDevice, m_ADL_scalable?1:0);
         adl_setPercMode(MIDIDevice, m_ADL_adlibdrums?1:0);
         adl_setLogarithmicVolumes(MIDIDevice, m_ADL_logvolumes?1:0);
+        adl_setLoopEnabled(MIDIDevice, 1);
         adl_setVolumeRangeModel(MIDIDevice, m_ADL_volumeModel);
     }
 
@@ -498,11 +520,15 @@ public class Player extends AppCompatActivity {
                             if(adl_openFile(MIDIDevice, m_lastFile) < 0) {
                                 AlertDialog.Builder b = new AlertDialog.Builder(getParent());
                                 b.setTitle("Failed to open file");
-                                b.setMessage("Can't open music file because of " + adl_errorString());
+                                b.setMessage("Can't open music file because of " + adl_errorInfo(MIDIDevice));
                                 b.setNegativeButton(android.R.string.ok, null);
                                 b.show();
                                 m_lastFile = "";
                             } else {
+                                double time = adl_totalTimeLength(MIDIDevice);
+                                SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
+                                musPos.setMax((int)time);
+                                musPos.setProgress(0);
                                 if (wasPlay)
                                     playerPlay();
                             }
@@ -581,6 +607,10 @@ public class Player extends AppCompatActivity {
 //    extern const char* adl_errorString();
     public native String adl_errorString();
 
+///*Returns string which contains last error message on specific device*/
+//    extern const char *adl_errorInfo(ADL_MIDIPlayer *device);
+    public native String adl_errorInfo(long device);
+
 //
 //    /*Initialize ADLMIDI Player device*/
 //    extern struct ADL_MIDIPlayer* adl_init(long sample_rate);
@@ -605,6 +635,18 @@ public class Player extends AppCompatActivity {
 ///*Take a sample buffer*/
 //    extern int  adl_play(struct ADL_MIDIPlayer*device, int sampleCount, short out[]);
     public native int adl_play(long device, short[] buffer);
+
+/*Get total time length of current song*/
+//extern double adl_totalTimeLength(struct ADL_MIDIPlayer *device);
+    public native double adl_totalTimeLength(long device);
+
+/*Jump to absolute time position in seconds*/
+//extern void adl_positionSeek(struct ADL_MIDIPlayer *device, double seconds);
+    public native void adl_positionSeek(long device, double seconds);
+
+/*Get current time position in seconds*/
+//extern double adl_positionTell(struct ADL_MIDIPlayer *device);
+    public native double adl_positionTell(long device);
 
 
     // Used to load the 'native-lib' library on application startup.

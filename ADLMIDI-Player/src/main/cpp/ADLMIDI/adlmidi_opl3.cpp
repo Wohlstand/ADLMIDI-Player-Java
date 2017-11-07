@@ -23,6 +23,35 @@
 
 #include "adlmidi_private.hpp"
 
+#ifdef ADLMIDI_HW_OPL
+static const unsigned OPLBase = 0x388;
+#endif
+
+#ifdef DISABLE_EMBEDDED_BANKS
+/*
+    Dummy data which replaces adldata.cpp banks database
+*/
+
+const struct adldata adl[] =
+{
+    {0, 0, (unsigned char)'\0', (unsigned char)'\0', (unsigned char)'\0', 0}
+};
+
+const struct adlinsdata adlins[] =
+{
+    {0, 0, 0, 0, 0, 0, 0.0}
+};
+
+int maxAdlBanks()
+{
+    return 0;
+}
+
+const unsigned short banks[][256] = {{0}};
+const char *const banknames[] = {"<Embedded banks are disabled>"};
+const AdlBankSetup adlbanksetup[] = {{0, 1, 1, 0, 0}};
+#endif
+
 static const unsigned short Operators[23 * 2] =
 {
     // Channels 0-2
@@ -86,30 +115,39 @@ static const unsigned short Channels[23] =
 */
 
 
-const adlinsdata &OPL3::GetAdlMetaIns(unsigned n)
+const adlinsdata &OPL3::GetAdlMetaIns(size_t n)
 {
     return (n & DynamicMetaInstrumentTag) ?
            dynamic_metainstruments[n & ~DynamicMetaInstrumentTag]
            : adlins[n];
 }
 
-unsigned OPL3::GetAdlMetaNumber(unsigned midiins)
+size_t OPL3::GetAdlMetaNumber(size_t midiins)
 {
     return (AdlBank == ~0u) ?
            (midiins | DynamicMetaInstrumentTag)
            : banks[AdlBank][midiins];
 }
 
-
-const adldata &OPL3::GetAdlIns(unsigned short insno)
+const adldata &OPL3::GetAdlIns(size_t insno)
 {
     return (insno & DynamicInstrumentTag)
            ? dynamic_instruments[insno & ~DynamicInstrumentTag]
-           : adl[insno];
+            : adl[insno];
+}
+
+void OPL3::setEmbeddedBank(unsigned int bank)
+{
+    AdlBank = bank;
+    //Embedded banks are supports 128:128 GM set only
+    dynamic_percussion_offset = 128;
+    dynamic_melodic_banks.clear();
+    dynamic_percussion_banks.clear();
 }
 
 
 OPL3::OPL3() :
+    dynamic_percussion_offset(128),
     DynamicInstrumentTag(0x8000u),
     DynamicMetaInstrumentTag(0x4000000u),
     NumCards(1),
@@ -119,24 +157,44 @@ OPL3::OPL3() :
     HighVibratoMode(false),
     AdlPercussionMode(false),
     LogarithmicVolumes(false),
+    //CartoonersVolumes(false),
+    m_musicMode(MODE_MIDI),
     m_volumeScale(VOLUME_Generic)
 {}
 
 void OPL3::Poke(size_t card, uint32_t index, uint32_t value)
 {
+    #ifdef ADLMIDI_HW_OPL
+    unsigned o = index >> 8;
+    unsigned port = OPLBase + o * 2;
+    outportb(port, index);
+    for(unsigned c = 0; c < 6; ++c) inportb(port);
+    outportb(port + 1, value);
+    for(unsigned c = 0; c < 35; ++c) inportb(port);
+    #else
     #ifdef ADLMIDI_USE_DOSBOX_OPL
     cards[card].WriteReg(index, static_cast<uint8_t>(value));
     #else
     OPL3_WriteReg(&cards[card], static_cast<Bit16u>(index), static_cast<Bit8u>(value));
     #endif
+    #endif
 }
 
 void OPL3::PokeN(size_t card, uint16_t index, uint8_t value)
 {
+    #ifdef ADLMIDI_HW_OPL
+    unsigned o = index >> 8;
+    unsigned port = OPLBase + o * 2;
+    outportb(port, index);
+    for(unsigned c = 0; c < 6; ++c) inportb(port);
+    outportb(port + 1, value);
+    for(unsigned c = 0; c < 35; ++c) inportb(port);
+    #else
     #ifdef ADLMIDI_USE_DOSBOX_OPL
     cards[card].WriteReg(static_cast<Bit32u>(index), value);
     #else
     OPL3_WriteReg(&cards[card], index, value);
+    #endif
     #endif
 }
 
@@ -189,15 +247,16 @@ void OPL3::NoteOn(unsigned c, double hertz) // Hertz range: 0..131071
 
 void OPL3::Touch_Real(unsigned c, unsigned volume)
 {
-    if(volume > 63) volume = 63;
+    if(volume > 63)
+        volume = 63;
 
-    unsigned card = c / 23, cc = c % 23;
-    uint16_t i = ins[c];
-    unsigned o1 = Operators[cc * 2 + 0];
-    unsigned o2 = Operators[cc * 2 + 1];
+    size_t card = c / 23, cc = c % 23;
+    size_t i = ins[c];
+    uint16_t o1 = Operators[cc * 2 + 0];
+    uint16_t o2 = Operators[cc * 2 + 1];
     const adldata &adli = GetAdlIns(i);
-    unsigned x = adli.modulator_40, y = adli.carrier_40;
-    unsigned mode = 1; // 2-op AM
+    uint8_t  x = adli.modulator_40, y = adli.carrier_40;
+    uint16_t mode = 1; // 2-op AM
 
     if(four_op_category[c] == 0 || four_op_category[c] == 3)
     {
@@ -205,7 +264,7 @@ void OPL3::Touch_Real(unsigned c, unsigned volume)
     }
     else if(four_op_category[c] == 1 || four_op_category[c] == 2)
     {
-        uint16_t i0, i1;
+        size_t i0, i1;
 
         if(four_op_category[c] == 1)
         {
@@ -236,12 +295,21 @@ void OPL3::Touch_Real(unsigned c, unsigned volume)
         { false, true  }, /* 4 op FM-AM ops 3&4 */
         { true,  true  }  /* 4 op AM-AM ops 3&4 */
     };
-    bool do_modulator = do_ops[ mode ][ 0 ] || ScaleModulators;
-    bool do_carrier   = do_ops[ mode ][ 1 ] || ScaleModulators;
-    Poke(card, 0x40 + o1, do_modulator ? (x | 63) - volume + volume * (x & 63) / 63 : x);
 
-    if(o2 != 0xFFF)
-        Poke(card, 0x40 + o2, do_carrier   ? (y | 63) - volume + volume * (y & 63) / 63 : y);
+    if(m_musicMode == MODE_RSXX)
+    {
+        Poke(card, 0x40 + o1, x);
+        if(o2 != 0xFFF)
+            Poke(card, 0x40 + o2, y - volume / 2);
+    }
+    else
+    {
+        bool do_modulator = do_ops[ mode ][ 0 ] || ScaleModulators;
+        bool do_carrier   = do_ops[ mode ][ 1 ] || ScaleModulators;
+        Poke(card, 0x40 + o1, do_modulator ? (x | 63) - volume + volume * (x & 63) / 63 : x);
+        if(o2 != 0xFFF)
+            Poke(card, 0x40 + o2, do_carrier   ? (y | 63) - volume + volume * (y & 63) / 63 : y);
+    }
 
     // Correct formula (ST3, AdPlug):
     //   63-((63-(instrvol))/63)*chanvol
@@ -265,7 +333,7 @@ void OPL3::Touch(unsigned c, unsigned volume) // Volume maxes at 127*127*127
     }
 }*/
 
-void OPL3::Patch(uint16_t c, uint16_t i)
+void OPL3::Patch(uint16_t c, size_t i)
 {
     uint16_t card = c / 23, cc = c % 23;
     static const uint8_t data[4] = {0x20, 0x60, 0x80, 0xE0};
@@ -321,7 +389,6 @@ void OPL3::updateFlags()
         {
             for(unsigned b = 0; b < 5; ++b)
                 four_op_category[a * 23 + 18 + b] = static_cast<char>(b + 3);
-
             for(unsigned b = 0; b < 3; ++b)
                 four_op_category[a * 23 + 6  + b] = 8;
         }
@@ -339,16 +406,13 @@ void OPL3::updateFlags()
         case 1:
             nextfour += 1;
             break;
-
         case 2:
             nextfour += 9 - 2;
             break;
-
         case 3:
         case 4:
             nextfour += 1;
             break;
-
         case 5:
             nextfour += 23 - 9 - 2;
             break;
@@ -386,19 +450,23 @@ void OPL3::ChangeVolumeRangesModel(ADLMIDI_VolumeModels volumeModel)
     }
 }
 
-void OPL3::Reset()
+void OPL3::Reset(unsigned long PCM_RATE)
 {
     #ifdef ADLMIDI_USE_DOSBOX_OPL
     DBOPL::Handler emptyChip; //Constructors inside are will initialize necessary fields
     #else
     _opl3_chip emptyChip;
-    memset(&emptyChip, 0, sizeof(_opl3_chip));
+    std::memset(&emptyChip, 0, sizeof(_opl3_chip));
     #endif
+    #ifndef ADLMIDI_HW_OPL
     cards.clear();
+    #endif
     ins.clear();
     pit.clear();
     regBD.clear();
+    #ifndef ADLMIDI_HW_OPL
     cards.resize(NumCards, emptyChip);
+    #endif
     NumChannels = NumCards * 23;
     ins.resize(NumChannels, 189);
     pit.resize(NumChannels,   0);
@@ -407,11 +475,8 @@ void OPL3::Reset()
 
     for(unsigned p = 0, a = 0; a < NumCards; ++a)
     {
-        for(unsigned b = 0; b < 18; ++b)
-            four_op_category[p++] = 0;
-
-        for(unsigned b = 0; b < 5; ++b)
-            four_op_category[p++] = 8;
+        for(unsigned b = 0; b < 18; ++b) four_op_category[p++] = 0;
+        for(unsigned b = 0; b < 5; ++b)  four_op_category[p++] = 8;
     }
 
     static const uint16_t data[] =
@@ -424,17 +489,17 @@ void OPL3::Reset()
 
     for(unsigned card = 0; card < NumCards; ++card)
     {
-        #ifdef ADLMIDI_USE_DOSBOX_OPL
-        cards[card].Init(_parent->PCM_RATE);
-        #else
-        OPL3_Reset(&cards[card], static_cast<Bit32u>(_parent->PCM_RATE));
+        #ifndef ADLMIDI_HW_OPL
+        #   ifdef ADLMIDI_USE_DOSBOX_OPL
+        cards[card].Init(PCM_RATE);
+        #   else
+        OPL3_Reset(&cards[card], static_cast<Bit32u>(PCM_RATE));
+        #   endif
         #endif
 
         for(unsigned a = 0; a < 18; ++a) Poke(card, 0xB0 + Channels[a], 0x00);
-
         for(unsigned a = 0; a < sizeof(data) / sizeof(*data); a += 2)
             PokeN(card, data[a], static_cast<uint8_t>(data[a + 1]));
-
         Poke(card, 0x0BD, regBD[card] = (HighTremoloMode * 0x80
                                          + HighVibratoMode * 0x40
                                          + AdlPercussionMode * 0x20));
@@ -446,15 +511,13 @@ void OPL3::Reset()
 
     // Mark all channels that are reserved for four-operator function
     if(AdlPercussionMode == 1)
+    {
         for(unsigned a = 0; a < NumCards; ++a)
         {
-            for(unsigned b = 0; b < 5; ++b)
-                four_op_category[a * 23 + 18 + b] = static_cast<char>(b + 3);
-
-            for(unsigned b = 0; b < 3; ++b)
-                four_op_category[a * 23 + 6  + b] = 8;
+            for(unsigned b = 0; b < 5; ++b) four_op_category[a * 23 + 18 + b] = static_cast<char>(b + 3);
+            for(unsigned b = 0; b < 3; ++b) four_op_category[a * 23 + 6  + b] = 8;
         }
-
+    }
     unsigned nextfour = 0;
 
     for(unsigned a = 0; a < NumFourOps; ++a)
