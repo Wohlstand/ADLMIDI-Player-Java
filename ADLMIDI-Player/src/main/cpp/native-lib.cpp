@@ -245,10 +245,10 @@ Java_ru_wohlsoft_adlmidiplayer_Player_stringFromJNI(JNIEnv *env, jobject /* this
 }
 
 JNIEXPORT jint JNICALL
-Java_ru_wohlsoft_adlmidiplayer_Player_adl_1setNumCards(JNIEnv *env, jobject instance, jlong device,
+Java_ru_wohlsoft_adlmidiplayer_Player_adl_1setNumChips(JNIEnv *env, jobject instance, jlong device,
                                                        jint numCards) {
     pthread_mutex_lock(&g_lock);
-    jint ret = (jint)adl_setNumCards(ADLDEV, (int)numCards);
+    jint ret = (jint)adl_setNumChips(ADLDEV, (int)numCards);
     pthread_mutex_unlock(&g_lock);
     return ret;
 }

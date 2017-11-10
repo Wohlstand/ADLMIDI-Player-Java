@@ -58,8 +58,14 @@ struct ADL_MIDIPlayer
     void *adl_midiPlayer;
 };
 
-/* Sets number of emulated sound cards (from 1 to 100). Emulation of multiple sound cards exchanges polyphony limits*/
-extern int adl_setNumCards(struct ADL_MIDIPlayer *device, int numCards);
+//DEPRECATED
+#define adl_setNumCards adl_setNumChips
+
+/* Sets number of emulated chips (from 1 to 100). Emulation of multiple chips exchanges polyphony limits*/
+extern int adl_setNumChips(struct ADL_MIDIPlayer *device, int numCards);
+
+/* Get current number of emulated chips */
+extern int adl_getNumChips(struct ADL_MIDIPlayer *device);
 
 /* Sets a number of the patches bank from 0 to N banks */
 extern int adl_setBank(struct ADL_MIDIPlayer *device, int bank);
@@ -70,8 +76,15 @@ extern int adl_getBanksCount();
 /* Returns pointer to array of names of every bank */
 extern const char *const *adl_getBankNames();
 
-/*Sets number of 4-chan operators*/
+/*Sets number of 4-operator channels between all chips.
+  By default, it is automatically re-calculating every bank change.
+  If you want to specify custom number of four operator channels,
+  please call this function after bank change (adl_setBank() or adl_openBank()),
+  otherwise, value will be overwritten by auto-calculated.*/
 extern int adl_setNumFourOpsChn(struct ADL_MIDIPlayer *device, int ops4);
+
+/*Get current total count of 4-operator channels between all chips*/
+extern int adl_getNumFourOpsChn(struct ADL_MIDIPlayer *device);
 
 /*Override Enable(1) or Disable(0) AdLib percussion mode. -1 - use bank default AdLib percussion mode*/
 extern void adl_setPercMode(struct ADL_MIDIPlayer *device, int percmod);
@@ -199,9 +212,15 @@ extern int  adl_generate(ADL_MIDIPlayer *device, int sampleCount, short *out);
  */
 extern double adl_tickEvents(ADL_MIDIPlayer *device, double seconds, double granuality);
 
+/*Returns 1 if music position has reached end*/
+extern int adl_atEnd(ADL_MIDIPlayer *device);
+
+/*Force Off all notes on all channels*/
+extern void adl_panic(ADL_MIDIPlayer *device);
+
 /**Hooks**/
 
-typedef void (*ADL_RawEventHook)(void *userdata, ADL_UInt8 type, ADL_UInt8 subtype, ADL_UInt8 channel, ADL_UInt8 *data, size_t len);
+typedef void (*ADL_RawEventHook)(void *userdata, ADL_UInt8 type, ADL_UInt8 subtype, ADL_UInt8 channel, const ADL_UInt8 *data, size_t len);
 typedef void (*ADL_NoteHook)(void *userdata, int adlchn, int note, int ins, int pressure, double bend);
 typedef void (*ADL_DebugMessageHook)(void *userdata, const char *fmt, ...);
 

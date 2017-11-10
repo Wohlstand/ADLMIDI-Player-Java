@@ -257,7 +257,7 @@ struct MIDIEventHooks
         onDebugMessage_userData(NULL)
     {}
     //! Raw MIDI event hook
-    typedef void (*RawEventHook)(void *userdata, uint8_t type, uint8_t subtype, uint8_t channel, uint8_t *data, size_t len);
+    typedef void (*RawEventHook)(void *userdata, uint8_t type, uint8_t subtype, uint8_t channel, const uint8_t *data, size_t len);
     RawEventHook onEvent;
     void         *onEvent_userData;
 
@@ -868,6 +868,8 @@ public:
     void realTime_BankChangeMSB(uint8_t channel, uint8_t msb);
     void realTime_BankChange(uint8_t channel, uint16_t bank);
 
+    void realTime_panic();
+
 private:
     enum
     {
@@ -886,7 +888,7 @@ private:
     bool ProcessEvents();
     bool ProcessEventsNew(bool isSeek = false);
     void HandleEvent(size_t tk);
-    void HandleEvent(size_t tk, MidiEvent &evt, int &status);
+    void HandleEvent(size_t tk, const MidiEvent &evt, int &status);
 
     // Determine how good a candidate this adlchannel
     // would be for playing a note from this instrument.
