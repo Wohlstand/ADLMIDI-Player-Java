@@ -58,7 +58,7 @@ bool MIDIplay::LoadBank(const std::string &filename)
 bool MIDIplay::LoadBank(void *data, unsigned long size)
 {
     fileReader file;
-    file.openData(data, size);
+    file.openData(data, (size_t)size);
     return LoadBank(file);
 }
 
@@ -181,7 +181,7 @@ bool MIDIplay::LoadBank(MIDIplay::fileReader &fr)
     }
 
     char magic[32];
-    memset(magic, 0, 32);
+    std::memset(magic, 0, 32);
 
     uint16_t version = 0;
 
@@ -194,7 +194,7 @@ bool MIDIplay::LoadBank(MIDIplay::fileReader &fr)
         return false;
     }
 
-    if(strncmp(magic, wopl3_magic, 11) != 0)
+    if(std::strncmp(magic, wopl3_magic, 11) != 0)
     {
         errorStringOut = "Custom bank: Invalid magic number!";
         return false;
@@ -215,7 +215,7 @@ bool MIDIplay::LoadBank(MIDIplay::fileReader &fr)
     }
 
     uint8_t head[6];
-    memset(head, 0, 6);
+    std::memset(head, 0, 6);
     if(fr.read(head, 1, 6) != 6)
     {
         errorStringOut = "Custom bank: Can't read header!";
@@ -288,7 +288,7 @@ tryAgain:
     for(uint16_t i = 0; i < total; i++)
     {
         WOPL_Inst ins;
-        memset(&ins, 0, sizeof(WOPL_Inst));
+        std::memset(&ins, 0, sizeof(WOPL_Inst));
         if(!readInstrument(fr, ins, readPercussion))
         {
             opl.setEmbeddedBank(m_setup.AdlBank);
@@ -339,7 +339,7 @@ bool MIDIplay::LoadMIDI(const std::string &filename)
 bool MIDIplay::LoadMIDI(void *data, unsigned long size)
 {
     fileReader file;
-    file.openData(data, size);
+    file.openData(data, (size_t)size);
     return LoadMIDI(file);
 }
 
@@ -354,7 +354,7 @@ bool MIDIplay::LoadMIDI(MIDIplay::fileReader &fr)
     #ifdef DISABLE_EMBEDDED_BANKS
     if((opl.AdlBank != ~0u) || (opl.dynamic_metainstruments.size() < 256))
     {
-        ADLMIDI_ErrorString = "Bank is not set! Please load any instruments bank by using of adl_openBankFile() or adl_openBankData() functions!";
+        errorStringOut = "Bank is not set! Please load any instruments bank by using of adl_openBankFile() or adl_openBankData() functions!";
         return false;
     }
     #endif
@@ -419,8 +419,6 @@ riffskip:
     else if(std::memcmp(HeaderBuf, "MUS\x1A", 4) == 0)
     {
         // MUS/DMX files (Doom)
-        //uint64_t start = ReadLEint(HeaderBuf + 6, 2);
-        //is_MUS = true;
         fr.seek(0, SEEK_END);
         size_t mus_len = fr.tell();
         fr.seek(0, SEEK_SET);

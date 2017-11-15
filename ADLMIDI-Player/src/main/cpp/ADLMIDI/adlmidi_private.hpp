@@ -53,9 +53,10 @@ typedef __int32 ssize_t;
 #   include <windows.h>
 #endif
 
-#ifdef __DJGPP__
+#if defined(__DJGPP__) || (defined(__WATCOMC__) && (defined(__DOS__) || defined(__DOS4G__) || defined(__DOS4GNZ__)))
 #define ADLMIDI_HW_OPL
 #include <conio.h>
+#ifdef __DJGPP__
 #include <pc.h>
 #include <dpmi.h>
 #include <go32.h>
@@ -63,20 +64,29 @@ typedef __int32 ssize_t;
 #include <dos.h>
 #endif
 
+#endif
+
 #include <vector>
 #include <list>
 #include <string>
 #include <sstream>
+//#ifdef __WATCOMC__
+//#include <myset.h> //TODO: Implemnet a workaround for OpenWatcom to fix a crash while using those containers
+//#include <mymap.h>
+//#else
 #include <map>
 #include <set>
+//#endif
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <cstdarg>
 #include <cstdio>
 #include <vector> // vector
 #include <deque>  // deque
 #include <cmath>  // exp, log, ceil
 #include <stdio.h>
+#include <stdlib.h>
 #include <limits> // numeric_limit
 
 #ifndef _WIN32
@@ -88,10 +98,12 @@ typedef __int32 ssize_t;
 
 #include "fraction.hpp"
 
+#ifndef ADLMIDI_HW_OPL
 #ifdef ADLMIDI_USE_DOSBOX_OPL
 #include "dbopl.h"
 #else
 #include "nukedopl3.h"
+#endif
 #endif
 
 #include "adldata.hh"
@@ -164,6 +176,7 @@ private:
     std::vector<adlinsdata> dynamic_metainstruments; // Replaces adlins[] when CMF file
     std::vector<adldata>    dynamic_instruments;     // Replaces adl[]    when CMF file
     size_t                  dynamic_percussion_offset;
+
     typedef std::map<uint16_t, size_t> BankMap;
     BankMap dynamic_melodic_banks;
     BankMap dynamic_percussion_banks;
@@ -225,6 +238,7 @@ public:
 
     void Poke(size_t card, uint32_t index, uint32_t value);
     void PokeN(size_t card, uint16_t index, uint8_t value);
+
     void NoteOff(size_t c);
     void NoteOn(unsigned c, double hertz);
     void Touch_Real(unsigned c, unsigned volume);
@@ -238,10 +252,6 @@ public:
     void Reset(unsigned long PCM_RATE);
 };
 
-/*
- * TODO: Put usage of those hooks to the places where originally was UI usage.
- * Also, provide external API to set those hooks
- */
 
 /**
  * @brief Hooks of the internal events
@@ -389,9 +399,7 @@ public:
                 return std::getc(fp);
             else
             {
-                if(mp_tell >= mp_size)
-                    return -1;
-
+                if(mp_tell >= mp_size) return -1;
                 int x = reinterpret_cast<unsigned char *>(mp)[mp_tell];
                 mp_tell++;
                 return x;
@@ -528,7 +536,7 @@ public:
         users_t users;
 
         // If the channel is keyoff'd
-        long koff_time_until_neglible;
+        int64_t koff_time_until_neglible;
         // For channel allocation:
         AdlChannel(): users(), koff_time_until_neglible(0) { }
         void AddAge(int64_t ms);
@@ -694,7 +702,7 @@ public:
     {
         std::string     label;
         double          pos_time;
-        unsigned long   pos_ticks;
+        uint64_t        pos_ticks;
     };
 
     std::vector<MIDIchannel> Ch;
@@ -892,7 +900,7 @@ private:
 
     // Determine how good a candidate this adlchannel
     // would be for playing a note from this instrument.
-    long CalculateAdlChannelGoodness(unsigned c, const MIDIchannel::NoteInfo::Phys &ins, uint16_t /*MidCh*/) const;
+    long CalculateAdlChannelGoodness(unsigned c, const MIDIchannel::NoteInfo::Phys &ins, uint16_t /*MidCh*/);
 
     // A new note will be played on this channel using this instrument.
     // Kill existing notes on this channel (or don't, if we do arpeggio)
