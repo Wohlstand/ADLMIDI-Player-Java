@@ -918,14 +918,30 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     size_t midiins = Ch[channel].patch;
     bool isPercussion = (channel  % 16 == 9);
 
-    if(isPercussion)
-        midiins = opl.dynamic_percussion_offset + note; // Percussion instrument
-
     uint16_t bank = 0;
-    //Set bank bank
     if(Ch[channel].bank_msb || Ch[channel].bank_lsb)
     {
         bank = (uint16_t(Ch[channel].bank_msb) * 256) + uint16_t(Ch[channel].bank_lsb);
+        if(bank == 0x7E00) //XG SFX1/SFX2 channel (16128 signed decimal)
+        {
+            //Let XG SFX1/SFX2 bank will have LSB==1 (128...255 range in WOPL file)
+            bank = (uint16_t)midiins + 128; // MIDI instrument defines the patch
+            isPercussion = true;
+        }
+        if(bank == 0x7F00) //XG Percussion channel (16256 signed decimal)
+        {
+            //Let XG Percussion bank will use (0...127 range in WOPL file)
+            bank = (uint16_t)midiins; // MIDI instrument defines the patch
+            isPercussion = true;
+        }
+    }
+
+    if(isPercussion)
+        midiins = opl.dynamic_percussion_offset + note; // Percussion instrument
+
+    //Set bank bank
+    if(bank > 0)
+    {
         if(isPercussion)
         {
             OPL3::BankMap::iterator b = opl.dynamic_percussion_banks.find(bank);
@@ -1236,7 +1252,7 @@ void MIDIplay::realTime_Controller(uint8_t channel, uint8_t type, uint8_t value)
     case 121: // Reset all controllers
         Ch[channel].bend       = 0;
         Ch[channel].volume     = 100;
-        Ch[channel].expression = 100;
+        Ch[channel].expression = 127;
         Ch[channel].sustain    = 0;
         Ch[channel].vibrato    = 0;
         Ch[channel].vibspeed   = 2 * 3.141592653 * 5.0;

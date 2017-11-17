@@ -329,10 +329,8 @@ bool MIDIplay::LoadMIDI(const std::string &filename)
 {
     fileReader file;
     file.openFile(filename.c_str());
-
     if(!LoadMIDI(file))
         return false;
-
     return true;
 }
 
@@ -460,7 +458,7 @@ riffskip:
         fr.seek(0, SEEK_END);
         size_t mus_len = fr.tell();
         fr.seek(0, SEEK_SET);
-        uint8_t *mus = (uint8_t *)malloc(mus_len);
+        uint8_t *mus = (uint8_t*)malloc(mus_len);
         if(!mus)
         {
             errorStringOut = "Out of memory!";
