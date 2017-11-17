@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <string>
 #include <assert.h>
+#include <memory.h>
 #include "ADLMIDI/adlmidi.h"
 
 #include <SLES/OpenSLES.h>
