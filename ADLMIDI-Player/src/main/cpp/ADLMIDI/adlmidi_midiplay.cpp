@@ -271,6 +271,8 @@ bool MIDIplay::buildTrackData()
     musTrackTitles.clear();
     musMarkers.clear();
     caugh_missing_instruments.clear();
+    caugh_missing_banks_melodic.clear();
+    caugh_missing_banks_percussion.clear();
     trackDataNew.clear();
     const size_t    trackCount = TrackData.size();
     trackDataNew.resize(trackCount, MidiTrackQueue());
@@ -328,6 +330,18 @@ bool MIDIplay::buildTrackData()
                     errorString += std::string(error, (size_t)len);
                 return false;
             }
+
+            //HACK: Begin every track with "Reset all controllers" event to avoid controllers state break came from end of song
+            for(uint8_t chan = 0; chan < 16; chan++)
+            {
+                MidiEvent event;
+                event.type = MidiEvent::T_CTRLCHANGE;
+                event.channel = chan;
+                event.data.push_back(121);
+                event.data.push_back(0);
+                evtPos.events.push_back(event);
+            }
+
             evtPos.absPos = abs_position;
             abs_position += evtPos.delay;
             trackDataNew[tk].push_back(evtPos);
@@ -582,10 +596,12 @@ bool MIDIplay::buildTrackData()
             bool         isOn;
             char         ___pad[7];
         } drNotes[255];
+        uint16_t banks[16];
 
         for(size_t tk = 0; tk < trackCount; ++tk)
         {
             std::memset(drNotes, 0, sizeof(drNotes));
+            std::memset(banks, 0, sizeof(banks));
             MidiTrackQueue &track = trackDataNew[tk];
             if(track.empty())
                 continue;//Empty track is useless!
@@ -597,7 +613,28 @@ bool MIDIplay::buildTrackData()
                 for(ssize_t e = 0; e < (ssize_t)pos.events.size(); e++)
                 {
                     MidiEvent *et = &pos.events[(size_t)e];
-                    if(et->channel != 9)
+
+                    /* Set MSB/LSB bank */
+                    if(et->type == MidiEvent::T_CTRLCHANGE)
+                    {
+                        uint8_t ctrlno = et->data[0];
+                        uint8_t value =  et->data[1];
+                        switch(ctrlno)
+                        {
+                        case 0: // Set bank msb (GM bank)
+                            banks[et->channel] = uint16_t(uint16_t(value) << 8) | uint16_t(banks[et->channel] & 0x00FF);
+                            break;
+                        case 32: // Set bank lsb (XG bank)
+                            banks[et->channel] = (banks[et->channel] & 0xFF00) | (uint16_t(value) & 0x00FF);
+                            break;
+                        }
+                        continue;
+                    }
+
+                    bool percussion = (et->channel == 9) ||
+                            banks[et->channel] == 0x7E00 || //XG SFX1/SFX2 channel (16128 signed decimal)
+                            banks[et->channel] == 0x7F00;   //XG Percussion channel (16256 signed decimal)
+                    if(!percussion)
                         continue;
 
                     if(et->type == MidiEvent::T_NOTEON)
@@ -917,41 +954,47 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 
     size_t midiins = Ch[channel].patch;
     bool isPercussion = (channel  % 16 == 9);
+    bool isXgPercussion = false;
 
     uint16_t bank = 0;
     if(Ch[channel].bank_msb || Ch[channel].bank_lsb)
     {
         bank = (uint16_t(Ch[channel].bank_msb) * 256) + uint16_t(Ch[channel].bank_lsb);
-        if(bank == 0x7E00) //XG SFX1/SFX2 channel (16128 signed decimal)
+        //0x7E00 - XG SFX1/SFX2 channel (16128 signed decimal)
+        //0x7F00 - XG Percussion channel (16256 signed decimal)
+        if(bank == 0x7E00 || bank == 0x7F00)
         {
-            //Let XG SFX1/SFX2 bank will have LSB==1 (128...255 range in WOPL file)
-            bank = (uint16_t)midiins + 128; // MIDI instrument defines the patch
-            isPercussion = true;
-        }
-        if(bank == 0x7F00) //XG Percussion channel (16256 signed decimal)
-        {
-            //Let XG Percussion bank will use (0...127 range in WOPL file)
-            bank = (uint16_t)midiins; // MIDI instrument defines the patch
-            isPercussion = true;
+            //Let XG SFX1/SFX2 bank will have LSB==1 (128...255 range in WOPN file)
+            //Let XG Percussion bank will use (0...127 range in WOPN file)
+            bank = (uint16_t)midiins + ((bank == 0x7E00) ? 128 : 0); // MIDI instrument defines the patch
+            midiins = opl.dynamic_percussion_offset + note; // Percussion instrument
+            isXgPercussion = true;
+            isPercussion = false;
         }
     }
 
     if(isPercussion)
+    {
+        bank = (uint16_t)midiins; // MIDI instrument defines the patch
         midiins = opl.dynamic_percussion_offset + note; // Percussion instrument
+    }
 
     //Set bank bank
     if(bank > 0)
     {
-        if(isPercussion)
+        if(isPercussion || isXgPercussion)
         {
             OPL3::BankMap::iterator b = opl.dynamic_percussion_banks.find(bank);
             if(b != opl.dynamic_percussion_banks.end())
                 midiins += b->second * 128;
             else
+            if(hooks.onDebugMessage)
             {
-                if(hooks.onDebugMessage)
-                    hooks.onDebugMessage(hooks.onDebugMessage_userData,
-                                         "[%i] Playing missing percussion bank %i (patch %i)", channel, bank, midiins);
+                if(!caugh_missing_banks_melodic.count(bank))
+                {
+                    hooks.onDebugMessage(hooks.onDebugMessage_userData, "[%i] Playing missing percussion bank %i (patch %i)", channel, bank, midiins);
+                    caugh_missing_banks_melodic.insert(bank);
+                }
             }
         }
         else
@@ -960,10 +1003,13 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
             if(b != opl.dynamic_melodic_banks.end())
                 midiins += b->second * 128;
             else
+            if(hooks.onDebugMessage)
             {
-                if(hooks.onDebugMessage)
-                    hooks.onDebugMessage(hooks.onDebugMessage_userData,
-                                         "[%i] Playing missing melodic bank %i (patch %i)", channel, bank, midiins);
+                if(!caugh_missing_banks_percussion.count(bank))
+                {
+                    hooks.onDebugMessage(hooks.onDebugMessage_userData, "[%i] Playing missing melodic bank %i (patch %i)", channel, bank, midiins);
+                    caugh_missing_banks_percussion.insert(bank);
+                }
             }
         }
     }
@@ -975,47 +1021,6 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         if(midiins == 48 || midiins == 50) vol /= 4; // HACK
         */
     //if(midiins == 56) vol = vol*6/10; // HACK
-
-    /* ====================================================================================
-     * TODO: Instead of this shit implement support of multiple banks by using WOPL format
-     * (which will allow to implement GS or XG compatible banks!)
-     * ====================================================================================
-
-    static std::set<uint32_t> bank_warnings;
-
-    if(Ch[channel].bank_msb)
-    {
-        uint32_t bankid = midiins + 256 * Ch[channel].bank_msb;
-        std::set<uint32_t>::iterator
-        i = bank_warnings.lower_bound(bankid);
-
-        if(i == bank_warnings.end() || *i != bankid)
-        {
-            ADLMIDI_ErrorString.clear();
-            std::stringstream s;
-            s << "[" << channel  << "]Bank " << Ch[channel].bank_msb <<
-              " undefined, patch=" << ((midiins & 128) ? 'P' : 'M') << (midiins & 127);
-            ADLMIDI_ErrorString = s.str();
-            bank_warnings.insert(i, bankid);
-        }
-    }
-
-    if(Ch[channel].bank_lsb)
-    {
-        unsigned bankid = Ch[channel].bank_lsb * 65536;
-        std::set<unsigned>::iterator
-        i = bank_warnings.lower_bound(bankid);
-
-        if(i == bank_warnings.end() || *i != bankid)
-        {
-            ADLMIDI_ErrorString.clear();
-            std::stringstream s;
-            s << "[" << channel  << "]Bank lsb " << Ch[channel].bank_lsb << " undefined";
-            ADLMIDI_ErrorString = s.str();
-            bank_warnings.insert(i, bankid);
-        }
-    }
-    */
 
     //int meta = banks[opl.AdlBank][midiins];
     const size_t        meta   = opl.GetAdlMetaNumber(midiins);
@@ -1044,12 +1049,13 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     if((opl.AdlPercussionMode == 1) && PercussionMap[midiins & 0xFF])
         voices[1] = voices[0];//i[1] = i[0];
 
-    if(!caugh_missing_instruments.count(static_cast<uint8_t>(midiins)) && (ains.flags & adlinsdata::Flag_NoSound))
+    if(hooks.onDebugMessage)
     {
-        if(hooks.onDebugMessage)
-            hooks.onDebugMessage(hooks.onDebugMessage_userData,
-                                 "[%i] Playing missing instrument %i", channel, midiins);
-        caugh_missing_instruments.insert(static_cast<uint8_t>(midiins));
+        if(!caugh_missing_instruments.count(static_cast<uint8_t>(midiins)) && (ains.flags & adlinsdata::Flag_NoSound))
+        {
+            hooks.onDebugMessage(hooks.onDebugMessage_userData, "[%i] Playing missing instrument %i", channel, midiins);
+            caugh_missing_instruments.insert(static_cast<uint8_t>(midiins));
+        }
     }
 
     // Allocate AdLib channel (the physical sound channel for the note)
