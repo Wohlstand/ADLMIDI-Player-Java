@@ -9,7 +9,14 @@ cmake_minimum_required(VERSION 3.4.1)
 # You can define multiple libraries, and CMake builds it for you.
 # Gradle automatically packages shared libraries with your APK.
 
-add_definitions(-DADLMIDI_USE_DOSBOX_OPL -DADLMIDI_DISABLE_CPP_EXTRAS)
+add_definitions(-DADLMIDI_DISABLE_CPP_EXTRAS)
+add_definitions(-DADLMIDI_USE_DOSBOX_OPL)
+
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Os -s -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,-s")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Os -s -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,-s")
+set(LINK_FLAGS_RELEASE "${LINK_FLAGS_RELEASE} -Wl,--gc-sections -Wl,-s")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fno-omit-frame-pointer")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-omit-frame-pointer")
 
 add_library( # Sets the name of the library.
              native-lib
@@ -20,17 +27,19 @@ add_library( # Sets the name of the library.
              # Provides a relative path to your source file(s).
              # Associated headers in the same location as their source
              # file are automatically included.
-             src/main/cpp/ADLMIDI/adldata.cpp
-             src/main/cpp/ADLMIDI/adlmidi.cpp
-             src/main/cpp/ADLMIDI/adlmidi_load.cpp
-             src/main/cpp/ADLMIDI/adlmidi_midiplay.cpp
-             src/main/cpp/ADLMIDI/adlmidi_opl3.cpp
-             src/main/cpp/ADLMIDI/adlmidi_private.cpp
-             src/main/cpp/ADLMIDI/adlmidi_xmi2mid.c
-             src/main/cpp/ADLMIDI/adlmidi_mus2mid.c
-             # src/main/cpp/ADLMIDI/nukedopl3.c
-             src/main/cpp/ADLMIDI/dbopl.cpp
+             src/main/cpp/src/adldata.cpp
+             src/main/cpp/src/adlmidi.cpp
+             src/main/cpp/src/adlmidi_load.cpp
+             src/main/cpp/src/adlmidi_midiplay.cpp
+             src/main/cpp/src/adlmidi_opl3.cpp
+             src/main/cpp/src/adlmidi_private.cpp
+             src/main/cpp/src/adlmidi_xmi2mid.c
+             src/main/cpp/src/adlmidi_mus2mid.c
+             # src/main/cpp/src/nukedopl3.c
+             src/main/cpp/src/dbopl.cpp
              src/main/cpp/native-lib.cpp )
+
+target_include_directories(native-lib PUBLIC src/main/cpp/include)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because system libraries are included in the search path by

@@ -2,7 +2,7 @@
 #include <string>
 #include <assert.h>
 #include <memory.h>
-#include "ADLMIDI/adlmidi.h"
+#include <adlmidi.h>
 
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
@@ -241,7 +241,8 @@ Java_ru_wohlsoft_adlmidiplayer_Player_adl_1errorInfo(JNIEnv *env, jobject instan
 JNIEXPORT jstring JNICALL
 Java_ru_wohlsoft_adlmidiplayer_Player_stringFromJNI(JNIEnv *env, jobject /* this */)
 {
-    std::string hello = "Hello from C++";
+    std::string hello = adl_emulatorName();
+    hello += " OPL3 Emulator is ready";
     return env->NewStringUTF(hello.c_str());
 }
 
