@@ -267,7 +267,7 @@ public class OpenFileDialog extends AlertDialog.Builder {
                 else if (file.isFile() && file2.isDirectory())
                     return 1;
                 else
-                    return file.getPath().compareTo(file2.getPath());
+                    return file.getPath().compareToIgnoreCase(file2.getPath());
             }
         });
         return fileList;
