@@ -71,14 +71,14 @@ public class Player extends AppCompatActivity {
 
     private String              m_lastFile = "";
     private String              m_lastPath = Environment.getExternalStorageDirectory().getPath();
-    private int                 m_ADL_bank = 62;
+    private int                 m_ADL_bank = 58;
     private boolean             m_ADL_tremolo = false;
     private boolean             m_ADL_vibrato = false;
     private boolean             m_ADL_scalable = false;
     private boolean             m_ADL_adlibdrums = false;
     private boolean             m_ADL_logvolumes = false;
     private int                 m_adl_numChips = 2;
-    private int                 m_ADL_num4opChannels = 7;
+    private int                 m_ADL_num4opChannels = -1;
     private int                 m_ADL_volumeModel = 0;
 
     @Override
@@ -283,12 +283,17 @@ public class Player extends AppCompatActivity {
                     picker.setValue(100);
                 }
                 NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
-                if(m_ADL_num4opChannels > 6* m_adl_numChips) {
+                if(m_ADL_num4opChannels > 6 * m_adl_numChips) {
                     m_ADL_num4opChannels = 6* m_adl_numChips;
-                    num4opChannels.setValue( m_ADL_num4opChannels );
+                    num4opChannels.setValue( m_ADL_num4opChannels + 1);
                     m_setup.edit().putInt("num4opChannels", m_ADL_num4opChannels).apply();
+                    TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
+                    if(m_ADL_num4opChannels >= 0)
+                        num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
+                    else
+                        num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
                 }
-                num4opChannels.setMaxValue(m_adl_numChips *6);
+                num4opChannels.setMaxValue((m_adl_numChips * 6) + 1);
 
                 TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
                 numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_adl_numChips));
@@ -299,25 +304,34 @@ public class Player extends AppCompatActivity {
 
         NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
         num4opChannels.setMinValue(0);
-        num4opChannels.setMaxValue(m_adl_numChips *6);
-        num4opChannels.setValue(m_ADL_num4opChannels);
+        num4opChannels.setMaxValue((m_adl_numChips * 6) + 1);
+        num4opChannels.setValue(m_ADL_num4opChannels + 1);
         num4opChannels.setWrapSelectorWheel(false);
+        num4opChannels.setFormatter(new NumberPicker.Formatter() {
+            @Override
+            public String format(int index) {
+                return Integer.toString(index - 1);
+            }
+        });
         TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
         num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
 
         num4opChannels.setOnValueChangedListener(new NumberPicker.OnValueChangeListener() {
             @Override
             public void onValueChange(NumberPicker picker, int oldVal, int newVal) {
-                m_ADL_num4opChannels = picker.getValue();
-                if(m_ADL_num4opChannels<=0) {
-                    m_ADL_num4opChannels = 0;
+                m_ADL_num4opChannels = picker.getValue() - 1;
+                if(m_ADL_num4opChannels <= -1) {
+                    m_ADL_num4opChannels = -1;
                     picker.setValue(0);
                 } else if(m_ADL_num4opChannels > 6* m_adl_numChips) {
                     m_ADL_num4opChannels = 6* m_adl_numChips;
-                    picker.setValue(m_ADL_num4opChannels);
+                    picker.setValue(m_ADL_num4opChannels + 1);
                 }
                 TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
-                num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
+                if(m_ADL_num4opChannels >= 0)
+                    num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
+                else
+                    num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
                 m_setup.edit().putInt("num4opChannels", m_ADL_num4opChannels).apply();
             }
         });
@@ -459,7 +473,8 @@ public class Player extends AppCompatActivity {
         MIDIDevice = adl_init(44100);
         adl_setBank(MIDIDevice, m_ADL_bank);
         adl_setNumChips(MIDIDevice, m_adl_numChips);
-        adl_setNumFourOpsChn(MIDIDevice, m_ADL_num4opChannels);
+        if(m_ADL_num4opChannels >= 0) // -1 is "Auto"
+            adl_setNumFourOpsChn(MIDIDevice, m_ADL_num4opChannels);
         adl_setHTremolo(MIDIDevice, m_ADL_tremolo?1:0);
         adl_setHVibrato(MIDIDevice, m_ADL_vibrato?1:0);
         adl_setScaleModulators(MIDIDevice, m_ADL_scalable?1:0);

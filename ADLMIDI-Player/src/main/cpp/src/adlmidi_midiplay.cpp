@@ -25,20 +25,6 @@
 
 // Mapping from MIDI volume level to OPL level value.
 
-#if defined(ANDROID) && (cplusplus < 201103L)
-namespace std
-{
-    int snprintf(char *out, size_t len, const char *fmt, ...)
-    {
-        va_list args;
-        va_start(args, fmt);
-        int rc = ::vsnprintf(out, len, fmt, args);
-        va_end(args);
-        return rc;
-    }
-}
-#endif
-
 static const uint32_t DMX_volume_mapping_table[] =
 {
     0,  1,  3,  5,  6,  8,  10, 11,
@@ -123,6 +109,11 @@ static const uint8_t PercussionMap[256] =
     "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
     "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
     "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+inline bool isXgPercChannel(uint8_t msb, uint8_t lsb)
+{
+    return (msb == 0x7E || msb == 0x7F) && (lsb == 0);
+}
 
 void MIDIplay::AdlChannel::AddAge(int64_t ms)
 {
@@ -325,7 +316,7 @@ bool MIDIplay::buildTrackData()
                 evtPos.delay = ReadVarLenEx(&trackPtr, end, ok);
             if(!ok)
             {
-                int len = std::snprintf(error, 150, "buildTrackData: Can't read variable-length value at begin of track %d.\n", (int)tk);
+                int len = std::sprintf(error, "buildTrackData: Can't read variable-length value at begin of track %d.\n", (int)tk);
                 if((len > 0) && (len < 150))
                     errorString += std::string(error, (size_t)len);
                 return false;
@@ -353,7 +344,7 @@ bool MIDIplay::buildTrackData()
             event = parseEvent(&trackPtr, end, status);
             if(!event.isValid)
             {
-                int len = std::snprintf(error, 150, "buildTrackData: Fail to parse event in the track %d.\n", (int)tk);
+                int len = std::sprintf(error, "buildTrackData: Fail to parse event in the track %d.\n", (int)tk);
                 if((len > 0) && (len < 150))
                     errorString += std::string(error, (size_t)len);
                 return false;
@@ -409,7 +400,7 @@ bool MIDIplay::buildTrackData()
                 evtPos.delay = ReadVarLenEx(&trackPtr, end, ok);
                 if(!ok)
                 {
-                    int len = std::snprintf(error, 150, "buildTrackData: Can't read variable-length value in the track %d.\n", (int)tk);
+                    int len = std::sprintf(error, "buildTrackData: Can't read variable-length value in the track %d.\n", (int)tk);
                     if((len > 0) && (len < 150))
                         errorString += std::string(error, (size_t)len);
                     return false;
@@ -923,6 +914,7 @@ void MIDIplay::realTime_ResetState()
         chan.lastlrpn = 0;
         chan.lastmrpn = 0;
         chan.nrpn = false;
+        chan.brightness = 127;
         NoteUpdate_All(uint16_t(ch), Upd_All);
         NoteUpdate_All(uint16_t(ch), Upd_Off);
     }
@@ -1092,7 +1084,7 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
                         expected_mode = PercussionMap[midiins & 0xFF];
                 }
 
-                if(opl.four_op_category[a] != (uint32_t)expected_mode)
+                if(opl.four_op_category[a] != expected_mode)
                     continue;
             }
             else
@@ -1209,10 +1201,12 @@ void MIDIplay::realTime_Controller(uint8_t channel, uint8_t type, uint8_t value)
 
     case 0: // Set bank msb (GM bank)
         Ch[channel].bank_msb = value;
+        Ch[channel].is_xg_percussion = isXgPercChannel(Ch[channel].bank_msb, Ch[channel].bank_lsb);
         break;
 
     case 32: // Set bank lsb (XG bank)
         Ch[channel].bank_lsb = value;
+        Ch[channel].is_xg_percussion = isXgPercChannel(Ch[channel].bank_msb, Ch[channel].bank_lsb);
         break;
 
     case 5: // Set portamento msb
@@ -1235,11 +1229,14 @@ void MIDIplay::realTime_Controller(uint8_t channel, uint8_t type, uint8_t value)
         NoteUpdate_All(channel, Upd_Volume);
         break;
 
+    case 74: // Change brightness
+        Ch[channel].brightness = value;
+        NoteUpdate_All(channel, Upd_Volume);
+        break;
+
     case 64: // Enable/disable sustain
         Ch[channel].sustain = value;
-
         if(!value) KillSustainingNotes(channel);
-
         break;
 
     case 11: // Change expression (another volume factor)
@@ -1266,6 +1263,7 @@ void MIDIplay::realTime_Controller(uint8_t channel, uint8_t type, uint8_t value)
         Ch[channel].vibdelay   = 0;
         Ch[channel].panning    = 0x30;
         Ch[channel].portamento = 0;
+        Ch[channel].brightness = 127;
         //UpdatePortamento(MidCh);
         NoteUpdate_All(channel, Upd_Pan + Upd_Volume + Upd_Pitch);
         // Kill all sustained notes
@@ -1464,6 +1462,8 @@ void MIDIplay::NoteUpdate(uint16_t MidCh,
         if(props_mask & Upd_Volume)
         {
             uint32_t volume;
+            bool is_percussion = (MidCh == 9) || Ch[MidCh].is_xg_percussion;
+            uint8_t brightness = is_percussion ? 127 : Ch[MidCh].brightness;
 
             switch(opl.m_volumeScale)
             {
@@ -1486,12 +1486,11 @@ void MIDIplay::NoteUpdate(uint16_t MidCh,
                 else
                 {
                     // The formula below: SOLVE(V=127^3 * 2^( (A-63.49999) / 8), A)
-                    volume = volume > 8725 ? static_cast<unsigned int>(std::log((double)volume) * 11.541561 + (0.5 - 104.22845)) : 0;
+                    volume = volume > 8725 ? static_cast<uint32_t>(std::log(static_cast<double>(volume)) * 11.541561 + (0.5 - 104.22845)) : 0;
                     // The incorrect formula below: SOLVE(V=127^3 * (2^(A/63)-1), A)
                     //opl.Touch_Real(c, volume>11210 ? 91.61112 * std::log(4.8819E-7*volume + 1.0)+0.5 : 0);
                 }
-
-                opl.Touch_Real(c, volume);
+                opl.Touch_Real(c, volume, brightness);
                 //opl.Touch(c, volume);
             }
             break;
@@ -1501,7 +1500,7 @@ void MIDIplay::NoteUpdate(uint16_t MidCh,
                 volume = 2 * ((Ch[MidCh].volume * Ch[MidCh].expression) * 127 / 16129) + 1;
                 //volume = 2 * (Ch[MidCh].volume) + 1;
                 volume = (DMX_volume_mapping_table[vol] * volume) >> 9;
-                opl.Touch_Real(c, volume);
+                opl.Touch_Real(c, volume, brightness);
             }
             break;
 
@@ -1510,7 +1509,7 @@ void MIDIplay::NoteUpdate(uint16_t MidCh,
                 volume = ((Ch[MidCh].volume * Ch[MidCh].expression) * 127 / 16129);
                 volume = ((64 * (vol + 0x80)) * volume) >> 15;
                 //volume = ((63 * (vol + 0x80)) * Ch[MidCh].volume) >> 15;
-                opl.Touch_Real(c, volume);
+                opl.Touch_Real(c, volume, brightness);
             }
             break;
 
@@ -1519,7 +1518,7 @@ void MIDIplay::NoteUpdate(uint16_t MidCh,
                 //volume = 63 - W9X_volume_mapping_table[(((vol * Ch[MidCh].volume /** Ch[MidCh].expression*/) * 127 / 16129 /*2048383*/) >> 2)];
                 volume = 63 - W9X_volume_mapping_table[(((vol * Ch[MidCh].volume * Ch[MidCh].expression) * 127 / 2048383) >> 2)];
                 //volume = W9X_volume_mapping_table[vol >> 2] + volume;
-                opl.Touch_Real(c, volume);
+                opl.Touch_Real(c, volume, brightness);
             }
             break;
             }
