@@ -305,7 +305,6 @@ public class Player extends AppCompatActivity {
         NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
         num4opChannels.setMinValue(0);
         num4opChannels.setMaxValue((m_adl_numChips * 6) + 1);
-        num4opChannels.setValue(m_ADL_num4opChannels + 1);
         num4opChannels.setWrapSelectorWheel(false);
         num4opChannels.setFormatter(new NumberPicker.Formatter() {
             @Override
@@ -314,12 +313,16 @@ public class Player extends AppCompatActivity {
             }
         });
         TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
-        num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
+        if(m_ADL_num4opChannels >= 0)
+            num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
+        else
+            num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
+        num4opChannels.setValue(m_ADL_num4opChannels + 1);
 
         num4opChannels.setOnValueChangedListener(new NumberPicker.OnValueChangeListener() {
             @Override
             public void onValueChange(NumberPicker picker, int oldVal, int newVal) {
-                m_ADL_num4opChannels = picker.getValue() - 1;
+                m_ADL_num4opChannels = ((int)picker.getValue() - 1);
                 if(m_ADL_num4opChannels <= -1) {
                     m_ADL_num4opChannels = -1;
                     picker.setValue(0);
