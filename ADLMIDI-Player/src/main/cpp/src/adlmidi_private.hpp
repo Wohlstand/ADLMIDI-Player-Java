@@ -25,7 +25,7 @@
 #define ADLMIDI_PRIVATE_HPP
 
 #ifndef ADLMIDI_VERSION
-#define ADLMIDI_VERSION "1.3.0"
+#define ADLMIDI_VERSION "1.3.1"
 #endif
 
 // Setup compiler defines useful for exporting required public API symbols in gme.cpp
@@ -40,8 +40,12 @@
 #endif
 
 #ifdef _WIN32
+#define NOMINMAX
+#endif
+
+#if defined(_WIN32) && !defined(__WATCOMC__)
 #   undef NO_OLDNAMES
-#	include <stdint.h>
+#       include <stdint.h>
 #   ifdef _MSC_VER
 #       ifdef _WIN64
 typedef __int64 ssize_t;
@@ -91,6 +95,9 @@ typedef int32_t ssize_t;
 #include <vector> // vector
 #include <deque>  // deque
 #include <cmath>  // exp, log, ceil
+#if defined(__WATCOMC__)
+#include <math.h> // round, sqrt
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits> // numeric_limit
@@ -159,6 +166,7 @@ public:
 };
 
 class MIDIplay;
+struct ADL_MIDIPlayer;
 class OPL3
 {
 public:
@@ -256,6 +264,7 @@ public:
     void Pan(unsigned c, unsigned value);
     void Silence();
     void updateFlags();
+    void updateDeepFlags();
     void ChangeVolumeRangesModel(ADLMIDI_VolumeModels volumeModel);
     void Reset(unsigned long PCM_RATE);
 };
@@ -293,11 +302,14 @@ struct MIDIEventHooks
 
 class MIDIplay
 {
+    friend void adl_reset(struct ADL_MIDIPlayer*);
 public:
-    MIDIplay();
+    MIDIplay(unsigned long sampleRate = 22050);
 
     ~MIDIplay()
     {}
+
+    void applySetup();
 
     /**********************Internal structures and classes**********************/
 
@@ -328,7 +340,7 @@ public:
 
         void openFile(const char *path)
         {
-            #ifndef _WIN32
+            #if !defined(_WIN32) || defined(__WATCOMC__)
             fp = std::fopen(path, "rb");
             #else
             wchar_t widePath[MAX_PATH];
@@ -717,9 +729,7 @@ public:
         double maxdelay;
 
         /* For internal usage */
-        ssize_t stored_samples; /* num of collected samples */
-        short   backup_samples[1024]; /* Backup sample storage. */
-        ssize_t backup_samples_size; /* Backup sample storage. */
+        ssize_t tick_skip_samples_delay; /* Skip tick processing after samples count. */
         /* For internal usage */
 
         unsigned long PCM_RATE;
@@ -847,6 +857,12 @@ public:
     double Tick(double s, double granularity);
 
     /**
+     * @brief Process extra iterators like vibrato or arpeggio
+     * @param s seconds since last call
+     */
+    void   TickIteratos(double s);
+
+    /**
      * @brief Change current position to specified time position in seconds
      * @param seconds Absolute time position in seconds
      */
@@ -929,7 +945,7 @@ private:
 
     // Determine how good a candidate this adlchannel
     // would be for playing a note from this instrument.
-    long CalculateAdlChannelGoodness(unsigned c, const MIDIchannel::NoteInfo::Phys &ins, uint16_t /*MidCh*/);
+    long CalculateAdlChannelGoodness(unsigned c, const MIDIchannel::NoteInfo::Phys &ins, uint16_t /*MidCh*/) const;
 
     // A new note will be played on this channel using this instrument.
     // Kill existing notes on this channel (or don't, if we do arpeggio)
@@ -945,6 +961,7 @@ private:
     //void UpdatePortamento(unsigned MidCh)
     void NoteUpdate_All(uint16_t MidCh, unsigned props_mask);
     void NoteOff(uint16_t MidCh, uint8_t note);
+
     void UpdateVibrato(double amount);
     void UpdateArpeggio(double /*amount*/);
 

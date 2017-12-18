@@ -241,7 +241,6 @@ void MIDIplay::MidiTrackRow::sortEvents(bool *noteStates)
 
         for(std::set<size_t>::iterator j = markAsOn.begin(); j != markAsOn.end(); j++)
             noteStates[*j] = true;
-
     }
     /***********************************************************************************/
 
@@ -690,7 +689,7 @@ bool MIDIplay::buildTrackData()
     return true;
 }
 
-MIDIplay::MIDIplay():
+MIDIplay::MIDIplay(unsigned long sampleRate):
     cmf_percussion_mode(false),
     fullSongTimeLength(0.0),
     postSongWaitDelay(1.0),
@@ -704,6 +703,10 @@ MIDIplay::MIDIplay():
 {
     devices.clear();
 
+    m_setup.PCM_RATE   = sampleRate;
+    m_setup.mindelay = 1.0 / (double)m_setup.PCM_RATE;
+    m_setup.maxdelay = 512.0 / (double)m_setup.PCM_RATE;
+
     m_setup.AdlBank    = 0;
     m_setup.NumFourOps = 7;
     m_setup.NumCards   = 2;
@@ -716,17 +719,33 @@ MIDIplay::MIDIplay():
     m_setup.ScaleModulators     = -1;
     m_setup.delay = 0.0;
     m_setup.carry = 0.0;
-    m_setup.stored_samples = 0;
-    m_setup.backup_samples_size = 0;
+    m_setup.tick_skip_samples_delay = 0;
 
-    opl.NumCards = m_setup.NumCards;
-    opl.AdlBank = m_setup.AdlBank;
-    opl.NumFourOps = m_setup.NumFourOps;
-    opl.LogarithmicVolumes  = m_setup.LogarithmicVolumes;
+    applySetup();
+    ChooseDevice("none");
+}
+
+void MIDIplay::applySetup()
+{
+    m_setup.tick_skip_samples_delay = 0;
     opl.HighTremoloMode     = m_setup.HighTremoloMode == -1 ? adlbanksetup[m_setup.AdlBank].deepTremolo : (bool)m_setup.HighTremoloMode;
     opl.HighVibratoMode     = m_setup.HighVibratoMode == -1 ? adlbanksetup[m_setup.AdlBank].deepVibrato : (bool)m_setup.HighVibratoMode;
     opl.AdlPercussionMode   = m_setup.AdlPercussionMode == -1 ? adlbanksetup[m_setup.AdlBank].adLibPercussions : (bool)m_setup.AdlPercussionMode;
     opl.ScaleModulators     = m_setup.ScaleModulators == -1 ? adlbanksetup[m_setup.AdlBank].scaleModulators : (bool)m_setup.ScaleModulators;
+    opl.LogarithmicVolumes  = m_setup.LogarithmicVolumes;
+    //opl.CartoonersVolumes = false;
+    opl.m_musicMode = OPL3::MODE_MIDI;
+    opl.ChangeVolumeRangesModel(static_cast<ADLMIDI_VolumeModels>(m_setup.VolumeModel));
+    if(m_setup.VolumeModel == ADLMIDI_VolumeModel_AUTO)//Use bank default volume model
+        opl.m_volumeScale = (OPL3::VolumesScale)adlbanksetup[m_setup.AdlBank].volumeModel;
+
+    opl.NumCards    = m_setup.NumCards;
+    opl.NumFourOps  = m_setup.NumFourOps;
+    cmf_percussion_mode = false;
+
+    opl.Reset(m_setup.PCM_RATE);
+    ch.clear();
+    ch.resize(opl.NumChannels);
 }
 
 uint64_t MIDIplay::ReadVarLen(uint8_t **ptr)
@@ -795,6 +814,14 @@ double MIDIplay::Tick(double s, double granularity)
         return 0.0;
 
     return CurrentPositionNew.wait;
+}
+
+void MIDIplay::TickIteratos(double s)
+{
+    for(uint16_t c = 0; c < opl.NumChannels; ++c)
+        ch[c].AddAge(static_cast<int64_t>(s * 1000.0));
+    UpdateVibrato(s);
+    UpdateArpeggio(s);
 }
 
 void MIDIplay::seek(double seconds)
@@ -1372,6 +1399,7 @@ void MIDIplay::realTime_BankChange(uint8_t channel, uint16_t bank)
 void MIDIplay::realTime_panic()
 {
     Panic();
+    KillSustainingNotes(-1, -1);
 }
 
 
@@ -2057,7 +2085,7 @@ void MIDIplay::HandleEvent(size_t tk, const MIDIplay::MidiEvent &evt, int &statu
     }
 }
 
-long MIDIplay::CalculateAdlChannelGoodness(unsigned c, const MIDIchannel::NoteInfo::Phys &ins, uint16_t)
+long MIDIplay::CalculateAdlChannelGoodness(unsigned c, const MIDIchannel::NoteInfo::Phys &ins, uint16_t) const
 {
     long s = -ch[c].koff_time_until_neglible;
 
