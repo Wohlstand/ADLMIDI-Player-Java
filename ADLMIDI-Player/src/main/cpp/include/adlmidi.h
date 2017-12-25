@@ -189,7 +189,7 @@ struct Adl_MarkerEntry
 extern size_t adl_metaMarkerCount(struct ADL_MIDIPlayer *device);
 
 /*Returns the marker entry*/
-extern const struct Adl_MarkerEntry adl_metaMarker(struct ADL_MIDIPlayer *device, size_t index);
+extern struct Adl_MarkerEntry adl_metaMarker(struct ADL_MIDIPlayer *device, size_t index);
 
 
 /*Take a sample buffer and iterate MIDI timers */
@@ -222,7 +222,7 @@ extern void adl_panic(struct ADL_MIDIPlayer *device);
 extern void adl_rt_resetState(struct ADL_MIDIPlayer *device);
 
 /*Turn specific MIDI note ON*/
-extern bool adl_rt_noteOn(struct ADL_MIDIPlayer *device, ADL_UInt8 channel, ADL_UInt8 note, ADL_UInt8 velocity);
+extern int adl_rt_noteOn(struct ADL_MIDIPlayer *device, ADL_UInt8 channel, ADL_UInt8 note, ADL_UInt8 velocity);
 
 /*Turn specific MIDI note OFF*/
 extern void adl_rt_noteOff(struct ADL_MIDIPlayer *device, ADL_UInt8 channel, ADL_UInt8 note);
