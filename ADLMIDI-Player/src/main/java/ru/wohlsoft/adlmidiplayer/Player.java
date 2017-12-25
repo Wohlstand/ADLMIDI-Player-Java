@@ -30,6 +30,8 @@ import android.support.v4.app.ActivityCompat;
 import android.widget.Toast;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -309,21 +311,20 @@ public class Player extends AppCompatActivity {
         });
 
         NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
-        num4opChannels.setMinValue(0);
-        num4opChannels.setMaxValue((m_adl_numChips * 6) + 1);
-        num4opChannels.setWrapSelectorWheel(false);
         num4opChannels.setFormatter(new NumberPicker.Formatter() {
             @Override
             public String format(int index) {
                 return Integer.toString(index - 1);
             }
         });
+        num4opChannels.setMinValue(0);
+        num4opChannels.setMaxValue((m_adl_numChips * 6) + 1);
+        num4opChannels.setWrapSelectorWheel(false);
         TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
         if(m_ADL_num4opChannels >= 0)
             num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
         else
             num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
-        num4opChannels.setValue(m_ADL_num4opChannels + 1);
 
         num4opChannels.setOnValueChangedListener(new NumberPicker.OnValueChangeListener() {
             @Override
@@ -344,6 +345,27 @@ public class Player extends AppCompatActivity {
                 m_setup.edit().putInt("num4opChannels", m_ADL_num4opChannels).apply();
             }
         });
+
+        num4opChannels.setValue(m_ADL_num4opChannels + 1);
+
+        /* ========================================================================
+         * Workaround for a drawing of first element of NumberPicker bug:
+         * https://stackoverflow.com/questions/17708325/android-numberpicker-with-formatter-doesnt-format-on-first-rendering
+         */
+        try {
+            Method method = num4opChannels.getClass().getDeclaredMethod("changeValueByOne", boolean.class);
+            method.setAccessible(true);
+            method.invoke(num4opChannels, true);
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        /* ======================================================================== */
 
         // Example of a call to a native method
         TextView tv = (TextView) findViewById(R.id.sample_text);
