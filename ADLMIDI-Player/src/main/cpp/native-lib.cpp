@@ -327,6 +327,17 @@ Java_ru_wohlsoft_adlmidiplayer_Player_adl_1setLoopEnabled(JNIEnv *env, jobject i
 }
 
 JNIEXPORT jint JNICALL
+Java_ru_wohlsoft_adlmidiplayer_Player_adl_1openBankFile(JNIEnv *env, jobject instance, jlong device,
+                                                        jstring file_) {
+    pthread_mutex_lock(&g_lock);
+    const char *file = env->GetStringUTFChars(file_, 0);
+    jint ret = adl_openBankFile(ADLDEV, (char*)file);
+    env->ReleaseStringUTFChars(file_, file);
+    pthread_mutex_unlock(&g_lock);
+    return ret;
+}
+
+JNIEXPORT jint JNICALL
 Java_ru_wohlsoft_adlmidiplayer_Player_adl_1openFile(JNIEnv *env, jobject instance, jlong device,
                                                     jstring file_) {
     pthread_mutex_lock(&g_lock);

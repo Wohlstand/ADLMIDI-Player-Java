@@ -20,4 +20,6 @@
     <string name="vrmDMX">DMX</string>
     <string name="vrmApogee">Apogee</string>
     <string name="vrm9x">9X</string>
+    <string name="chooseBank">Отркыть свой банк</string>
+    <string name="useCustom">Вкл. свой банк</string>
 </resources>

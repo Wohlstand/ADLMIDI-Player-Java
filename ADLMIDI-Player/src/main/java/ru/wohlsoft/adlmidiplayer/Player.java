@@ -28,6 +28,8 @@ import android.content.pm.PackageManager;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.app.ActivityCompat;
 import android.widget.Toast;
+
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -71,6 +73,8 @@ public class Player extends AppCompatActivity {
 
     private String              m_lastFile = "";
     private String              m_lastPath = Environment.getExternalStorageDirectory().getPath();
+    private boolean             m_useCustomBank = false;
+    private String              m_lastBankPath = "";
     private int                 m_ADL_bank = 58;
     private boolean             m_ADL_tremolo = false;
     private boolean             m_ADL_vibrato = false;
@@ -96,6 +100,8 @@ public class Player extends AppCompatActivity {
         m_setup = getPreferences(Context.MODE_PRIVATE);
 
         m_lastPath              = m_setup.getString("lastPath", m_lastPath);
+        m_useCustomBank         = m_setup.getBoolean("useCustomBank", m_useCustomBank);
+        m_lastBankPath          = m_setup.getString("lastBankPath", m_lastBankPath);
         m_ADL_bank              = m_setup.getInt("adlBank", m_ADL_bank);
         m_ADL_tremolo           = m_setup.getBoolean("flagTremolo", m_ADL_tremolo);
         m_ADL_vibrato           = m_setup.getBoolean("flagVibrato", m_ADL_vibrato);
@@ -389,6 +395,33 @@ public class Player extends AppCompatActivity {
             }
         });
 
+        Button openBankFileButton = (Button) findViewById(R.id.customBank);
+        openBankFileButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                OnOpenBankFileClick(view);
+            }
+        });
+
+        TextView cbl = (TextView) findViewById(R.id.bankFileName);
+        if(!m_lastBankPath.isEmpty()) {
+            File f = new File(m_lastBankPath);
+            cbl.setText(f.getName());
+        } else {
+            cbl.setText("<No custom bank>");
+        }
+
+        CheckBox useCustomBank = (CheckBox)findViewById(R.id.useCustom);
+        useCustomBank.setChecked(m_useCustomBank);
+        useCustomBank.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+              @Override
+              public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                  m_useCustomBank = isChecked;
+                  m_setup.edit().putBoolean("useCustomBank", m_useCustomBank).apply();
+              }
+          }
+        );
+
 
         SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
         musPos.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -470,11 +503,16 @@ public class Player extends AppCompatActivity {
             MIDIDevice = 0;
         }
     }
-    private void initPlayer()
+    private boolean initPlayer()
     {
         uninitPlayer();
         MIDIDevice = adl_init(44100);
-        adl_setBank(MIDIDevice, m_ADL_bank);
+        if(m_lastBankPath.isEmpty() || !m_useCustomBank) {
+            adl_setBank(MIDIDevice, m_ADL_bank);
+        } else {
+            if(adl_openBankFile(MIDIDevice, m_lastBankPath) < 0)
+                return false;
+        }
         adl_setNumChips(MIDIDevice, m_adl_numChips);
         if(m_ADL_num4opChannels >= 0) // -1 is "Auto"
             adl_setNumFourOpsChn(MIDIDevice, m_ADL_num4opChannels);
@@ -485,6 +523,7 @@ public class Player extends AppCompatActivity {
         adl_setLogarithmicVolumes(MIDIDevice, m_ADL_logvolumes?1:0);
         adl_setLoopEnabled(MIDIDevice, 1);
         adl_setVolumeRangeModel(MIDIDevice, m_ADL_volumeModel);
+        return true;
     }
 
     public void OnPlayClick(View view)
@@ -508,15 +547,14 @@ public class Player extends AppCompatActivity {
         }
     }
 
-    public void OnOpenFileClick(View view) {
-        // Here, thisActivity is the current activity
+    private boolean checkFilePermissions()
+    {
         if( (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) &&
                 (ContextCompat.checkSelfPermission(this,
-                 Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) )
+                        Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) )
         {
             // Should we show an explanation?
-            if(ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE))
+            if(ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.READ_EXTERNAL_STORAGE))
             {
                 // Show an expanation to the user *asynchronously* -- don't block
                 // this thread waiting for the user's response! After the user
@@ -524,10 +562,13 @@ public class Player extends AppCompatActivity {
                 AlertDialog.Builder b = new AlertDialog.Builder(this);
                 b.setTitle("Permission denied");
                 b.setMessage("Sorry, but permission is denied!\n"+
-                             "Please, check permissions to application!");
+                        "Please, check permissions to application!");
                 b.setNegativeButton(android.R.string.ok, null);
                 b.show();
-            } else {
+                return false;
+            }
+            else
+            {
                 // No explanation needed, we can request the permission.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
                     ActivityCompat.requestPermissions(this,
@@ -538,54 +579,105 @@ public class Player extends AppCompatActivity {
                 // app-defined int constant. The callback method gets the
                 // result of the request.
             }
-        } else {
-            if(!permission_readAllowed)
-            {
-                AlertDialog.Builder b = new AlertDialog.Builder(this);
-                b.setTitle("Failed permissions");
-                b.setMessage("Can't open file dialog because permission denied. Restart application to take effects!");
-                b.setNegativeButton(android.R.string.ok, null);
-                b.show();
-                return;
-            }
-            OpenFileDialog fileDialog = new OpenFileDialog(this)
-                    .setFilter(".*\\.mid|.*\\.midi|.*\\.kar|.*\\.rmi|.*\\.imf|.*\\.cmf|.*\\.mus|.*\\.xmi")
-                    .setCurrentDirectory(m_lastPath)
-                    .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
-                    {
-                        @Override
-                        public void OnSelectedFile(String fileName, String lastPath) {
-                            Toast.makeText(getApplicationContext(), fileName, Toast.LENGTH_LONG).show();
-                            TextView tv = (TextView) findViewById(R.id.sample_text);
-                            tv.setText(fileName);
-
-                            //Abort previos playing state
-                            boolean wasPlay = isPlaying;
-                            if(isPlaying)
-                                playerStop();
-                            initPlayer();
-                            m_lastFile = fileName;
-                            m_lastPath = lastPath;
-                            m_setup.edit().putString("lastPath", m_lastPath).apply();
-                            if(adl_openFile(MIDIDevice, m_lastFile) < 0) {
-                                AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
-                                b.setTitle("Failed to open file");
-                                b.setMessage("Can't open music file because of " + adl_errorInfo(MIDIDevice));
-                                b.setNegativeButton(android.R.string.ok, null);
-                                b.show();
-                                m_lastFile = "";
-                            } else {
-                                double time = adl_totalTimeLength(MIDIDevice);
-                                SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
-                                musPos.setMax((int)time);
-                                musPos.setProgress(0);
-                                if (wasPlay)
-                                    playerPlay();
-                            }
-                        }
-                    });
-            fileDialog.show();
+            return false;
         }
+
+        if(!permission_readAllowed)
+        {
+            AlertDialog.Builder b = new AlertDialog.Builder(this);
+            b.setTitle("Failed permissions");
+            b.setMessage("Can't open file dialog because permission denied. Restart application to take effects!");
+            b.setNegativeButton(android.R.string.ok, null);
+            b.show();
+            return false;
+        }
+
+        return true;
+    }
+
+    public void OnOpenBankFileClick(View view) {
+        // Here, thisActivity is the current activity
+        if(!checkFilePermissions())
+            return;
+
+        File file = new File(m_lastBankPath);
+        OpenFileDialog fileDialog = new OpenFileDialog(this)
+                .setFilter(".*\\.wopl")
+                .setCurrentDirectory(m_lastBankPath.isEmpty() ?
+                        Environment.getExternalStorageDirectory().getPath() :
+                        file.getParent())
+                .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
+                {
+                    @Override
+                    public void OnSelectedFile(String fileName, String lastPath) {
+                        m_lastBankPath = fileName;
+                        m_setup.edit().putString("lastBankPath", m_lastBankPath).apply();
+
+                        TextView cbl = (TextView) findViewById(R.id.bankFileName);
+                        if(!m_lastBankPath.isEmpty()) {
+                            File f = new File(m_lastBankPath);
+                            cbl.setText(f.getName());
+                        } else {
+                            cbl.setText("<No custom bank>");
+                        }
+                    }
+                });
+        fileDialog.show();
+    }
+
+    public void OnOpenFileClick(View view) {
+        // Here, thisActivity is the current activity
+        if(!checkFilePermissions())
+            return;
+
+        OpenFileDialog fileDialog = new OpenFileDialog(this)
+                .setFilter(".*\\.mid|.*\\.midi|.*\\.kar|.*\\.rmi|.*\\.imf|.*\\.cmf|.*\\.mus|.*\\.xmi")
+                .setCurrentDirectory(m_lastPath)
+                .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
+                {
+                    @Override
+                    public void OnSelectedFile(String fileName, String lastPath) {
+                        Toast.makeText(getApplicationContext(), fileName, Toast.LENGTH_LONG).show();
+                        TextView tv = (TextView) findViewById(R.id.sample_text);
+                        tv.setText(fileName);
+
+                        m_lastPath = lastPath;
+                        //Abort previos playing state
+                        boolean wasPlay = isPlaying;
+                        if(isPlaying)
+                            playerStop();
+                        if(!initPlayer())
+                        {
+                            playerStop();
+                            uninitPlayer();
+                            AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
+                            b.setTitle("Failed to initialize player");
+                            b.setMessage("Can't initialize player because of " + adl_errorInfo(MIDIDevice));
+                            b.setNegativeButton(android.R.string.ok, null);
+                            b.show();
+                            m_lastFile = "";
+                            return;
+                        }
+                        m_lastFile = fileName;
+                        m_setup.edit().putString("lastPath", m_lastPath).apply();
+                        if(adl_openFile(MIDIDevice, m_lastFile) < 0) {
+                            AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
+                            b.setTitle("Failed to open file");
+                            b.setMessage("Can't open music file because of " + adl_errorInfo(MIDIDevice));
+                            b.setNegativeButton(android.R.string.ok, null);
+                            b.show();
+                            m_lastFile = "";
+                        } else {
+                            double time = adl_totalTimeLength(MIDIDevice);
+                            SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
+                            musPos.setMax((int)time);
+                            musPos.setProgress(0);
+                            if (wasPlay)
+                                playerPlay();
+                        }
+                    }
+                });
+        fileDialog.show();
     }
 
     /**
@@ -665,6 +757,11 @@ public class Player extends AppCompatActivity {
 //    /*Initialize ADLMIDI Player device*/
 //    extern struct ADL_MIDIPlayer* adl_init(long sample_rate);
     public native long adl_init(long sampleRate);
+
+//
+///*Load WOPL bank file from File System. Is recommended to call adl_reset() to apply changes to already-loaded file player or real-time.*/
+//    extern int adl_openBankFile(struct ADL_MIDIPlayer *device, const char *filePath);
+    public native int adl_openBankFile(long device, String file);
 //
 ///*Load MIDI file from File System*/
 //    extern int adl_openFile(struct ADL_MIDIPlayer* device, char *filePath);

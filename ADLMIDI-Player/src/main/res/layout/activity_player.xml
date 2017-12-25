@@ -152,6 +152,34 @@
             android:layout_alignParentStart="true"
             android:layout_below="@+id/musicBankLabel" />
 
+        <Button
+            android:id="@+id/customBank"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:text="@string/chooseBank"
+            android:layout_below="@+id/bankNo" />
+
+        <CheckBox
+            android:id="@+id/useCustom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBaseline="@+id/customBank"
+            android:layout_alignBottom="@+id/customBank"
+            android:layout_toEndOf="@+id/customBank"
+            android:layout_toRightOf="@+id/customBank"
+            android:text="@string/useCustom" />
+
+        <TextView
+            android:id="@+id/bankFileName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_below="@+id/customBank"
+            android:text="&lt;Bank File&gt;" />
+
         <SeekBar
             android:id="@+id/musPos"
             style="@style/Widget.AppCompat.SeekBar"
@@ -163,9 +191,21 @@
             android:layout_alignParentLeft="true"
             android:layout_alignParentRight="true"
             android:layout_alignParentStart="true"
-            android:layout_below="@+id/bankNo"
+            android:layout_below="@+id/bankFileName"
             android:max="100"
             android:progress="0" />
+
+
+        <TextView
+            android:id="@+id/numChipsLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_below="@+id/musPos"
+            android:layout_marginTop="19dp"
+            android:text="@string/numChips"
+            tools:text="@string/numChips" />
 
         <NumberPicker
             android:id="@+id/numChips"
@@ -215,18 +255,17 @@
             android:text="@string/num4opChans"
             tools:text="@string/num4opChans" />
 
-
-
         <TextView
-            android:id="@+id/numChipsLabel"
+            android:id="@+id/num4opChansCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true"
-            android:layout_below="@+id/musPos"
-            android:layout_marginTop="19dp"
-            android:text="@string/numChips"
-            tools:text="@string/numChips" />
+            android:layout_above="@+id/quitapp"
+            android:layout_alignTop="@+id/num4opChans"
+            android:layout_toLeftOf="@+id/num4opChans"
+            android:layout_toStartOf="@+id/num4opChans"
+            android:text="TextView"
+            android:textAlignment="center"
+            android:textStyle="normal|italic" />
 
         <TextView
             android:id="@+id/numChipsCount"
@@ -240,17 +279,6 @@
             android:textAllCaps="false"
             android:textStyle="normal|italic" />
 
-        <TextView
-            android:id="@+id/num4opChansCount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_above="@+id/quitapp"
-            android:layout_alignTop="@+id/num4opChans"
-            android:layout_toLeftOf="@+id/num4opChans"
-            android:layout_toStartOf="@+id/num4opChans"
-            android:text="TextView"
-            android:textAlignment="center"
-            android:textStyle="normal|italic" />
 
         <CheckBox
             android:id="@+id/logVols"
@@ -262,7 +290,6 @@
             android:layout_alignRight="@+id/adlibDrumsMode"
             android:layout_below="@+id/adlibDrumsMode"
             android:text="@string/logvolumes" />
-
 
 
     </RelativeLayout>
