@@ -2,7 +2,7 @@
  * libADLMIDI is a free MIDI to WAV conversion library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2017 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2018 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -23,10 +23,6 @@
 
 #ifndef ADLMIDI_PRIVATE_HPP
 #define ADLMIDI_PRIVATE_HPP
-
-#ifndef ADLMIDI_VERSION
-#define ADLMIDI_VERSION "1.3.1"
-#endif
 
 // Setup compiler defines useful for exporting required public API symbols in gme.cpp
 #ifndef ADLMIDI_EXPORT
@@ -79,7 +75,6 @@ typedef int32_t ssize_t;
 #include <vector>
 #include <list>
 #include <string>
-#include <sstream>
 //#ifdef __WATCOMC__
 //#include <myset.h> //TODO: Implemnet a workaround for OpenWatcom to fix a crash while using those containers
 //#include <mymap.h>
@@ -92,6 +87,12 @@ typedef int32_t ssize_t;
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
+#include <cassert>
+#if !(defined(__APPLE__) && defined(__GLIBCXX__)) && !defined(__ANDROID__)
+#include <cinttypes> //PRId32, PRIu32, etc.
+#else
+#include <inttypes.h>
+#endif
 #include <vector> // vector
 #include <deque>  // deque
 #include <cmath>  // exp, log, ceil
@@ -109,14 +110,16 @@ typedef int32_t ssize_t;
 #include <deque>
 #include <algorithm>
 
-#include "fraction.hpp"
-
-#ifndef ADLMIDI_HW_OPL
-#ifdef ADLMIDI_USE_DOSBOX_OPL
-#include "dbopl.h"
-#else
-#include "nukedopl3.h"
+#ifdef _MSC_VER
+#pragma warning(disable:4319)
+#pragma warning(disable:4267)
+#pragma warning(disable:4244)
+#pragma warning(disable:4146)
 #endif
+
+#include "fraction.hpp"
+#ifndef ADLMIDI_HW_OPL
+#include "chips/opl_chip_base.h"
 #endif
 
 #include "adldata.hh"
@@ -127,7 +130,56 @@ typedef int32_t ssize_t;
 
 #define ADL_UNUSED(x) (void)x
 
+#define OPL_PANNING_LEFT    0x10
+#define OPL_PANNING_RIGHT   0x20
+#define OPL_PANNING_BOTH    0x30
+
 extern std::string ADLMIDI_ErrorString;
+
+/*
+  Sample conversions to various formats
+*/
+template <class Real>
+inline Real adl_cvtReal(int32_t x)
+{
+    return x * ((Real)1 / INT16_MAX);
+}
+inline int32_t adl_cvtS16(int32_t x)
+{
+    x = (x < INT16_MIN) ? INT16_MIN : x;
+    x = (x > INT16_MAX) ? INT16_MAX : x;
+    return x;
+}
+inline int32_t adl_cvtS8(int32_t x)
+{
+    return adl_cvtS16(x) / 256;
+}
+inline int32_t adl_cvtS24(int32_t x)
+{
+    return adl_cvtS16(x) * 256;
+}
+inline int32_t adl_cvtS32(int32_t x)
+{
+    return adl_cvtS16(x) * 65536;
+}
+inline int32_t adl_cvtU16(int32_t x)
+{
+    return adl_cvtS16(x) - INT16_MIN;
+}
+inline int32_t adl_cvtU8(int32_t x)
+{
+    return adl_cvtS8(x) - INT8_MIN;
+}
+inline int32_t adl_cvtU24(int32_t x)
+{
+    enum { int24_min = -(1 << 23) };
+    return adl_cvtS24(x) - int24_min;
+}
+inline int32_t adl_cvtU32(int32_t x)
+{
+    // unsigned operation because overflow on signed integers is undefined
+    return (uint32_t)adl_cvtS32(x) - (uint32_t)INT32_MIN;
+}
 
 /*
     Smart pointer for C heaps, created with malloc() call.
@@ -146,9 +198,11 @@ public:
 
     void reset(PTR *p = NULL)
     {
-        if(m_p)
-            free(m_p);
-        m_p = p;
+        if(p != m_p) {
+            if(m_p)
+                free(m_p);
+            m_p = p;
+        }
     }
 
     PTR *get()
@@ -160,6 +214,79 @@ public:
         return *m_p;
     }
     PTR *operator->()
+    {
+        return m_p;
+    }
+private:
+    AdlMIDI_CPtr(const AdlMIDI_CPtr &);
+    AdlMIDI_CPtr &operator=(const AdlMIDI_CPtr &);
+};
+
+/*
+    Shared pointer with non-atomic counter
+    FAQ: Why not std::shared_ptr? Because of Android NDK now doesn't supports it
+*/
+template<class VALUE>
+class AdlMIDI_SPtr
+{
+    VALUE *m_p;
+    size_t *m_counter;
+public:
+    AdlMIDI_SPtr() : m_p(NULL), m_counter(NULL) {}
+    ~AdlMIDI_SPtr()
+    {
+        reset(NULL);
+    }
+
+    AdlMIDI_SPtr(const AdlMIDI_SPtr &other)
+        : m_p(other.m_p), m_counter(other.m_counter)
+    {
+        if(m_counter)
+            ++*m_counter;
+    }
+
+    AdlMIDI_SPtr &operator=(const AdlMIDI_SPtr &other)
+    {
+        if(this == &other)
+            return *this;
+        reset();
+        m_p = other.m_p;
+        m_counter = other.m_counter;
+        if(m_counter)
+            ++*m_counter;
+        return *this;
+    }
+
+    void reset(VALUE *p = NULL)
+    {
+        if(p != m_p) {
+            if(m_p && --*m_counter == 0)
+                delete m_p;
+            m_p = p;
+            if(!p) {
+                if(m_counter) {
+                    delete m_counter;
+                    m_counter = NULL;
+                }
+            }
+            else
+            {
+                if(!m_counter)
+                    m_counter = new size_t;
+                *m_counter = 1;
+            }
+        }
+    }
+
+    VALUE *get()
+    {
+        return m_p;
+    }
+    VALUE &operator*()
+    {
+        return *m_p;
+    }
+    VALUE *operator->()
     {
         return m_p;
     }
@@ -176,11 +303,7 @@ public:
     char ____padding[4];
     ADL_MIDIPlayer *_parent;
 #ifndef ADLMIDI_HW_OPL
-#   ifdef ADLMIDI_USE_DOSBOX_OPL
-    std::vector<DBOPL::Handler> cards;
-#   else
-    std::vector<_opl3_chip> cards;
-#   endif
+    std::vector<AdlMIDI_SPtr<OPLChipBase > > cardsOP2;
 #endif
 private:
     std::vector<size_t>     ins; // index to adl[], cached, needed by Touch()
@@ -266,7 +389,10 @@ public:
     void updateFlags();
     void updateDeepFlags();
     void ChangeVolumeRangesModel(ADLMIDI_VolumeModels volumeModel);
-    void Reset(unsigned long PCM_RATE);
+    #ifndef ADLMIDI_HW_OPL
+    void ClearChips();
+    #endif
+    void Reset(int emulator, unsigned long PCM_RATE);
 };
 
 
@@ -481,6 +607,8 @@ public:
         bool is_xg_percussion;
         struct NoteInfo
         {
+            uint8_t note;
+            bool active;
             // Current pressure
             uint8_t vol;
             char ____padding[1];
@@ -491,13 +619,25 @@ public:
             size_t  midiins;
             // Index to physical adlib data structure, adlins[]
             size_t  insmeta;
+            enum
+            {
+                MaxNumPhysChans = 2,
+                MaxNumPhysItemCount = MaxNumPhysChans,
+            };
             struct Phys
             {
+                //! Destination chip channel
+                uint16_t chip_chan;
                 //! ins, inde to adl[]
                 size_t  insId;
                 //! Is this voice must be detunable?
                 bool    pseudo4op;
 
+                void assign(const Phys &oth)
+                {
+                    insId = oth.insId;
+                    pseudo4op = oth.pseudo4op;
+                }
                 bool operator==(const Phys &oth) const
                 {
                     return (insId == oth.insId) && (pseudo4op == oth.pseudo4op);
@@ -507,40 +647,165 @@ public:
                     return !operator==(oth);
                 }
             };
-            typedef std::map<uint16_t, Phys> PhysMap;
-            // List of OPL3 channels it is currently occupying.
-            std::map<uint16_t /*adlchn*/, Phys> phys;
+            //! List of OPL3 channels it is currently occupying.
+            Phys chip_channels[MaxNumPhysItemCount];
+            //! Count of used channels.
+            unsigned chip_channels_count;
+            //
+            Phys *phys_find(unsigned chip_chan)
+            {
+                Phys *ph = NULL;
+                for(unsigned i = 0; i < chip_channels_count && !ph; ++i)
+                    if(chip_channels[i].chip_chan == chip_chan)
+                        ph = &chip_channels[i];
+                return ph;
+            }
+            Phys *phys_find_or_create(unsigned chip_chan)
+            {
+                Phys *ph = phys_find(chip_chan);
+                if(!ph) {
+                    if(chip_channels_count < MaxNumPhysItemCount) {
+                        ph = &chip_channels[chip_channels_count++];
+                        ph->chip_chan = chip_chan;
+                    }
+                }
+                return ph;
+            }
+            Phys *phys_ensure_find_or_create(unsigned chip_chan)
+            {
+                Phys *ph = phys_find_or_create(chip_chan);
+                assert(ph);
+                return ph;
+            }
+            void phys_erase_at(const Phys *ph)
+            {
+                unsigned pos = ph - chip_channels;
+                assert(pos < chip_channels_count);
+                for(unsigned i = pos + 1; i < chip_channels_count; ++i)
+                    chip_channels[i - 1] = chip_channels[i];
+                --chip_channels_count;
+            }
+            void phys_erase(unsigned chip_chan)
+            {
+                Phys *ph = phys_find(chip_chan);
+                if(ph)
+                    phys_erase_at(ph);
+            }
         };
-        typedef std::map<uint8_t, NoteInfo> activenotemap_t;
-        typedef activenotemap_t::iterator activenoteiterator;
         char ____padding2[5];
-        activenotemap_t activenotes;
+        NoteInfo activenotes[128];
+
+        struct activenoteiterator
+        {
+            explicit activenoteiterator(NoteInfo *info = 0)
+                : ptr(info) {}
+            activenoteiterator &operator++()
+            {
+                if(ptr->note == 127)
+                    ptr = 0;
+                else
+                    for(++ptr; ptr && !ptr->active;)
+                        ptr = (ptr->note == 127) ? 0 : (ptr + 1);
+                return *this;
+            };
+            activenoteiterator operator++(int)
+            {
+                activenoteiterator pos = *this;
+                ++*this;
+                return pos;
+            }
+            NoteInfo &operator*() const
+                { return *ptr; }
+            NoteInfo *operator->() const
+                { return ptr; }
+            bool operator==(activenoteiterator other) const
+                { return ptr == other.ptr; }
+            bool operator!=(activenoteiterator other) const
+                { return ptr != other.ptr; }
+            operator NoteInfo *() const
+                { return ptr; }
+        private:
+            NoteInfo *ptr;
+        };
+
+        activenoteiterator activenotes_begin()
+        {
+            activenoteiterator it(activenotes);
+            return (it->active) ? it : ++it;
+        }
+
+        activenoteiterator activenotes_find(uint8_t note)
+        {
+            assert(note < 128);
+            return activenoteiterator(
+                activenotes[note].active ? &activenotes[note] : 0);
+        }
+
+        activenoteiterator activenotes_ensure_find(uint8_t note)
+        {
+            activenoteiterator it = activenotes_find(note);
+            assert(it);
+            return it;
+        }
+
+        std::pair<activenoteiterator, bool> activenotes_insert(uint8_t note)
+        {
+            assert(note < 128);
+            NoteInfo &info = activenotes[note];
+            bool inserted = !info.active;
+            if(inserted) info.active = true;
+            return std::pair<activenoteiterator, bool>(activenoteiterator(&info), inserted);
+        }
+
+        void activenotes_erase(activenoteiterator pos)
+        {
+            if(pos)
+                pos->active = false;
+        }
+
+        bool activenotes_empty()
+        {
+            return !activenotes_begin();
+        }
+
+        void activenotes_clear()
+        {
+            for(unsigned i = 0; i < 128; ++i) {
+                activenotes[i].note = i;
+                activenotes[i].active = false;
+            }
+        }
+
         void reset()
         {
-            portamento = 0;
+            resetAllControllers();
+            patch = 0;
+            vibpos = 0;
             bank_lsb = 0;
             bank_msb = 0;
-            patch = 0;
-            volume  = 100;
-            expression = 127;
-            panning = 0x30;
-            vibrato = 0;
-            sustain = 0;
-            bend = 0.0;
-            bendsense = 2 / 8192.0;
-            vibpos = 0;
-            vibspeed = 2 * 3.141592653 * 5.0;
-            vibdepth = 0.5 / 127;
-            vibdelay = 0;
             lastlrpn = 0;
             lastmrpn = 0;
             nrpn = false;
-            brightness = 127;
             is_xg_percussion = false;
         }
-        MIDIchannel()
-            : activenotes()
+        void resetAllControllers()
         {
+            bend = 0.0;
+            bendsense = 2 / 8192.0;
+            volume  = 100;
+            expression = 127;
+            sustain = 0;
+            vibrato = 0;
+            vibspeed = 2 * 3.141592653 * 5.0;
+            vibdepth = 0.5 / 127;
+            vibdelay = 0;
+            panning = OPL_PANNING_BOTH;
+            portamento = 0;
+            brightness = 127;
+        }
+        MIDIchannel()
+        {
+            activenotes_clear();
             reset();
         }
     };
@@ -548,39 +813,65 @@ public:
     // Additional information about OPL3 channels
     struct AdlChannel
     {
-        // For collisions
         struct Location
         {
             uint16_t    MidCh;
             uint8_t     note;
-            bool operator==(const Location &b) const
-            {
-                return MidCh == b.MidCh && note == b.note;
-            }
-            bool operator< (const Location &b) const
-            {
-                return MidCh < b.MidCh || (MidCh == b.MidCh && note < b.note);
-            }
-            char ____padding[1];
+            bool operator==(const Location &l) const
+                { return MidCh == l.MidCh && note == l.note; }
+            bool operator!=(const Location &l) const
+                { return !operator==(l); }
         };
         struct LocationData
         {
+            LocationData *prev, *next;
+            Location loc;
             bool sustained;
             char ____padding[7];
             MIDIchannel::NoteInfo::Phys ins;  // a copy of that in phys[]
             int64_t kon_time_until_neglible;
             int64_t vibdelay;
         };
-        typedef std::map<Location, LocationData> users_t;
-        users_t users;
 
         // If the channel is keyoff'd
         int64_t koff_time_until_neglible;
+
+        enum { users_max = 128 };
+        LocationData *users_first, *users_free_cells;
+        LocationData users_cells[users_max];
+        unsigned users_size;
+
+        bool users_empty() const;
+        LocationData *users_find(Location loc);
+        LocationData *users_allocate();
+        LocationData *users_find_or_create(Location loc);
+        LocationData *users_insert(const LocationData &x);
+        void users_erase(LocationData *user);
+        void users_clear();
+        void users_assign(const LocationData *users, size_t count);
+
         // For channel allocation:
-        AdlChannel(): users(), koff_time_until_neglible(0) { }
+        AdlChannel(): koff_time_until_neglible(0)
+        {
+            users_clear();
+        }
+
+        AdlChannel(const AdlChannel &oth): koff_time_until_neglible(oth.koff_time_until_neglible)
+        {
+            users_assign(oth.users_first, oth.users_size);
+        }
+
+        AdlChannel &operator=(const AdlChannel &oth)
+         {
+             koff_time_until_neglible = oth.koff_time_until_neglible;
+             users_assign(oth.users_first, oth.users_size);
+             return *this;
+         }
+
         void AddAge(int64_t ms);
     };
 
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
     /**
      * @brief MIDI Event utility container
      */
@@ -705,9 +996,11 @@ public:
         PositionNew(): began(false), wait(0.0), absTimePosition(0.0), track()
         {}
     };
+#endif//ADLMIDI_DISABLE_MIDI_SEQUENCER
 
     struct Setup
     {
+        int          emulator;
         unsigned int AdlBank;
         unsigned int NumFourOps;
         unsigned int NumCards;
@@ -719,6 +1012,7 @@ public:
         //unsigned int SkipForward;
         bool    loopingIsEnabled;
         int     ScaleModulators;
+        bool    fullRangeBrightnessCC74;
 
         double delay;
         double carry;
@@ -755,6 +1049,8 @@ private:
     char ____padding[7];
 
     std::vector<AdlChannel> ch;
+
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
     std::vector<std::vector<uint8_t> > TrackData;
 
     PositionNew CurrentPositionNew, LoopBeginPositionNew, trackBeginPositionNew;
@@ -768,13 +1064,16 @@ private:
     double loopStartTime;
     //! Loop end time
     double loopEndTime;
+#endif
     //! Local error string
     std::string errorString;
     //! Local error string
     std::string errorStringOut;
 
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
     //! Pre-processed track data storage
     std::vector<MidiTrackQueue > trackDataNew;
+#endif
 
     //! Missing instruments catches
     std::set<uint8_t> caugh_missing_instruments;
@@ -783,6 +1082,7 @@ private:
     //! Missing percussion banks catches
     std::set<uint16_t> caugh_missing_banks_percussion;
 
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
     /**
      * @brief Build MIDI track data from the raw track data storage
      * @return true if everything successfully processed, or false on any error
@@ -797,12 +1097,14 @@ private:
      * @return Parsed MIDI event entry
      */
     MidiEvent parseEvent(uint8_t **ptr, uint8_t *end, int &status);
+#endif//ADLMIDI_DISABLE_MIDI_SEQUENCER
 
 public:
 
     const std::string &getErrorString();
     void setErrorString(const std::string &err);
 
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
     std::string musTitle;
     std::string musCopyright;
     std::vector<std::string> musTrackTitles;
@@ -816,13 +1118,28 @@ public:
             loopEnd,
             invalidLoop; /*Loop points are invalid (loopStart after loopEnd or loopStart and loopEnd are on same place)*/
     char ____padding2[2];
+#endif
     OPL3 opl;
 
-    int16_t outBuf[1024];
+    int32_t outBuf[1024];
 
     Setup m_setup;
 
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
+    /**
+     * @brief Utility function to read Big-Endian integer from raw binary data
+     * @param buffer Pointer to raw binary buffer
+     * @param nbytes Count of bytes to parse integer
+     * @return Extracted unsigned integer
+     */
     static uint64_t ReadBEint(const void *buffer, size_t nbytes);
+
+    /**
+     * @brief Utility function to read Little-Endian integer from raw binary data
+     * @param buffer Pointer to raw binary buffer
+     * @param nbytes Count of bytes to parse integer
+     * @return Extracted unsigned integer
+     */
     static uint64_t ReadLEint(const void *buffer, size_t nbytes);
 
     /**
@@ -839,11 +1156,13 @@ public:
      * @return Unsigned integer that conains parsed variable-length value
      */
     uint64_t ReadVarLenEx(uint8_t **ptr, uint8_t *end, bool &ok);
+#endif
 
     bool LoadBank(const std::string &filename);
     bool LoadBank(const void *data, size_t size);
     bool LoadBank(fileReader &fr);
 
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
     bool LoadMIDI(const std::string &filename);
     bool LoadMIDI(const void *data, size_t size);
     bool LoadMIDI(fileReader &fr);
@@ -855,6 +1174,7 @@ public:
      * @return desired number of seconds until next call
      */
     double Tick(double s, double granularity);
+#endif
 
     /**
      * @brief Process extra iterators like vibrato or arpeggio
@@ -862,6 +1182,7 @@ public:
      */
     void   TickIteratos(double s);
 
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
     /**
      * @brief Change current position to specified time position in seconds
      * @param seconds Absolute time position in seconds
@@ -902,6 +1223,7 @@ public:
      * @param tempo Tempo multiplier: 1.0 - original tempo. >1 - faster, <1 - slower
      */
     void    setTempo(double tempo);
+#endif//ADLMIDI_DISABLE_MIDI_SEQUENCER
 
     /* RealTime event triggers */
     void realTime_ResetState();
@@ -933,19 +1255,24 @@ private:
         Upd_Volume = 0x4,
         Upd_Pitch  = 0x8,
         Upd_All    = Upd_Pan + Upd_Volume + Upd_Pitch,
-        Upd_Off    = 0x20
+        Upd_Off    = 0x20,
+        Upd_Mute   = 0x40,
+        Upt_OffMute = Upd_Off + Upd_Mute
     };
 
     void NoteUpdate(uint16_t MidCh,
                     MIDIchannel::activenoteiterator i,
                     unsigned props_mask,
                     int32_t select_adlchn = -1);
+
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
     bool ProcessEventsNew(bool isSeek = false);
     void HandleEvent(size_t tk, const MidiEvent &evt, int &status);
+#endif
 
     // Determine how good a candidate this adlchannel
     // would be for playing a note from this instrument.
-    long CalculateAdlChannelGoodness(unsigned c, const MIDIchannel::NoteInfo::Phys &ins, uint16_t /*MidCh*/) const;
+    int64_t CalculateAdlChannelGoodness(unsigned c, const MIDIchannel::NoteInfo::Phys &ins, uint16_t /*MidCh*/) const;
 
     // A new note will be played on this channel using this instrument.
     // Kill existing notes on this channel (or don't, if we do arpeggio)
@@ -953,7 +1280,7 @@ private:
 
     void KillOrEvacuate(
         size_t  from_channel,
-        AdlChannel::users_t::iterator j,
+        AdlChannel::LocationData *j,
         MIDIchannel::activenoteiterator i);
     void Panic();
     void KillSustainingNotes(int32_t MidCh = -1, int32_t this_adlchn = -1);

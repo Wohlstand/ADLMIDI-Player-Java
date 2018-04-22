@@ -2,7 +2,7 @@
  * libADLMIDI is a free MIDI to WAV conversion library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2017 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2018 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -27,6 +27,18 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define ADLMIDI_VERSION_MAJOR       1
+#define ADLMIDI_VERSION_MINOR       3
+#define ADLMIDI_VERSION_PATCHLEVEL  2
+
+#define ADLMIDI_TOSTR_I(s) #s
+#define ADLMIDI_TOSTR(s) ADLMIDI_TOSTR_I(s)
+#define ADLMIDI_VERSION \
+        ADLMIDI_TOSTR(ADLMIDI_VERSION_MAJOR) "." \
+        ADLMIDI_TOSTR(ADLMIDI_VERSION_MINOR) "." \
+        ADLMIDI_TOSTR(ADLMIDI_VERSION_PATCHLEVEL)
+
 
 #include <stddef.h>
 
@@ -53,12 +65,34 @@ enum ADLMIDI_VolumeModels
     ADLMIDI_VolumeModel_9X
 };
 
+enum ADLMIDI_SampleType
+{
+    ADLMIDI_SampleType_S16 = 0,  /* signed PCM 16-bit */
+    ADLMIDI_SampleType_S8,       /* signed PCM 8-bit */
+    ADLMIDI_SampleType_F32,      /* float 32-bit */
+    ADLMIDI_SampleType_F64,      /* float 64-bit */
+    ADLMIDI_SampleType_S24,      /* signed PCM 24-bit */
+    ADLMIDI_SampleType_S32,      /* signed PCM 32-bit */
+    ADLMIDI_SampleType_U8,       /* unsigned PCM 8-bit */
+    ADLMIDI_SampleType_U16,      /* unsigned PCM 16-bit */
+    ADLMIDI_SampleType_U24,      /* unsigned PCM 24-bit */
+    ADLMIDI_SampleType_U32,      /* unsigned PCM 32-bit */
+    ADLMIDI_SampleType_Count,
+};
+
+struct ADLMIDI_AudioFormat
+{
+    enum ADLMIDI_SampleType type;  /* type of sample */
+    unsigned containerSize;        /* size in bytes of the storage type */
+    unsigned sampleOffset;         /* distance in bytes between consecutive samples */
+};
+
 struct ADL_MIDIPlayer
 {
     void *adl_midiPlayer;
 };
 
-//DEPRECATED
+/* DEPRECATED */
 #define adl_setNumCards adl_setNumChips
 
 /* Sets number of emulated chips (from 1 to 100). Emulation of multiple chips exchanges polyphony limits*/
@@ -98,6 +132,12 @@ extern void adl_setHTremolo(struct ADL_MIDIPlayer *device, int htremo);
 /*Override Enable(1) or Disable(0) scaling of modulator volumes. -1 - use bank default scaling of modulator volumes*/
 extern void adl_setScaleModulators(struct ADL_MIDIPlayer *device, int smod);
 
+/*Enable(1) or Disable(0) full-range brightness (MIDI CC74 used in XG music to filter result sounding) scaling.
+    By default, brightness affects sound between 0 and 64.
+    When this option is enabled, the range will use a full range from 0 up to 127.
+*/
+extern void adl_setFullRangeBrightness(struct ADL_MIDIPlayer *device, int fr_brightness);
+
 /*Enable or disable built-in loop (built-in loop supports 'loopStart' and 'loopEnd' tags to loop specific part)*/
 extern void adl_setLoopEnabled(struct ADL_MIDIPlayer *device, int loopEn);
 
@@ -114,11 +154,35 @@ extern int adl_openBankFile(struct ADL_MIDIPlayer *device, const char *filePath)
 extern int adl_openBankData(struct ADL_MIDIPlayer *device, const void *mem, unsigned long size);
 
 
-/*Returns name of currently used OPL3 emulator*/
+/* DEPRECATED */
 extern const char *adl_emulatorName();
+
+/*Returns chip emulator name string*/
+extern const char *adl_chipEmulatorName(struct ADL_MIDIPlayer *device);
+
+enum ADL_Emulator
+{
+    ADLMIDI_EMU_NUKED = 0,
+    ADLMIDI_EMU_NUKED_174,
+    ADLMIDI_EMU_DOSBOX,
+    ADLMIDI_EMU_end
+};
+
+/* Switch the emulation core */
+extern int adl_switchEmulator(struct ADL_MIDIPlayer *device, int emulator);
+
+
+typedef struct {
+    ADL_UInt16 major;
+    ADL_UInt16 minor;
+    ADL_UInt16 patch;
+} ADL_Version;
 
 /*Returns string which contains a version number*/
 extern const char *adl_linkedLibraryVersion();
+
+/*Returns structure which contains a version number of library */
+extern const ADL_Version *adl_linkedVersion();
 
 /*Returns string which contains last error message of initialization*/
 extern const char *adl_errorString();
@@ -193,10 +257,16 @@ extern struct Adl_MarkerEntry adl_metaMarker(struct ADL_MIDIPlayer *device, size
 
 
 /*Take a sample buffer and iterate MIDI timers */
-extern int  adl_play(struct ADL_MIDIPlayer *device, int sampleCount, short out[]);
+extern int  adl_play(struct ADL_MIDIPlayer *device, int sampleCount, short *out);
+
+/*Take a sample buffer and iterate MIDI timers */
+extern int  adl_playFormat(struct ADL_MIDIPlayer *device, int sampleCount, ADL_UInt8 *left, ADL_UInt8 *right, const struct ADLMIDI_AudioFormat *format);
 
 /*Generate audio output from chip emulators without iteration of MIDI timers.*/
 extern int  adl_generate(struct ADL_MIDIPlayer *device, int sampleCount, short *out);
+
+/*Generate audio output from chip emulators without iteration of MIDI timers.*/
+extern int  adl_generateFormat(struct ADL_MIDIPlayer *device, int sampleCount, ADL_UInt8 *left, ADL_UInt8 *right, const struct ADLMIDI_AudioFormat *format);
 
 /**
  * @brief Periodic tick handler.

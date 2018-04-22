@@ -241,8 +241,7 @@ Java_ru_wohlsoft_adlmidiplayer_Player_adl_1errorInfo(JNIEnv *env, jobject instan
 JNIEXPORT jstring JNICALL
 Java_ru_wohlsoft_adlmidiplayer_Player_stringFromJNI(JNIEnv *env, jobject /* this */)
 {
-    std::string hello = adl_emulatorName();
-    hello += " OPL3 Emulator is ready";
+    std::string hello = "OPL3 Emulator is ready";
     return env->NewStringUTF(hello.c_str());
 }
 
@@ -278,7 +277,10 @@ Java_ru_wohlsoft_adlmidiplayer_Player_adl_1init(JNIEnv *env, jobject instance, j
         assert(pthread_mutex_init(&g_lock, NULL) == 0);
         mutex_created=true;
     }
-    return (jlong)adl_init((long)sampleRate);
+    struct ADL_MIDIPlayer *p = adl_init((long)sampleRate);
+    if(p)
+        adl_switchEmulator(p, ADLMIDI_EMU_DOSBOX);
+    return (jlong)p;
 }
 
 JNIEXPORT void JNICALL

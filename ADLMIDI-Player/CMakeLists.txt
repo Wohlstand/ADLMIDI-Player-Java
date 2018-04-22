@@ -35,8 +35,14 @@ add_library( # Sets the name of the library.
              src/main/cpp/src/adlmidi_private.cpp
              src/main/cpp/src/adlmidi_xmi2mid.c
              src/main/cpp/src/adlmidi_mus2mid.c
-             # src/main/cpp/src/nukedopl3.c
-             src/main/cpp/src/dbopl.cpp
+             src/main/cpp/src/wopl/wopl_file.c
+             src/main/cpp/src/chips/opl_chip_base.cpp
+             src/main/cpp/src/chips/nuked_opl3.cpp
+             src/main/cpp/src/chips/nuked_opl3_v174.cpp
+             src/main/cpp/src/chips/dosbox_opl3.cpp
+             src/main/cpp/src/chips/dosbox/dbopl.cpp
+             src/main/cpp/src/chips/nuked/nukedopl3.c
+             src/main/cpp/src/chips/nuked/nukedopl3_174.c
              src/main/cpp/native-lib.cpp )
 
 target_include_directories(native-lib PUBLIC src/main/cpp/include)
