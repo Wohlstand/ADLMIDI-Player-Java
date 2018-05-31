@@ -120,7 +120,7 @@ ADLMIDI_EXPORT int adl_setBank(ADL_MIDIPlayer *device, int bank)
     if(static_cast<uint32_t>(bankno) >= NumBanks)
     {
         char errBuf[150];
-        snprintf(errBuf, 150, "Embedded bank number may only be 0..%" PRIu32 "!\n", (NumBanks - 1));
+        snprintf(errBuf, 150, "Embedded bank number may only be 0..%u!\n", static_cast<unsigned int>(NumBanks - 1));
         play->setErrorString(errBuf);
         return -1;
     }
@@ -221,12 +221,14 @@ ADLMIDI_EXPORT void adl_setLoopEnabled(ADL_MIDIPlayer *device, int loopEn)
     play->m_setup.loopingIsEnabled = (loopEn != 0);
 }
 
+/* !!!DEPRECATED!!! */
 ADLMIDI_EXPORT void adl_setLogarithmicVolumes(struct ADL_MIDIPlayer *device, int logvol)
 {
     if(!device) return;
     MIDIplay *play = reinterpret_cast<MIDIplay *>(device->adl_midiPlayer);
     play->m_setup.LogarithmicVolumes = logvol;
-    play->opl.LogarithmicVolumes = play->m_setup.LogarithmicVolumes;
+    if(play->m_setup.LogarithmicVolumes)
+        play->opl.ChangeVolumeRangesModel(ADLMIDI_VolumeModel_NativeOPL3);
 }
 
 ADLMIDI_EXPORT void adl_setVolumeRangeModel(struct ADL_MIDIPlayer *device, int volumeModel)
@@ -421,7 +423,7 @@ ADLMIDI_EXPORT void adl_reset(struct ADL_MIDIPlayer *device)
     play->m_setup.tick_skip_samples_delay = 0;
     play->opl.Reset(play->m_setup.emulator, play->m_setup.PCM_RATE);
     play->ch.clear();
-    play->ch.resize(play->opl.NumChannels);
+    play->ch.resize((size_t)play->opl.NumChannels);
 }
 
 ADLMIDI_EXPORT double adl_totalTimeLength(struct ADL_MIDIPlayer *device)
@@ -631,8 +633,8 @@ static void CopySamplesTransformed(ADL_UInt8 *dstLeft, ADL_UInt8 *dstRight, cons
                                    Ret(&transform)(int32_t))
 {
     for(size_t i = 0; i < frameCount; ++i) {
-        *(Dst *)(dstLeft + (i * sampleOffset)) = transform(src[2 * i]);
-        *(Dst *)(dstRight + (i * sampleOffset)) = transform(src[(2 * i) + 1]);
+        *(Dst *)(dstLeft + (i * sampleOffset)) = (Dst)transform(src[2 * i]);
+        *(Dst *)(dstRight + (i * sampleOffset)) = (Dst)transform(src[(2 * i) + 1]);
     }
 }
 
@@ -659,6 +661,8 @@ static int SendStereoAudio(int        samples_requested,
     right += (outputOffset / 2) * sampleOffset;
 
     typedef int32_t(&pfnConvert)(int32_t);
+    typedef float(&ffnConvert)(int32_t);
+    typedef double(&dfnConvert)(int32_t);
 
     switch(sampleType) {
     case ADLMIDI_SampleType_S8:
@@ -723,15 +727,21 @@ static int SendStereoAudio(int        samples_requested,
         break;
     }
     case ADLMIDI_SampleType_F32:
+    {
         if(containerSize != sizeof(float))
             return -1;
-        CopySamplesTransformed<float>(left, right, _in, toCopy / 2, sampleOffset, adl_cvtReal<float>);
+        ffnConvert cvt = adl_cvtReal<float>;
+        CopySamplesTransformed<float>(left, right, _in, toCopy / 2, sampleOffset, cvt);
         break;
+    }
     case ADLMIDI_SampleType_F64:
+    {
         if(containerSize != sizeof(double))
             return -1;
-        CopySamplesTransformed<double>(left, right, _in, toCopy / 2, sampleOffset, adl_cvtReal<double>);
+        dfnConvert cvt = adl_cvtReal<double>;
+        CopySamplesTransformed<double>(left, right, _in, toCopy / 2, sampleOffset, cvt);
         break;
+    }
     default:
         return -1;
     }

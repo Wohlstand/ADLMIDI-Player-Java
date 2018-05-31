@@ -88,17 +88,13 @@ typedef int32_t ssize_t;
 #include <cstdarg>
 #include <cstdio>
 #include <cassert>
-#if !(defined(__APPLE__) && defined(__GLIBCXX__)) && !defined(__ANDROID__)
-#include <cinttypes> //PRId32, PRIu32, etc.
-#else
-#include <inttypes.h>
-#endif
 #include <vector> // vector
 #include <deque>  // deque
 #include <cmath>  // exp, log, ceil
 #if defined(__WATCOMC__)
 #include <math.h> // round, sqrt
 #endif
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits> // numeric_limit
@@ -109,6 +105,28 @@ typedef int32_t ssize_t;
 
 #include <deque>
 #include <algorithm>
+
+/*
+ * Workaround for some compilers are has no those macros in their headers!
+ */
+#ifndef INT8_MIN
+#define INT8_MIN    (-0x7f - 1)
+#endif
+#ifndef INT16_MIN
+#define INT16_MIN   (-0x7fff - 1)
+#endif
+#ifndef INT32_MIN
+#define INT32_MIN   (-0x7fffffff - 1)
+#endif
+#ifndef INT8_MAX
+#define INT8_MAX    0x7f
+#endif
+#ifndef INT16_MAX
+#define INT16_MAX   0x7fff
+#endif
+#ifndef INT32_MAX
+#define INT32_MAX   0x7fffffff
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(disable:4319)
@@ -127,6 +145,8 @@ typedef int32_t ssize_t;
 #ifndef ADLMIDI_DISABLE_CPP_EXTRAS
 #include "adlmidi.hpp"  //Extra C++ API
 #endif
+#include "adlmidi_ptr.hpp"
+#include "adlmidi_bankmap.h"
 
 #define ADL_UNUSED(x) (void)x
 
@@ -168,7 +188,7 @@ inline int32_t adl_cvtU16(int32_t x)
 }
 inline int32_t adl_cvtU8(int32_t x)
 {
-    return adl_cvtS8(x) - INT8_MIN;
+    return (adl_cvtS16(x) / 256) - INT8_MIN;
 }
 inline int32_t adl_cvtU24(int32_t x)
 {
@@ -180,117 +200,6 @@ inline int32_t adl_cvtU32(int32_t x)
     // unsigned operation because overflow on signed integers is undefined
     return (uint32_t)adl_cvtS32(x) - (uint32_t)INT32_MIN;
 }
-
-/*
-    Smart pointer for C heaps, created with malloc() call.
-    FAQ: Why not std::shared_ptr? Because of Android NDK now doesn't supports it
-*/
-template<class PTR>
-class AdlMIDI_CPtr
-{
-    PTR *m_p;
-public:
-    AdlMIDI_CPtr() : m_p(NULL) {}
-    ~AdlMIDI_CPtr()
-    {
-        reset(NULL);
-    }
-
-    void reset(PTR *p = NULL)
-    {
-        if(p != m_p) {
-            if(m_p)
-                free(m_p);
-            m_p = p;
-        }
-    }
-
-    PTR *get()
-    {
-        return m_p;
-    }
-    PTR &operator*()
-    {
-        return *m_p;
-    }
-    PTR *operator->()
-    {
-        return m_p;
-    }
-private:
-    AdlMIDI_CPtr(const AdlMIDI_CPtr &);
-    AdlMIDI_CPtr &operator=(const AdlMIDI_CPtr &);
-};
-
-/*
-    Shared pointer with non-atomic counter
-    FAQ: Why not std::shared_ptr? Because of Android NDK now doesn't supports it
-*/
-template<class VALUE>
-class AdlMIDI_SPtr
-{
-    VALUE *m_p;
-    size_t *m_counter;
-public:
-    AdlMIDI_SPtr() : m_p(NULL), m_counter(NULL) {}
-    ~AdlMIDI_SPtr()
-    {
-        reset(NULL);
-    }
-
-    AdlMIDI_SPtr(const AdlMIDI_SPtr &other)
-        : m_p(other.m_p), m_counter(other.m_counter)
-    {
-        if(m_counter)
-            ++*m_counter;
-    }
-
-    AdlMIDI_SPtr &operator=(const AdlMIDI_SPtr &other)
-    {
-        if(this == &other)
-            return *this;
-        reset();
-        m_p = other.m_p;
-        m_counter = other.m_counter;
-        if(m_counter)
-            ++*m_counter;
-        return *this;
-    }
-
-    void reset(VALUE *p = NULL)
-    {
-        if(p != m_p) {
-            if(m_p && --*m_counter == 0)
-                delete m_p;
-            m_p = p;
-            if(!p) {
-                if(m_counter) {
-                    delete m_counter;
-                    m_counter = NULL;
-                }
-            }
-            else
-            {
-                if(!m_counter)
-                    m_counter = new size_t;
-                *m_counter = 1;
-            }
-        }
-    }
-
-    VALUE *get()
-    {
-        return m_p;
-    }
-    VALUE &operator*()
-    {
-        return *m_p;
-    }
-    VALUE *operator->()
-    {
-        return m_p;
-    }
-};
 
 class MIDIplay;
 struct ADL_MIDIPlayer;
@@ -306,25 +215,25 @@ public:
     std::vector<AdlMIDI_SPtr<OPLChipBase > > cardsOP2;
 #endif
 private:
-    std::vector<size_t>     ins; // index to adl[], cached, needed by Touch()
+    std::vector<adldata>    ins;  // patch data, cached, needed by Touch()
     std::vector<uint8_t>    pit;  // value poked to B0, cached, needed by NoteOff)(
     std::vector<uint8_t>    regBD;
 
     friend int adlRefreshNumCards(ADL_MIDIPlayer *device);
     //! Meta information about every instrument
-    std::vector<adlinsdata>     dynamic_metainstruments; // Replaces adlins[] when CMF file
+    std::vector<adlinsdata2>    dynamic_metainstruments; // Replaces adlins[] when CMF file
     //! Raw instrument data ready to be sent to the chip
     std::vector<adldata>        dynamic_instruments;     // Replaces adl[]    when CMF file
     size_t                      dynamic_percussion_offset;
 
-    typedef std::map<uint16_t, size_t> BankMap;
+    typedef BasicBankMap<size_t> BankMap;
     BankMap dynamic_melodic_banks;
     BankMap dynamic_percussion_banks;
+    AdlBankSetup dynamic_bank_setup;
     const unsigned  DynamicInstrumentTag /* = 0x8000u*/,
                     DynamicMetaInstrumentTag /* = 0x4000000u*/;
-    const adlinsdata    &GetAdlMetaIns(size_t n);
+    adlinsdata2         GetAdlMetaIns(size_t n);
     size_t              GetAdlMetaNumber(size_t midiins);
-    const adldata       &GetAdlIns(size_t insno);
 public:
     void    setEmbeddedBank(unsigned int bank);
 
@@ -342,8 +251,8 @@ public:
     bool AdlPercussionMode;
     //! Carriers-only are scaled by default by volume level. This flag will tell to scale modulators too.
     bool ScaleModulators;
-    //! Required to play CMF files. Can be turned on by using of "CMF" volume model
-    bool LogarithmicVolumes;
+    // ! Required to play CMF files. Can be turned on by using of "CMF" volume model
+    //bool LogarithmicVolumes; //[REPLACED WITH "m_volumeScale == VOLUME_NATIVE", DEPRECATED!!!]
     // ! Required to play EA-MUS files [REPLACED WITH "m_musicMode", DEPRECATED!!!]
     //bool CartoonersVolumes;
     enum MusicMode
@@ -359,7 +268,7 @@ public:
     enum VolumesScale
     {
         VOLUME_Generic,
-        VOLUME_CMF,
+        VOLUME_NATIVE,
         VOLUME_DMX,
         VOLUME_APOGEE,
         VOLUME_9X
@@ -383,7 +292,7 @@ public:
     void Touch_Real(unsigned c, unsigned volume, uint8_t brightness = 127);
     //void Touch(unsigned c, unsigned volume)
 
-    void Patch(uint16_t c, size_t i);
+    void Patch(uint16_t c, const adldata &adli);
     void Pan(unsigned c, unsigned value);
     void Silence();
     void updateFlags();
@@ -596,9 +505,14 @@ public:
         uint8_t bank_lsb, bank_msb;
         uint8_t patch;
         uint8_t volume, expression;
-        uint8_t panning, vibrato, sustain;
+        uint8_t panning, vibrato, aftertouch, sustain;
+        //! Per note Aftertouch values
+        uint8_t noteAftertouch[128];
+        //! Is note aftertouch has any non-zero value
+        bool    noteAfterTouchInUse;
         char ____padding[6];
         double  bend, bendsense;
+        int bendsense_lsb, bendsense_msb;
         double  vibpos, vibspeed, vibdepth;
         int64_t vibdelay;
         uint8_t lastlrpn, lastmrpn;
@@ -611,7 +525,8 @@ public:
             bool active;
             // Current pressure
             uint8_t vol;
-            char ____padding[1];
+            // Note vibrato (a part of Note Aftertouch feature)
+            uint8_t vibrato;
             // Tone selected on noteon:
             int16_t tone;
             char ____padding2[4];
@@ -629,18 +544,18 @@ public:
                 //! Destination chip channel
                 uint16_t chip_chan;
                 //! ins, inde to adl[]
-                size_t  insId;
+                adldata ains;
                 //! Is this voice must be detunable?
                 bool    pseudo4op;
 
                 void assign(const Phys &oth)
                 {
-                    insId = oth.insId;
+                    ains = oth.ains;
                     pseudo4op = oth.pseudo4op;
                 }
                 bool operator==(const Phys &oth) const
                 {
-                    return (insId == oth.insId) && (pseudo4op == oth.pseudo4op);
+                    return (ains == oth.ains) && (pseudo4op == oth.pseudo4op);
                 }
                 bool operator!=(const Phys &oth) const
                 {
@@ -660,7 +575,7 @@ public:
                         ph = &chip_channels[i];
                 return ph;
             }
-            Phys *phys_find_or_create(unsigned chip_chan)
+            Phys *phys_find_or_create(uint16_t chip_chan)
             {
                 Phys *ph = phys_find(chip_chan);
                 if(!ph) {
@@ -671,7 +586,7 @@ public:
                 }
                 return ph;
             }
-            Phys *phys_ensure_find_or_create(unsigned chip_chan)
+            Phys *phys_ensure_find_or_create(uint16_t chip_chan)
             {
                 Phys *ph = phys_find_or_create(chip_chan);
                 assert(ph);
@@ -707,7 +622,7 @@ public:
                     for(++ptr; ptr && !ptr->active;)
                         ptr = (ptr->note == 127) ? 0 : (ptr + 1);
                 return *this;
-            };
+            }
             activenoteiterator operator++(int)
             {
                 activenoteiterator pos = *this;
@@ -770,7 +685,7 @@ public:
 
         void activenotes_clear()
         {
-            for(unsigned i = 0; i < 128; ++i) {
+            for(uint8_t i = 0; i < 128; ++i) {
                 activenotes[i].note = i;
                 activenotes[i].active = false;
             }
@@ -791,17 +706,31 @@ public:
         void resetAllControllers()
         {
             bend = 0.0;
-            bendsense = 2 / 8192.0;
+            bendsense_msb = 2;
+            bendsense_lsb = 0;
+            updateBendSensitivity();
             volume  = 100;
             expression = 127;
             sustain = 0;
             vibrato = 0;
+            aftertouch = 0;
+            std::memset(noteAftertouch, 0, 128);
+            noteAfterTouchInUse = false;
             vibspeed = 2 * 3.141592653 * 5.0;
             vibdepth = 0.5 / 127;
             vibdelay = 0;
             panning = OPL_PANNING_BOTH;
             portamento = 0;
             brightness = 127;
+        }
+        bool hasVibrato()
+        {
+            return (vibrato > 0) || (aftertouch > 0) || noteAfterTouchInUse;
+        }
+        void updateBendSensitivity()
+        {
+            int cent = bendsense_msb * 100 + bendsense_lsb;
+            bendsense = cent * (0.01 / 8192.0);
         }
         MIDIchannel()
         {

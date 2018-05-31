@@ -36,17 +36,15 @@ int adlRefreshNumCards(ADL_MIDIPlayer *device)
         //For custom bank
         for(size_t a = 0; a < play->opl.dynamic_metainstruments.size(); ++a)
         {
+            adlinsdata2 &ins = play->opl.dynamic_metainstruments[a];
+            if(ins.flags & adlinsdata::Flag_NoSound)
+                continue;
+
             size_t div = (a >= play->opl.dynamic_percussion_offset) ? 1 : 0;
             ++n_total[div];
-            adlinsdata &ins = play->opl.dynamic_metainstruments[a];
-            if((ins.adlno1 != ins.adlno2) && ((ins.flags & adlinsdata::Flag_Pseudo4op) == 0))
+            if(ins.flags & adlinsdata::Flag_Real4op)
                 ++n_fourop[div];
         }
-
-        play->m_setup.NumFourOps =
-                (n_fourop[0] >= 128 * 7 / 8) ? play->m_setup.NumCards * 6
-                : (n_fourop[0] < 128 * 1 / 8) ? (n_fourop[1] > 0 ? 4 : 0)
-                : (play->m_setup.NumCards == 1 ? 1 : play->m_setup.NumCards * 4);
     }
     else
     {
@@ -57,27 +55,34 @@ int adlRefreshNumCards(ADL_MIDIPlayer *device)
             if(insno == 198)
                 continue;
             ++n_total[a / 128];
-            const adlinsdata &ins = adlins[insno];
-            if((ins.adlno1 != ins.adlno2) && ((ins.flags & adlinsdata::Flag_Pseudo4op) == 0))
+            adlinsdata2 ins(adlins[insno]);
+            if(ins.flags & adlinsdata::Flag_Real4op)
                 ++n_fourop[a / 128];
         }
-
-        play->m_setup.NumFourOps =
-                (n_fourop[0] >= (n_total[0] % 128) * 7 / 8) ? play->m_setup.NumCards * 6
-                : (n_fourop[0] < (n_total[0] % 128) * 1 / 8) ? 0
-                : (play->m_setup.NumCards == 1 ? 1 : play->m_setup.NumCards * 4);
     }
 
-    play->opl.NumFourOps = play->m_setup.NumFourOps;
+    unsigned numFourOps = 0;
 
-    if(n_fourop[0] >= n_total[0] * 15 / 16 && play->m_setup.NumFourOps == 0)
-    {
-        play->setErrorString("ERROR: You have selected a bank that consists almost exclusively of four-op patches.\n"
-                              "       The results (silence + much cpu load) would be probably\n"
-                              "       not what you want, therefore ignoring the request.\n");
-        return -1;
-    }
+    // All 2ops (no 4ops)
+    if((n_fourop[0] == 0) && (n_fourop[1] == 0))
+        numFourOps = 0;
+    // All 2op melodics and Some (or All) 4op drums
+    else if((n_fourop[0] == 0) && (n_fourop[1] > 0))
+        numFourOps = 2;
+    // Many 4op melodics
+    else if((n_fourop[0] >= (n_total[0] * 7) / 8))
+        numFourOps = 6;
+    // Few 4op melodics
+    else if(n_fourop[0] > 0)
+        numFourOps = 4;
+
+/* //Old formula
+    unsigned NumFourOps = ((n_fourop[0] == 0) && (n_fourop[1] == 0)) ? 0
+        : (n_fourop[0] >= (n_total[0] * 7) / 8) ? play->m_setup.NumCards * 6
+        : (play->m_setup.NumCards == 1 ? 1 : play->m_setup.NumCards * 4);
+*/
+
+    play->opl.NumFourOps = play->m_setup.NumFourOps = (numFourOps * play->m_setup.NumCards);
 
     return 0;
 }
-
