@@ -35,6 +35,9 @@
 #   endif
 #endif
 
+// Require declarations of unstable API for extern "C"
+#define ADLMIDI_UNSTABLE_API
+
 #ifdef _WIN32
 #define NOMINMAX
 #endif
@@ -128,13 +131,6 @@ typedef int32_t ssize_t;
 #define INT32_MAX   0x7fffffff
 #endif
 
-#ifdef _MSC_VER
-#pragma warning(disable:4319)
-#pragma warning(disable:4267)
-#pragma warning(disable:4244)
-#pragma warning(disable:4146)
-#endif
-
 #include "fraction.hpp"
 #ifndef ADLMIDI_HW_OPL
 #include "chips/opl_chip_base.h"
@@ -164,12 +160,14 @@ inline Real adl_cvtReal(int32_t x)
 {
     return x * ((Real)1 / INT16_MAX);
 }
+
 inline int32_t adl_cvtS16(int32_t x)
 {
-    x = (x < INT16_MIN) ? INT16_MIN : x;
-    x = (x > INT16_MAX) ? INT16_MAX : x;
+    x = (x < INT16_MIN) ? (INT16_MIN) : x;
+    x = (x > INT16_MAX) ? (INT16_MAX) : x;
     return x;
 }
+
 inline int32_t adl_cvtS8(int32_t x)
 {
     return adl_cvtS16(x) / 256;
@@ -220,22 +218,18 @@ private:
     std::vector<uint8_t>    regBD;
 
     friend int adlRefreshNumCards(ADL_MIDIPlayer *device);
-    //! Meta information about every instrument
-    std::vector<adlinsdata2>    dynamic_metainstruments; // Replaces adlins[] when CMF file
-    //! Raw instrument data ready to be sent to the chip
-    std::vector<adldata>        dynamic_instruments;     // Replaces adl[]    when CMF file
-    size_t                      dynamic_percussion_offset;
-
-    typedef BasicBankMap<size_t> BankMap;
-    BankMap dynamic_melodic_banks;
-    BankMap dynamic_percussion_banks;
+public:
+    struct Bank
+    {
+        adlinsdata2 ins[128];
+    };
+    typedef BasicBankMap<Bank> BankMap;
+    BankMap dynamic_banks;
     AdlBankSetup dynamic_bank_setup;
-    const unsigned  DynamicInstrumentTag /* = 0x8000u*/,
-                    DynamicMetaInstrumentTag /* = 0x4000000u*/;
-    adlinsdata2         GetAdlMetaIns(size_t n);
-    size_t              GetAdlMetaNumber(size_t midiins);
 public:
     void    setEmbeddedBank(unsigned int bank);
+    static const adlinsdata2 emptyInstrument;
+    enum { PercussionTag = 1 << 15 };
 
     //! Total number of running concurrent emulated chips
     unsigned int NumCards;
@@ -284,8 +278,7 @@ public:
     // 7 = percussion Hihat
     // 8 = percussion slave
 
-    void Poke(size_t card, uint32_t index, uint32_t value);
-    void PokeN(size_t card, uint16_t index, uint8_t value);
+    void Poke(size_t card, uint16_t index, uint8_t value);
 
     void NoteOff(size_t c);
     void NoteOn(unsigned c, double hertz);
@@ -487,7 +480,7 @@ public:
         bool eof()
         {
             if(fp)
-                return std::feof(fp);
+                return (std::feof(fp) != 0);
             else
                 return mp_tell >= mp_size;
         }
@@ -511,6 +504,7 @@ public:
         //! Is note aftertouch has any non-zero value
         bool    noteAfterTouchInUse;
         char ____padding[6];
+        double bendSrc;
         double  bend, bendsense;
         int bendsense_lsb, bendsense_msb;
         double  vibpos, vibspeed, vibdepth;
@@ -530,10 +524,10 @@ public:
             // Tone selected on noteon:
             int16_t tone;
             char ____padding2[4];
-            // Patch selected on noteon; index to banks[AdlBank][]
+            // Patch selected on noteon; index to bank.ins[]
             size_t  midiins;
-            // Index to physical adlib data structure, adlins[]
-            size_t  insmeta;
+            // Patch selected
+            const adlinsdata2 *ains;
             enum
             {
                 MaxNumPhysChans = 2,
@@ -594,9 +588,9 @@ public:
             }
             void phys_erase_at(const Phys *ph)
             {
-                unsigned pos = ph - chip_channels;
-                assert(pos < chip_channels_count);
-                for(unsigned i = pos + 1; i < chip_channels_count; ++i)
+                intptr_t pos = ph - chip_channels;
+                assert(pos < static_cast<intptr_t>(chip_channels_count));
+                for(intptr_t i = pos + 1; i < static_cast<intptr_t>(chip_channels_count); ++i)
                     chip_channels[i - 1] = chip_channels[i];
                 --chip_channels_count;
             }
@@ -705,6 +699,7 @@ public:
         }
         void resetAllControllers()
         {
+            bendSrc = 0.0;
             bend = 0.0;
             bendsense_msb = 2;
             bendsense_lsb = 0;
@@ -729,8 +724,9 @@ public:
         }
         void updateBendSensitivity()
         {
-            int cent = bendsense_msb * 100 + bendsense_lsb;
-            bendsense = cent * (0.01 / 8192.0);
+            int cent = bendsense_msb + static_cast<int>(static_cast<double>(bendsense_lsb) * (1.0 / 128.0));
+            bendsense = static_cast<double>(cent) / 8192.0;
+            bend = bendSrc * bendsense;
         }
         MIDIchannel()
         {
@@ -978,6 +974,8 @@ private:
     char ____padding[7];
 
     std::vector<AdlChannel> ch;
+    //! Counter of arpeggio processing
+    size_t m_arpeggioCounter;
 
 #ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
     std::vector<std::vector<uint8_t> > TrackData;
@@ -1201,7 +1199,7 @@ private:
 
     // Determine how good a candidate this adlchannel
     // would be for playing a note from this instrument.
-    int64_t CalculateAdlChannelGoodness(unsigned c, const MIDIchannel::NoteInfo::Phys &ins, uint16_t /*MidCh*/) const;
+    int64_t CalculateAdlChannelGoodness(size_t c, const MIDIchannel::NoteInfo::Phys &ins, uint16_t /*MidCh*/) const;
 
     // A new note will be played on this channel using this instrument.
     // Kill existing notes on this channel (or don't, if we do arpeggio)

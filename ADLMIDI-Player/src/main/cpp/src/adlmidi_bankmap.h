@@ -27,6 +27,7 @@
 #include <list>
 #include <utility>
 #include <stdint.h>
+#include <stddef.h>
 
 #include "adlmidi_ptr.hpp"
 
@@ -50,6 +51,8 @@ public:
         { return m_size; }
     size_t capacity() const
         { return m_capacity; }
+    bool empty() const
+        { return m_size == 0; }
 
     class iterator;
     iterator begin() const;
@@ -84,6 +87,8 @@ public:
         iterator &operator++();
         bool operator==(const iterator &o) const;
         bool operator!=(const iterator &o) const;
+        void to_ptrs(void *ptrs[3]);
+        static iterator from_ptrs(void *const ptrs[3]);
     private:
         Slot **buckets;
         Slot *slot;

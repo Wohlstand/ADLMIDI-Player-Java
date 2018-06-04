@@ -49,15 +49,16 @@ void BasicBankMap<T>::reserve(size_t capacity)
         return;
 
     size_t need = capacity - m_capacity;
-    need = (need < minimum_allocation) ? minimum_allocation : need;
+    const size_t minalloc = static_cast<size_t>(minimum_allocation);
+    need = (need < minalloc) ? minalloc : need;
 
-    AdlMIDI_SPtrArray<Slot> slots;
-    slots.reset(new Slot[need]);
-    m_allocations.push_back(slots);
+    AdlMIDI_SPtrArray<Slot> slotz;
+    slotz.reset(new Slot[need]);
+    m_allocations.push_back(slotz);
     m_capacity += need;
 
     for(size_t i = need; i-- > 0;)
-        free_slot(&slots[i]);
+        free_slot(&slotz[i]);
 }
 
 template <class T>
@@ -134,6 +135,25 @@ template <class T>
 inline bool BasicBankMap<T>::iterator::operator!=(const iterator &o) const
 {
     return !operator==(o);
+}
+
+template <class T>
+void BasicBankMap<T>::iterator::to_ptrs(void *ptrs[3])
+{
+    ptrs[0] = buckets;
+    ptrs[1] = slot;
+    ptrs[2] = (void *)index;
+}
+
+template <class T>
+typename BasicBankMap<T>::iterator
+BasicBankMap<T>::iterator::from_ptrs(void *const ptrs[3])
+{
+    iterator it;
+    it.buckets = (Slot **)ptrs[0];
+    it.slot = (Slot *)ptrs[1];
+    it.index = (size_t)ptrs[2];
+    return it;
 }
 
 template <class T>

@@ -17,7 +17,6 @@ DosBoxOPL3::DosBoxOPL3(const DosBoxOPL3 &c) :
     setRate(c.m_rate);
 }
 
-
 DosBoxOPL3::~DosBoxOPL3()
 {
     DBOPL::Handler *chip_r = reinterpret_cast<DBOPL::Handler*>(m_chip);
