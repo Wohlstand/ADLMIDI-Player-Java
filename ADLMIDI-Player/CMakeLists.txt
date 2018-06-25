@@ -10,9 +10,6 @@ project(ADLMIDI_JniBind C CXX)
 # You can define multiple libraries, and CMake builds it for you.
 # Gradle automatically packages shared libraries with your APK.
 
-add_definitions(-DADLMIDI_DISABLE_CPP_EXTRAS)
-add_definitions(-DADLMIDI_USE_DOSBOX_OPL)
-
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Os -s -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,-s")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Os -s -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,-s")
 set(LINK_FLAGS_RELEASE "${LINK_FLAGS_RELEASE} -Wl,--gc-sections -Wl,-s")
@@ -24,7 +21,6 @@ set(libADLMIDI_STATIC ON)
 set(WITH_CPP_EXTRAS OFF)
 set(USE_NUKED_EMULATOR OFF) # For now is no way to toggle emulator from UI, use DosBox only
 set(WITH_MIDIPLAY OFF)
-set(WITH_VLC_PLUGIN OFF)
 set(WITH_VLC_PLUGIN OFF)
 set(WITH_OLD_UTILS OFF)
 set(EXAMPLE_SDL2_AUDIO OFF)
