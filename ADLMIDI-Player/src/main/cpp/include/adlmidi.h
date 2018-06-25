@@ -29,8 +29,8 @@ extern "C" {
 #endif
 
 #define ADLMIDI_VERSION_MAJOR       1
-#define ADLMIDI_VERSION_MINOR       3
-#define ADLMIDI_VERSION_PATCHLEVEL  3
+#define ADLMIDI_VERSION_MINOR       4
+#define ADLMIDI_VERSION_PATCHLEVEL  0
 
 #define ADLMIDI_TOSTR_I(s) #s
 #define ADLMIDI_TOSTR(s) ADLMIDI_TOSTR_I(s)
@@ -97,7 +97,7 @@ struct ADL_MIDIPlayer
 #define adl_setNumCards adl_setNumChips
 
 /* Sets number of emulated chips (from 1 to 100). Emulation of multiple chips exchanges polyphony limits*/
-extern int adl_setNumChips(struct ADL_MIDIPlayer *device, int numCards);
+extern int adl_setNumChips(struct ADL_MIDIPlayer *device, int numChips);
 
 /* Get current number of emulated chips */
 extern int adl_getNumChips(struct ADL_MIDIPlayer *device);
@@ -149,7 +149,7 @@ extern int adl_getNextBank(struct ADL_MIDIPlayer *device, ADL_Bank *bank);
 extern int adl_getInstrument(struct ADL_MIDIPlayer *device, const ADL_Bank *bank, unsigned index, ADL_Instrument *ins);
 /* Sets the nth intrument in the bank [0..127]. */
 extern int adl_setInstrument(struct ADL_MIDIPlayer *device, ADL_Bank *bank, unsigned index, const ADL_Instrument *ins);
-#endif // defined(ADLMIDI_UNSTABLE_API)
+#endif /* defined(ADLMIDI_UNSTABLE_API) */
 
 /*Sets number of 4-operator channels between all chips.
   By default, it is automatically re-calculating every bank change.
@@ -219,6 +219,9 @@ typedef struct {
     ADL_UInt16 patch;
 } ADL_Version;
 
+/*Run emulator with PCM rate to reduce CPU usage on slow devices. May decrease sounding accuracy.*/
+extern int adl_setRunAtPcmRate(struct ADL_MIDIPlayer *device, int enabled);
+
 /*Returns string which contains a version number*/
 extern const char *adl_linkedLibraryVersion();
 
@@ -233,6 +236,9 @@ extern const char *adl_errorInfo(struct ADL_MIDIPlayer *device);
 
 /*Initialize ADLMIDI Player device*/
 extern struct ADL_MIDIPlayer *adl_init(long sample_rate);
+
+/*Set 4-bit device identifier*/
+extern int adl_setDeviceIdentifier(struct ADL_MIDIPlayer *device, unsigned id);
 
 /*Load MIDI file from File System*/
 extern int adl_openFile(struct ADL_MIDIPlayer *device, const char *filePath);
@@ -360,6 +366,9 @@ extern void adl_rt_bankChangeLSB(struct ADL_MIDIPlayer *device, ADL_UInt8 channe
 extern void adl_rt_bankChangeMSB(struct ADL_MIDIPlayer *device, ADL_UInt8 channel, ADL_UInt8 msb);
 /*Change bank by absolute signed value*/
 extern void adl_rt_bankChange(struct ADL_MIDIPlayer *device, ADL_UInt8 channel, ADL_SInt16 bank);
+
+/*Perform a system exclusive message*/
+extern int adl_rt_systemExclusive(struct ADL_MIDIPlayer *device, const ADL_UInt8 *msg, size_t size);
 
 
 /**Hooks**/

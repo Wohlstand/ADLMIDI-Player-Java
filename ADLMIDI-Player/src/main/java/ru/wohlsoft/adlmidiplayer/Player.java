@@ -536,6 +536,7 @@ public class Player extends AppCompatActivity {
                 return false;
         }
         adl_setNumChips(MIDIDevice, m_adl_numChips);
+        adl_setRunAtPcmRate(MIDIDevice, 1); // Reduces CPU usage, BUT, also reduces sounding accuracy
         if(m_ADL_num4opChannels >= 0) // -1 is "Auto"
             adl_setNumFourOpsChn(MIDIDevice, m_ADL_num4opChannels);
         adl_setHTremolo(MIDIDevice, m_ADL_tremolo?1:0);
@@ -766,6 +767,8 @@ public class Player extends AppCompatActivity {
 //    /*Set different volume range model */
 //    extern void adl_setVolumeRangeModel(struct ADL_MIDIPlayer *device, int volumeModel);
     public native void adl_setVolumeRangeModel(long device, int volumeModel);
+
+    public native int adl_setRunAtPcmRate(long device, int enabled);
 
 ///*Returns string which contains last error message*/
 //    extern const char* adl_errorString();
