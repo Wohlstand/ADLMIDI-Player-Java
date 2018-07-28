@@ -49,11 +49,15 @@ struct adlinsdata
 {
     enum { Flag_Pseudo4op = 0x01, Flag_NoSound = 0x02, Flag_Real4op = 0x04 };
 
+    enum { Flag_RM_BassDrum  = 0x08, Flag_RM_Snare = 0x10, Flag_RM_TomTom = 0x18,
+           Flag_RM_Cymbal = 0x20, Flag_RM_HiHat = 0x28, Mask_RhythmMode = 0x38 };
+
     uint16_t    adlno1, adlno2;
     uint8_t     tone;
     uint8_t     flags;
     uint16_t    ms_sound_kon;  // Number of milliseconds it produces sound;
     uint16_t    ms_sound_koff;
+    int8_t      midi_velocity_offset;
     double      voice2_fine_tune;
 };
 ADLDATA_BYTE_COMPARABLE(struct adlinsdata)
@@ -70,6 +74,7 @@ struct adlinsdata2
     uint8_t     flags;
     uint16_t    ms_sound_kon;  // Number of milliseconds it produces sound;
     uint16_t    ms_sound_koff;
+    int8_t      midi_velocity_offset;
     double      voice2_fine_tune;
     adlinsdata2() {}
     explicit adlinsdata2(const adlinsdata &d);
@@ -106,7 +111,7 @@ extern const AdlBankSetup adlbanksetup[];
 inline adlinsdata2::adlinsdata2(const adlinsdata &d)
     : tone(d.tone), flags(d.flags),
       ms_sound_kon(d.ms_sound_kon), ms_sound_koff(d.ms_sound_koff),
-      voice2_fine_tune(d.voice2_fine_tune)
+      midi_velocity_offset(d.midi_velocity_offset), voice2_fine_tune(d.voice2_fine_tune)
 {
 #ifdef DISABLE_EMBEDDED_BANKS
     std::memset(adl, 0, sizeof(adldata) * 2);
