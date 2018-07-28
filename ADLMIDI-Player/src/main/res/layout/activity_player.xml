@@ -116,7 +116,7 @@
             android:layout_alignParentLeft="true"
             android:layout_alignParentRight="true"
             android:layout_alignParentStart="true"
-            android:layout_below="@+id/logVols"
+            android:layout_below="@+id/adlibDrumsMode"
             android:text="@string/volumesModel"
             tools:text="@string/volumesModel" />
 
@@ -278,19 +278,6 @@
             android:text="TextView"
             android:textAllCaps="false"
             android:textStyle="normal|italic" />
-
-
-        <CheckBox
-            android:id="@+id/logVols"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignEnd="@+id/adlibDrumsMode"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true"
-            android:layout_alignRight="@+id/adlibDrumsMode"
-            android:layout_below="@+id/adlibDrumsMode"
-            android:text="@string/logvolumes" />
-
 
     </RelativeLayout>
 </ScrollView>

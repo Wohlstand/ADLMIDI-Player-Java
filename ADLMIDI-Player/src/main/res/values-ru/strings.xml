@@ -16,7 +16,7 @@
     <string name="volumesModel">Модель диапазонов громкости</string>
     <string name="vrmAuto">[Авто]</string>
     <string name="vrmGeneric">Общий</string>
-    <string name="vrmCMF">CMF</string>
+    <string name="vrmCMF">Встроенная OPL3</string>
     <string name="vrmDMX">DMX</string>
     <string name="vrmApogee">Apogee</string>
     <string name="vrm9x">9X</string>

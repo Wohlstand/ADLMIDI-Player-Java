@@ -253,22 +253,6 @@ public class Player extends AppCompatActivity {
            }
         );
 
-        CheckBox logVolumes = (CheckBox)findViewById(R.id.logVols);
-        logVolumes.setChecked(m_ADL_logvolumes);
-        logVolumes.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    m_ADL_logvolumes = isChecked;
-                    if(MIDIDevice != 0)
-                        adl_setLogarithmicVolumes(MIDIDevice, m_ADL_logvolumes ? 1 : 0);
-                    m_setup.edit().putBoolean("flagLogVolumes", m_ADL_logvolumes).apply();
-                    Toast toast = Toast.makeText(getApplicationContext(),
-                            "Logariphmic volumes mode toggled!", Toast.LENGTH_SHORT);
-                    toast.show();
-                }
-            }
-        );
-
         NumberPicker numChips = (NumberPicker)findViewById(R.id.numChips);
         numChips.setMinValue(1);
         numChips.setMaxValue(100);
