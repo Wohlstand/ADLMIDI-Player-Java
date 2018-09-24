@@ -132,7 +132,7 @@ class BW_MidiSequencer
             //! [Non-Standard] Loop End point with support of multi-loops
             ST_LOOPSTACK_BREAK = 0xE6,//size == 0 <CUSTOM>
             //! [Non-Standard] Callback Trigger
-            ST_CALLBACK_TRIGGER = 0xE7,//size == 1 <CUSTOM>
+            ST_CALLBACK_TRIGGER = 0xE7//size == 1 <CUSTOM>
         };
         //! Main type of event
         uint8_t type;
@@ -315,11 +315,24 @@ public:
         Format_XMIDI
     };
 
+    /**
+     * @brief Format of loop points implemented by CC events
+     */
+    enum LoopFormat
+    {
+        Loop_Default,
+        Loop_RPGMaker = 1,
+        Loop_EMIDI,
+        Loop_HMI
+    };
+
 private:
     //! Music file format type. MIDI is default.
     FileFormat m_format;
     //! SMF format identifier.
     unsigned m_smfFormat;
+    //! Loop points format
+    LoopFormat m_loopFormat;
 
     //! Current position
     Position m_currentPosition;
