@@ -28,7 +28,7 @@
 #ifndef ADLMIDI_EXPORT
 #   if defined (_WIN32) && defined(ADLMIDI_BUILD_DLL)
 #       define ADLMIDI_EXPORT __declspec(dllexport)
-#   elif defined (LIBADLMIDI_VISIBILITY)
+#   elif defined (LIBADLMIDI_VISIBILITY) && defined (__GNUC__)
 #       define ADLMIDI_EXPORT __attribute__((visibility ("default")))
 #   else
 #       define ADLMIDI_EXPORT
@@ -82,6 +82,7 @@ typedef int32_t ssize_t;
 //#else
 #include <map>
 #include <set>
+#include <new> // nothrow
 //#endif
 #include <cstdlib>
 #include <cstring>
@@ -144,6 +145,7 @@ typedef BW_MidiSequencer MidiSequencer;
 
 #include "adldata.hh"
 
+#define ADLMIDI_BUILD
 #include "adlmidi.h"    //Main API
 
 #ifndef ADLMIDI_DISABLE_CPP_EXTRAS
@@ -277,6 +279,8 @@ public:
     bool m_scaleModulators;
     //! Run emulator at PCM rate if that possible. Reduces sounding accuracy, but decreases CPU usage on lower rates.
     bool m_runAtPcmRate;
+    //! Enable soft panning
+    bool m_softPanning;
 
     //! Just a padding. Reserved.
     char _padding2[3];
@@ -381,6 +385,14 @@ public:
     void writeRegI(size_t chip, uint32_t address, uint32_t value);
 
     /**
+     * @brief Write to soft panning control of OPL3 chip emulator
+     * @param chip Index of emulated chip.
+     * @param address Register of channel to write
+     * @param value Value to write
+     */
+    void writePan(size_t chip, uint32_t address, uint32_t value);
+
+    /**
      * @brief Off the note in specified chip channel
      * @param c Channel of chip (Emulated chip choosing by next formula: [c = ch + (chipId * 23)])
      */
@@ -388,10 +400,11 @@ public:
 
     /**
      * @brief On the note in specified chip channel with specified frequency of the tone
-     * @param c Channel of chip (Emulated chip choosing by next formula: [c = ch + (chipId * 23)])
+     * @param c1 Channel of chip [or master 4-op channel] (Emulated chip choosing by next formula: [c = ch + (chipId * 23)])
+     * @param c2 Slave 4-op channel of chip, unused for 2op (Emulated chip choosing by next formula: [c = ch + (chipId * 23)])
      * @param hertz Frequency of the tone in hertzes
      */
-    void noteOn(size_t c, double hertz);
+    void noteOn(size_t c1, size_t c2, double hertz);
 
     /**
      * @brief Change setup of instrument in specified chip channel
@@ -435,6 +448,11 @@ public:
      * @param volumeModel Type of volume scale model scale
      */
     void setVolumeScaleModel(ADLMIDI_VolumeModels volumeModel);
+
+    /**
+     * @brief Get the volume scaling model
+     */
+    ADLMIDI_VolumeModels getVolumeScaleModel();
 
     #ifndef ADLMIDI_HW_OPL
     /**
@@ -547,7 +565,7 @@ public:
         //! Vibrato depth value
                 vibdepth;
         //! Vibrato delay time
-        int64_t vibdelay;
+        int64_t vibdelay_us;
         //! Last LSB part of RPN value received
         uint8_t lastlrpn,
         //! Last MSB poart of RPN value received
@@ -590,7 +608,7 @@ public:
             enum
             {
                 MaxNumPhysChans = 2,
-                MaxNumPhysItemCount = MaxNumPhysChans,
+                MaxNumPhysItemCount = MaxNumPhysChans
             };
 
             /**
@@ -790,8 +808,8 @@ public:
             noteAfterTouchInUse = false;
             vibspeed = 2 * 3.141592653 * 5.0;
             vibdepth = 0.5 / 127;
-            vibdelay = 0;
-            panning = OPL_PANNING_BOTH;
+            vibdelay_us = 0;
+            panning = 64;
             portamento = 0;
             portamentoEnable = false;
             portamentoSource = -1;
@@ -847,7 +865,7 @@ public:
                 Sustain_None        = 0x00,
                 Sustain_Pedal       = 0x01,
                 Sustain_Sostenuto   = 0x02,
-                Sustain_ANY         = Sustain_Pedal | Sustain_Sostenuto,
+                Sustain_ANY         = Sustain_Pedal | Sustain_Sostenuto
             };
             uint32_t sustained;
             char _padding[6];
@@ -855,12 +873,12 @@ public:
             //! Has fixed sustain, don't iterate "on" timeout
             bool    fixed_sustain;
             //! Timeout until note will be allowed to be killed by channel manager while it is on
-            int64_t kon_time_until_neglible;
-            int64_t vibdelay;
+            int64_t kon_time_until_neglible_us;
+            int64_t vibdelay_us;
         };
 
         //! Time left until sounding will be muted after key off
-        int64_t koff_time_until_neglible;
+        int64_t koff_time_until_neglible_us;
 
         enum { users_max = 128 };
         LocationData *users_first, *users_free_cells;
@@ -877,12 +895,12 @@ public:
         void users_assign(const LocationData *users, size_t count);
 
         // For channel allocation:
-        AdlChannel(): koff_time_until_neglible(0)
+        AdlChannel(): koff_time_until_neglible_us(0)
         {
             users_clear();
         }
 
-        AdlChannel(const AdlChannel &oth): koff_time_until_neglible(oth.koff_time_until_neglible)
+        AdlChannel(const AdlChannel &oth): koff_time_until_neglible_us(oth.koff_time_until_neglible_us)
         {
             if(oth.users_first)
             {
@@ -895,16 +913,16 @@ public:
 
         AdlChannel &operator=(const AdlChannel &oth)
         {
-            koff_time_until_neglible = oth.koff_time_until_neglible;
+            koff_time_until_neglible_us = oth.koff_time_until_neglible_us;
             users_assign(oth.users_first, oth.users_size);
             return *this;
         }
 
         /**
-         * @brief Increases age of active note in milliseconds time
-         * @param ms Amount time in milliseconds
+         * @brief Increases age of active note in microseconds time
+         * @param us Amount time in microseconds
          */
-        void addAge(int64_t ms);
+        void addAge(int64_t us);
     };
 
 #ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
@@ -988,7 +1006,7 @@ public:
         Mode_GM  = 0x00,
         Mode_GS  = 0x01,
         Mode_XG  = 0x02,
-        Mode_GM2 = 0x04,
+        Mode_GM2 = 0x04
     };
     //! MIDI Synthesizer mode
     uint32_t m_synthMode;
@@ -1459,7 +1477,31 @@ struct FourChars
 #if defined(ADLMIDI_AUDIO_TICK_HANDLER)
 extern void adl_audioTickHandler(void *instance, uint32_t chipId, uint32_t rate);
 #endif
+
+/**
+ * @brief Automatically calculate and enable necessary count of 4-op channels on emulated chips
+ * @param device Library context
+ * @return Always 0
+ */
 extern int adlRefreshNumCards(ADL_MIDIPlayer *device);
 
+/**
+ * @brief Check emulator availability
+ * @param emulator Emulator ID (ADL_Emulator)
+ * @return true when emulator is available
+ */
+extern bool adl_isEmulatorAvailable(int emulator);
+
+/**
+ * @brief Find highest emulator
+ * @return The ADL_Emulator enum value which contains ID of highest emulator
+ */
+extern int adl_getHighestEmulator();
+
+/**
+ * @brief Find lowest emulator
+ * @return The ADL_Emulator enum value which contains ID of lowest emulator
+ */
+extern int adl_getLowestEmulator();
 
 #endif // ADLMIDI_PRIVATE_HPP

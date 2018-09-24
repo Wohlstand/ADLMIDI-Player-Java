@@ -22,6 +22,8 @@
  */
 
 #include "adlmidi_private.hpp"
+#include <stdlib.h>
+#include <cassert>
 
 #ifdef ADLMIDI_HW_OPL
 static const unsigned OPLBase = 0x388;
@@ -41,6 +43,46 @@ static const unsigned OPLBase = 0x388;
 #       include "chips/dosbox_opl3.h"
 #   endif
 #endif
+
+static const unsigned adl_emulatorSupport = 0
+#ifndef ADLMIDI_HW_OPL
+#   ifndef ADLMIDI_DISABLE_NUKED_EMULATOR
+    | (1u << ADLMIDI_EMU_NUKED) | (1u << ADLMIDI_EMU_NUKED_174)
+#   endif
+
+#   ifndef ADLMIDI_DISABLE_DOSBOX_EMULATOR
+    | (1u << ADLMIDI_EMU_DOSBOX)
+#   endif
+#endif
+;
+
+//! Check emulator availability
+bool adl_isEmulatorAvailable(int emulator)
+{
+    return (adl_emulatorSupport & (1u << (unsigned)emulator)) != 0;
+}
+
+//! Find highest emulator
+int adl_getHighestEmulator()
+{
+    int emu = -1;
+    for(unsigned m = adl_emulatorSupport; m > 0; m >>= 1)
+        ++emu;
+    return emu;
+}
+
+//! Find lowest emulator
+int adl_getLowestEmulator()
+{
+    int emu = -1;
+    unsigned m = adl_emulatorSupport;
+    if(m > 0)
+    {
+        for(emu = 0; (m & 1) == 0; m >>= 1)
+            ++emu;
+    }
+    return emu;
+}
 
 //! Per-channel and per-operator registers map
 static const uint16_t g_operatorsMap[23 * 2] =
@@ -122,9 +164,16 @@ OPL3::OPL3() :
     m_deepTremoloMode(false),
     m_deepVibratoMode(false),
     m_rhythmMode(false),
+    m_softPanning(false),
     m_musicMode(MODE_MIDI),
     m_volumeScale(VOLUME_Generic)
 {
+    m_insBankSetup.volumeModel = OPL3::VOLUME_Generic;
+    m_insBankSetup.deepTremolo = false;
+    m_insBankSetup.deepVibrato = false;
+    m_insBankSetup.adLibPercussions = false;
+    m_insBankSetup.scaleModulators = false;
+
 #ifdef DISABLE_EMBEDDED_BANKS
     m_embeddedBank = CustomBankTag;
 #else
@@ -152,7 +201,7 @@ void OPL3::setEmbeddedBank(uint32_t bank)
     {
         size_t meta = banks[bank][i];
         adlinsdata2 &ins = bank_pair[i / 128]->ins[i % 128];
-        ins = adlinsdata2(adlins[meta]);
+        ins = adlinsdata2::from_adldata(::adlins[meta]);
     }
 #else
     ADL_UNUSED(bank);
@@ -194,6 +243,17 @@ void OPL3::writeRegI(size_t chip, uint32_t address, uint32_t value)
 #endif
 }
 
+void OPL3::writePan(size_t chip, uint32_t address, uint32_t value)
+{
+#ifndef ADLMIDI_HW_OPL
+    m_chips[chip]->writePan(static_cast<uint16_t>(address), static_cast<uint8_t>(value));
+#else
+    ADL_UNUSED(chip);
+    ADL_UNUSED(address);
+    ADL_UNUSED(value);
+#endif
+}
+
 
 void OPL3::noteOff(size_t c)
 {
@@ -209,36 +269,85 @@ void OPL3::noteOff(size_t c)
     writeRegI(chip, 0xB0 + g_channelsMap[cc], m_keyBlockFNumCache[c] & 0xDF);
 }
 
-void OPL3::noteOn(size_t c, double hertz) // Hertz range: 0..131071
+void OPL3::noteOn(size_t c1, size_t c2, double hertz) // Hertz range: 0..131071
 {
-    size_t chip = c / 23, cc = c % 23;
-    uint32_t x = 0x2000;
+    size_t chip = c1 / 23, cc1 = c1 % 23, cc2 = c2 % 23;
+    uint32_t octave = 0, ftone = 0, mul_offset = 0;
 
-    if(hertz < 0 || hertz > 131071) // Avoid infinite loop
+    if(hertz < 0)
         return;
 
-    while(hertz >= 1023.5)
+    //Basic range until max of octaves reaching
+    while((hertz >= 1023.5) && (octave < 0x1C00))
     {
         hertz /= 2.0;    // Calculate octave
-        x += 0x400;
+        octave += 0x400;
+    }
+    //Extended range, rely on frequency multiplication increment
+    while(hertz >= 1022.75)
+    {
+        hertz /= 2.0;    // Calculate octave
+        mul_offset++;
     }
 
-    x += static_cast<uint32_t>(hertz + 0.5);
-    uint32_t chn = g_channelsMap[cc];
+    ftone = octave + static_cast<uint32_t>(hertz + 0.5);
+    uint32_t chn = g_channelsMap[cc1];
+    const adldata &patch1 = m_insCache[c1];
+    const adldata &patch2 = m_insCache[c2 < m_insCache.size() ? c2 : 0];
 
-    if(cc >= 18)
+    if(cc1 < 18)
     {
-        m_regBD[chip ] |= (0x10 >> (cc - 18));
-        writeRegI(chip , 0x0BD, m_regBD[chip ]);
-        x &= ~0x2000u;
-        //x |= 0x800; // for test
+        ftone += 0x2000u; /* Key-ON [KON] */
+
+        const bool natural_4op = (m_channelCategory[c1] == ChanCat_4op_Master);
+        const size_t opsCount = natural_4op ? 4 : 2;
+        const uint16_t op_addr[4] =
+        {
+            g_operatorsMap[cc1 * 2 + 0], g_operatorsMap[cc1 * 2 + 1],
+            g_operatorsMap[cc2 * 2 + 0], g_operatorsMap[cc2 * 2 + 1]
+        };
+        const uint32_t ops[4] =
+        {
+            patch1.modulator_E862 & 0xFF,
+            patch1.carrier_E862 & 0xFF,
+            patch2.modulator_E862 & 0xFF,
+            patch2.carrier_E862 & 0xFF
+        };
+
+        for(size_t op = 0; op < opsCount; op++)
+        {
+            if((op > 0) && (op_addr[op] == 0xFFF))
+                break;
+            if(mul_offset > 0)
+            {
+                uint32_t dt  = ops[op] & 0xF0;
+                uint32_t mul = ops[op] & 0x0F;
+                if((mul + mul_offset) > 0x0F)
+                {
+                    mul_offset = 0;
+                    mul = 0x0F;
+                }
+                writeRegI(chip, 0x20 + op_addr[op],  (dt | (mul + mul_offset)) & 0xFF);
+            }
+            else
+            {
+                writeRegI(chip, 0x20 + op_addr[op],  ops[op] & 0xFF);
+            }
+        }
     }
 
     if(chn != 0xFFF)
     {
-        writeRegI(chip , 0xA0 + chn, (x & 0xFF));
-        writeRegI(chip , 0xB0 + chn, (x >> 8));
-        m_keyBlockFNumCache[c] = (x >> 8);
+        writeRegI(chip , 0xA0 + chn, (ftone & 0xFF));
+        writeRegI(chip , 0xB0 + chn, (ftone >> 8));
+        m_keyBlockFNumCache[c1] = (ftone >> 8);
+    }
+
+    if(cc1 >= 18)
+    {
+        m_regBD[chip ] |= (0x10 >> (cc1 - 18));
+        writeRegI(chip , 0x0BD, m_regBD[chip ]);
+        //x |= 0x800; // for test
     }
 }
 
@@ -254,15 +363,17 @@ void OPL3::touchNote(size_t c, uint8_t volume, uint8_t brightness)
     uint8_t  x = adli.modulator_40, y = adli.carrier_40;
     uint32_t mode = 1; // 2-op AM
 
-    if(m_channelCategory[c] == 0 || m_channelCategory[c] == 3)
+    if(m_channelCategory[c] == ChanCat_Regular ||
+       m_channelCategory[c] == ChanCat_Rhythm_Bass)
     {
         mode = adli.feedconn & 1; // 2-op FM or 2-op AM
     }
-    else if(m_channelCategory[c] == 1 || m_channelCategory[c] == 2)
+    else if(m_channelCategory[c] == ChanCat_4op_Master ||
+            m_channelCategory[c] == ChanCat_4op_Slave)
     {
         const adldata *i0, *i1;
 
-        if(m_channelCategory[c] == 1)
+        if(m_channelCategory[c] == ChanCat_4op_Master)
         {
             i0 = &adli;
             i1 = &m_insCache[c + 3];
@@ -363,7 +474,24 @@ void OPL3::setPan(size_t c, uint8_t value)
 {
     size_t chip = c / 23, cc = c % 23;
     if(g_channelsMap[cc] != 0xFFF)
-        writeRegI(chip, 0xC0 + g_channelsMap[cc], m_insCache[c].feedconn | value);
+    {
+#ifndef ADLMIDI_HW_OPL
+        if (m_softPanning)
+        {
+            writePan(chip, g_channelsMap[cc], value);
+            writeRegI(chip, 0xC0 + g_channelsMap[cc], m_insCache[c].feedconn | OPL_PANNING_BOTH);
+        }
+        else
+        {
+#endif
+            int panning = 0;
+            if(value  < 64 + 32) panning |= OPL_PANNING_LEFT;
+            if(value >= 64 - 32) panning |= OPL_PANNING_RIGHT;
+            writeRegI(chip, 0xC0 + g_channelsMap[cc], m_insCache[c].feedconn | panning);
+#ifndef ADLMIDI_HW_OPL
+        }
+#endif
+    }
 }
 
 void OPL3::silenceAll() // Silence all OPL channels.
@@ -377,31 +505,43 @@ void OPL3::silenceAll() // Silence all OPL channels.
 
 void OPL3::updateChannelCategories()
 {
-    uint32_t fours = m_numFourOps;
+    const uint32_t fours = m_numFourOps;
 
-    for(size_t chip = 0; chip < m_numChips; ++chip)
+    for(uint32_t chip = 0, fours_left = fours; chip < m_numChips; ++chip)
     {
         m_regBD[chip] = (m_deepTremoloMode * 0x80 + m_deepVibratoMode * 0x40 + m_rhythmMode * 0x20);
         writeRegI(chip, 0x0BD, m_regBD[chip]);
-        uint32_t fours_this_chip = std::min(fours, static_cast<uint32_t>(6u));
+        uint32_t fours_this_chip = std::min(fours_left, static_cast<uint32_t>(6u));
         writeRegI(chip, 0x104, (1 << fours_this_chip) - 1);
-        fours -= fours_this_chip;
+        fours_left -= fours_this_chip;
     }
 
-    // Mark all channels that are reserved for four-operator function
-    if(m_rhythmMode == 1)
+    if(!m_rhythmMode)
     {
-        for(size_t a = 0; a < m_numChips; ++a)
+        for(size_t a = 0, n = m_numChips; a < n; ++a)
         {
-            for(size_t b = 0; b < 5; ++b)
-                m_channelCategory[a * 23 + 18 + b] = static_cast<char>(b + 3);
-            for(size_t b = 0; b < 3; ++b)
-                m_channelCategory[a * 23 + 6  + b] = ChanCat_Rhythm_Slave;
+            for(size_t b = 0; b < 23; ++b)
+            {
+                m_channelCategory[a * 23 + b] =
+                    (b >= 18) ? ChanCat_Rhythm_Slave : ChanCat_Regular;
+            }
+        }
+    }
+    else
+    {
+        for(size_t a = 0, n = m_numChips; a < n; ++a)
+        {
+            for(size_t b = 0; b < 23; ++b)
+            {
+                m_channelCategory[a * 23 + b] =
+                    (b >= 18) ? static_cast<ChanCat>(ChanCat_Rhythm_Bass + (b - 18)) :
+                    (b >= 6 && b < 9) ? ChanCat_Rhythm_Slave : ChanCat_Regular;
+            }
         }
     }
 
-    size_t nextfour = 0;
-    for(size_t a = 0; a < m_numFourOps; ++a)
+    uint32_t nextfour = 0;
+    for(uint32_t a = 0; a < fours; ++a)
     {
         m_channelCategory[nextfour] = ChanCat_4op_Master;
         m_channelCategory[nextfour + 3] = ChanCat_4op_Slave;
@@ -491,6 +631,24 @@ void OPL3::setVolumeScaleModel(ADLMIDI_VolumeModels volumeModel)
     }
 }
 
+ADLMIDI_VolumeModels OPL3::getVolumeScaleModel()
+{
+    switch(m_volumeScale)
+    {
+    default:
+    case OPL3::VOLUME_Generic:
+        return ADLMIDI_VolumeModel_Generic;
+    case OPL3::VOLUME_NATIVE:
+        return ADLMIDI_VolumeModel_NativeOPL3;
+    case OPL3::VOLUME_DMX:
+        return ADLMIDI_VolumeModel_DMX;
+    case OPL3::VOLUME_APOGEE:
+        return ADLMIDI_VolumeModel_APOGEE;
+    case OPL3::VOLUME_9X:
+        return ADLMIDI_VolumeModel_9X;
+    }
+}
+
 #ifndef ADLMIDI_HW_OPL
 void OPL3::clearChips()
 {
@@ -549,6 +707,8 @@ void OPL3::reset(int emulator, unsigned long PCM_RATE, void *audioTickHandler)
         switch(emulator)
         {
         default:
+            assert(false);
+            abort();
 #ifndef ADLMIDI_DISABLE_NUKED_EMULATOR
         case ADLMIDI_EMU_NUKED: /* Latest Nuked OPL3 */
             chip = new NukedOPL3;
