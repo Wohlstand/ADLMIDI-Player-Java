@@ -1,14 +1,20 @@
 package ru.wohlsoft.adlmidiplayer;
 
+import android.app.IntentService;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
+import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -43,6 +49,61 @@ public class Player extends AppCompatActivity {
     public final int            BUF_SIZE = 10240;
     private long                MIDIDevice = 0;
     private volatile boolean    isPlaying = false;
+
+    private class PlayerService extends IntentService {
+        private int FOREGROUND_ID=1338;
+
+        public PlayerService() {
+            super("ADLMIDI Player");
+        }
+
+        public void onCreate() {
+            super.onCreate();
+        }
+
+        @Override
+        public void onHandleIntent(Intent i) {
+            String filepath = i.getData().getPath();
+            startForeground(FOREGROUND_ID, buildForegroundNotification(filepath));
+
+            AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, 44100,
+                    AudioFormat.CHANNEL_OUT_STEREO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    BUF_SIZE * 2, AudioTrack.MODE_STREAM);
+            short[] sample_buffer = new short[BUF_SIZE];
+            audioTrack.play();
+
+            while(isPlaying)
+            {
+                int got = adl_play(MIDIDevice, sample_buffer);
+                if(got <= 0) {
+                    isPlaying = false;
+                    break;
+                }
+                audioTrack.write(sample_buffer, 0, got);
+            }
+
+            stopForeground(true);
+        }
+
+        private Notification buildForegroundNotification(String filename) {
+            Context ctx = getApplicationContext();
+            Intent notificationIntent = new Intent(ctx, Player.class);
+            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            PendingIntent intent = PendingIntent.getActivity(ctx, 0, notificationIntent, 0);
+
+            NotificationCompat.Builder b=new NotificationCompat.Builder(this);
+            b.setOngoing(true);
+            b.setContentTitle("Playing " + filename)
+                    .setContentText("Playing music!")
+                    .setSmallIcon(R.drawable.ic_stat_name)
+                    .setContentIntent(intent)
+                    .setTicker("Playing " + filename);
+            return(b.build());
+        }
+    }
+
+    private PlayerService soundPlayer = null;
 
     private class SeekSyncThread extends AsyncTask<Integer, Void, Void> {
         @Override
@@ -453,10 +514,17 @@ public class Player extends AppCompatActivity {
         if(isPlaying)
             return;
 
-        if(MIDIDevice==0)
-            return;
+        //if(MIDIDevice==0)
+        //    return;
 
         isPlaying = true;
+
+        // Foreground service:
+        Intent i = new Intent(this, PlayerService.class);
+        i.putExtra("FilePath", m_lastFile);
+        startService(i);
+
+        /*
         Context ctx = getApplicationContext();
         Intent notificationIntent = new Intent(ctx, Player.class);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -484,8 +552,16 @@ public class Player extends AppCompatActivity {
         notificationManager.notify(0, b);
 
         startPlaying(MIDIDevice);
+        */
+
         seekSyncThread = new SeekSyncThread();
         seekSyncThread.execute(0);
+
+        {
+            Toast toast = Toast.makeText(getApplicationContext(),
+                    "Player started!", Toast.LENGTH_SHORT);
+            toast.show();
+        }
     }
 
     private void playerStop() {
@@ -495,10 +571,20 @@ public class Player extends AppCompatActivity {
         isPlaying = false;
         seekSyncThread.cancel(true);
 
+        /*
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         notificationManager.cancelAll();
 
         stopPlaying();
+        */
+        Intent i = new Intent(this, PlayerService.class);
+        stopService(i);
+
+        {
+            Toast toast = Toast.makeText(getApplicationContext(),
+                    "Player stopped!", Toast.LENGTH_SHORT);
+            toast.show();
+        }
     }
 
     private void uninitPlayer()
@@ -512,6 +598,7 @@ public class Player extends AppCompatActivity {
     private boolean initPlayer()
     {
         uninitPlayer();
+        /*
         MIDIDevice = adl_init(44100);
         if(m_lastBankPath.isEmpty() || !m_useCustomBank) {
             adl_setBank(MIDIDevice, m_ADL_bank);
@@ -530,6 +617,7 @@ public class Player extends AppCompatActivity {
         adl_setLogarithmicVolumes(MIDIDevice, m_ADL_logvolumes?1:0);
         adl_setLoopEnabled(MIDIDevice, 1);
         adl_setVolumeRangeModel(MIDIDevice, m_ADL_volumeModel);
+        */
         return true;
     }
 
@@ -667,6 +755,7 @@ public class Player extends AppCompatActivity {
                         }
                         m_lastFile = fileName;
                         m_setup.edit().putString("lastPath", m_lastPath).apply();
+                        /*
                         if(adl_openFile(MIDIDevice, m_lastFile) < 0) {
                             AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
                             b.setTitle("Failed to open file");
@@ -681,7 +770,7 @@ public class Player extends AppCompatActivity {
                             musPos.setProgress(0);
                             if (wasPlay)
                                 playerPlay();
-                        }
+                        }*/
                     }
                 });
         fileDialog.show();
@@ -691,118 +780,118 @@ public class Player extends AppCompatActivity {
      * A native method that is implemented by the 'native-lib' native library,
      * which is packaged with this application.
      */
-    public native String stringFromJNI();
+    public static native String stringFromJNI();
 
     /**
      * Start OpenSLES player with fetching specified ADLMIDI device
      * @param device pointer to currently constructed ADLMIDI device
      */
-    public native void startPlaying(long device);
+    public static native void startPlaying(long device);
 
     /**
      * Stop OpenSLES player
      */
-    public native void stopPlaying();
+    public static native void stopPlaying();
 
 //    /* Sets number of emulated sound cards (from 1 to 100). Emulation of multiple sound cards exchanges polyphony limits*/
 //    extern int adl_setNumChips(struct ADL_MIDIPlayer*device, int numCards);
-    public native int adl_setNumChips(long device, int numCards);
+    public static native int adl_setNumChips(long device, int numCards);
 //
 ///* Sets a number of the patches bank from 0 to N banks */
 //    extern int adl_setBank(struct ADL_MIDIPlayer* device, int bank);
 //
-    public native int adl_setBank(long device, int bank);
+    public static native int adl_setBank(long device, int bank);
 
 ///* Returns total number of available banks */
 //    extern int adl_getBanksCount();
-    public native int adl_getBanksCount();
+    public static native int adl_getBanksCount();
 
-    public native String adl_getBankName(int bank);
+    public static native String adl_getBankName(int bank);
 //
 ///*Sets number of 4-chan operators*/
 //    extern int adl_setNumFourOpsChn(struct ADL_MIDIPlayer*device, int ops4);
-    public native int adl_setNumFourOpsChn(long device, int ops4);
+    public static native int adl_setNumFourOpsChn(long device, int ops4);
 //
 ///*Enable or disable AdLib percussion mode*/
 //    extern void adl_setPercMode(struct ADL_MIDIPlayer* device, int percmod);
-    public native void adl_setPercMode(long device, int percmod);
+    public static native void adl_setPercMode(long device, int percmod);
 //
 ///*Enable or disable deep vibrato*/
 //    extern void adl_setHVibrato(struct ADL_MIDIPlayer* device, int hvibro);
 //
-    public native void adl_setHVibrato(long device, int hvibrato);
+    public static native void adl_setHVibrato(long device, int hvibrato);
 ///*Enable or disable deep tremolo*/
 //    extern void adl_setHTremolo(struct ADL_MIDIPlayer* device, int htremo);
 //
-    public native void adl_setHTremolo(long device, int htremo);
+    public static native void adl_setHTremolo(long device, int htremo);
 ///*Enable or disable Enables scaling of modulator volumes*/
 //    extern void adl_setScaleModulators(struct ADL_MIDIPlayer* device, int smod);
 //
-    public native void adl_setScaleModulators(long device, int smod);
+    public static native void adl_setScaleModulators(long device, int smod);
 ///*Enable or disable built-in loop (built-in loop supports 'loopStart' and 'loopEnd' tags to loop specific part)*/
 //    extern void adl_setLoopEnabled(struct ADL_MIDIPlayer* device, int loopEn);
 //
-    public native void adl_setLoopEnabled(long device, int loopEn);
+    public static native void adl_setLoopEnabled(long device, int loopEn);
 
 ///    /*Enable or disable Logariphmic volume changer */
 //    extern void adl_setLogarithmicVolumes(struct ADL_MIDIPlayer* device, int logvol);
-    public native void adl_setLogarithmicVolumes(long device, int logvol);
+    public static native void adl_setLogarithmicVolumes(long device, int logvol);
 
 //    /*Set different volume range model */
 //    extern void adl_setVolumeRangeModel(struct ADL_MIDIPlayer *device, int volumeModel);
-    public native void adl_setVolumeRangeModel(long device, int volumeModel);
+    public static native void adl_setVolumeRangeModel(long device, int volumeModel);
 
-    public native int adl_setRunAtPcmRate(long device, int enabled);
+    public static native int adl_setRunAtPcmRate(long device, int enabled);
 
 ///*Returns string which contains last error message*/
 //    extern const char* adl_errorString();
-    public native String adl_errorString();
+    public static native String adl_errorString();
 
 ///*Returns string which contains last error message on specific device*/
 //    extern const char *adl_errorInfo(ADL_MIDIPlayer *device);
-    public native String adl_errorInfo(long device);
+    public static native String adl_errorInfo(long device);
 
 //
 //    /*Initialize ADLMIDI Player device*/
 //    extern struct ADL_MIDIPlayer* adl_init(long sample_rate);
-    public native long adl_init(long sampleRate);
+    public static native long adl_init(long sampleRate);
 
 //
 ///*Load WOPL bank file from File System. Is recommended to call adl_reset() to apply changes to already-loaded file player or real-time.*/
 //    extern int adl_openBankFile(struct ADL_MIDIPlayer *device, const char *filePath);
-    public native int adl_openBankFile(long device, String file);
+    public static native int adl_openBankFile(long device, String file);
 //
 ///*Load MIDI file from File System*/
 //    extern int adl_openFile(struct ADL_MIDIPlayer* device, char *filePath);
-    public native int adl_openFile(long device, String file);
+    public static native int adl_openFile(long device, String file);
 //
 ///*Load MIDI file from memory data*/
 //    extern int adl_openData(struct ADL_MIDIPlayer* device, void* mem, long size);
-    public native int adl_openData(long device, byte[] array);
+    public static native int adl_openData(long device, byte[] array);
 //
 ///*Resets MIDI player*/
 //    extern void adl_reset(struct ADL_MIDIPlayer*device);
-    public native void adl_reset(long device);
+    public static native void adl_reset(long device);
 //
 ///*Close and delete ADLMIDI device*/
 //    extern void adl_close(struct ADL_MIDIPlayer *device);
-    public native void adl_close(long device);
+    public static native void adl_close(long device);
 //
 ///*Take a sample buffer*/
 //    extern int  adl_play(struct ADL_MIDIPlayer*device, int sampleCount, short out[]);
-    public native int adl_play(long device, short[] buffer);
+    public static native int adl_play(long device, short[] buffer);
 
 /*Get total time length of current song*/
 //extern double adl_totalTimeLength(struct ADL_MIDIPlayer *device);
-    public native double adl_totalTimeLength(long device);
+    public static native double adl_totalTimeLength(long device);
 
 /*Jump to absolute time position in seconds*/
 //extern void adl_positionSeek(struct ADL_MIDIPlayer *device, double seconds);
-    public native void adl_positionSeek(long device, double seconds);
+    public static native void adl_positionSeek(long device, double seconds);
 
 /*Get current time position in seconds*/
 //extern double adl_positionTell(struct ADL_MIDIPlayer *device);
-    public native double adl_positionTell(long device);
+    public static native double adl_positionTell(long device);
 
 
     // Used to load the 'native-lib' library on application startup.
