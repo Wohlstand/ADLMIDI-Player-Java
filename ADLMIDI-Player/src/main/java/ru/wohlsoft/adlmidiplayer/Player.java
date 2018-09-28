@@ -201,9 +201,8 @@ public class Player extends AppCompatActivity {
                         return;
                     }
 
-                    m_service.playerStop();
-                    m_service.setEmbeddedBank(selectedItemPosition);
-                    m_service.playerRestart();
+                    if(m_bound)
+                        m_service.setEmbeddedBank(selectedItemPosition);
 
                     Toast toast = Toast.makeText(getApplicationContext(),
                             "Bank changed to: " + selectedItemPosition, Toast.LENGTH_SHORT);
@@ -346,6 +345,7 @@ public class Player extends AppCompatActivity {
                         m_service.setChipsCount(chipsCount);
                         fourOpsMax = m_service.getFourOpMax();
                         new4opsCountVal = m_service.getFourOpChanCount();
+                        m_service.applySetup();
                     }
                     if(chipsCount <=1) {
                         chipsCount = 1;
@@ -420,6 +420,7 @@ public class Player extends AppCompatActivity {
                     if(m_bound) {
                         m_service.setFourOpChanCount(count);
                         Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: Written=%d", count));
+                        m_service.applySetup();
                     }
                     TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
                     if(count >= 0)

@@ -280,6 +280,15 @@ public class PlayerService extends Service {
             return false;
         }
 
+        return applySetup();
+    }
+
+    public boolean applySetup()
+    {
+        if(MIDIDevice == 0) {
+            return false;
+        }
+
         if(m_lastBankPath.isEmpty() || !m_useCustomBank) {
             adl_setBank(MIDIDevice, m_ADL_bank);
         } else {
@@ -289,14 +298,6 @@ public class PlayerService extends Service {
             }
         }
 
-        applySetup();
-        return true;
-    }
-
-    public void applySetup()
-    {
-        if(MIDIDevice == 0)
-            return;
         adl_setNumChips(MIDIDevice, m_adl_numChips);
         adl_setRunAtPcmRate(MIDIDevice, 1); // Reduces CPU usage, BUT, also reduces sounding accuracy
         adl_setNumFourOpsChn(MIDIDevice, (m_ADL_num4opChannels >= 0) ? m_ADL_num4opChannels : -1); // -1 is "Auto"
@@ -306,6 +307,8 @@ public class PlayerService extends Service {
         adl_setPercMode(MIDIDevice, m_ADL_adlibdrums);
         adl_setLoopEnabled(MIDIDevice, 1);
         adl_setVolumeRangeModel(MIDIDevice, m_ADL_volumeModel);
+
+        return true;
     }
 
     public String getLastError()
@@ -320,7 +323,7 @@ public class PlayerService extends Service {
         if(MIDIDevice == 0) {
             return;
         }
-        initPlayer();
+        applySetup();
     }
     public String getBankPath()
     {
@@ -334,7 +337,7 @@ public class PlayerService extends Service {
         if(MIDIDevice == 0) {
             return;
         }
-        initPlayer();
+        applySetup();
     }
     public boolean getUseCustomBank()
     {
@@ -348,7 +351,7 @@ public class PlayerService extends Service {
         if(MIDIDevice == 0) {
             return;
         }
-        initPlayer();
+        applySetup();
     }
     public int getEmbeddedBank()
     {
