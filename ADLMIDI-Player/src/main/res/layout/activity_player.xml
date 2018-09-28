@@ -178,7 +178,7 @@
             android:layout_alignParentLeft="true"
             android:layout_alignParentStart="true"
             android:layout_below="@+id/customBank"
-            android:text="&lt;Bank File&gt;" />
+            android:text="@string/bank_file_empty" />
 
         <SeekBar
             android:id="@+id/musPos"

@@ -12,7 +12,6 @@
     <string name="num4opChans">Всего 4-х операторных каналов</string>
     <string name="numChips">Число эмулируемых чипов</string>
     <string name="restart">Рестарт</string>
-    <string name="logvolumes">Логарифмич. громкости</string>
     <string name="volumesModel">Модель диапазонов громкости</string>
     <string name="vrmAuto">[Авто]</string>
     <string name="vrmGeneric">Общий</string>
@@ -22,4 +21,5 @@
     <string name="vrm9x">9X</string>
     <string name="chooseBank">Отркыть свой банк</string>
     <string name="useCustom">Вкл. свой банк</string>
+    <string name="bank_file_empty"><![CDATA[<Файл банка>]]></string>
 </resources>
