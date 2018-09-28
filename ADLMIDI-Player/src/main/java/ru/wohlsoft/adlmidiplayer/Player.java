@@ -631,6 +631,7 @@ public class Player extends AppCompatActivity {
                 return;
             if(!m_service.isPlaying()) {
                 playerServiceStart();
+                seekerStart();
             }
             m_service.togglePlayPause();
             if(!m_service.isPlaying()) {
