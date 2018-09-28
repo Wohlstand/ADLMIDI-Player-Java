@@ -16,18 +16,15 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
-            <meta-data
-                android:name="android.app.background_running"
-                android:value="true" />
+            <!--<meta-data-->
+                <!--android:name="android.app.background_running"-->
+                <!--android:value="true" />-->
         </activity>
 
         <service
             android:name=".PlayerService"
-            android:exported="false"></service>
-        <service
-            android:name=".PlayMus"
-            android:exported="false"></service>
+            android:enabled="true"
+            android:exported="true"></service>
     </application>
 
 </manifest>
