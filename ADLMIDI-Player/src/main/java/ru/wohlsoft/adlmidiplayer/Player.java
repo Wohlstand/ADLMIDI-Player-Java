@@ -1,23 +1,28 @@
 package ru.wohlsoft.adlmidiplayer;
 
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.IBinder;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.os.AsyncTask;
+import android.text.InputType;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
-import android.widget.NumberPicker;
+import android.widget.EditText;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -26,66 +31,381 @@ import android.view.View;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.app.ActivityCompat;
 import android.widget.Toast;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 public class Player extends AppCompatActivity {
-
     //private int                 MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 1;
+    final String LOG_TAG = "PlayerService";
     private boolean             permission_readAllowed = false;
-    public final int            BUF_SIZE = 10240;
-    private long                MIDIDevice = 0;
-    private volatile boolean    isPlaying = false;
 
-    private class SeekSyncThread extends AsyncTask<Integer, Void, Void> {
-        @Override
-        protected Void doInBackground(Integer... params) {
-            while(!isCancelled()) {
-                try {
-                    Thread.sleep(1000);
-                    if(isPlaying && (MIDIDevice != 0)) {
-                        runOnUiThread(new Runnable()
-                        {
-                            @Override
-                            public void run() {
-                                SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
-                                musPos.setProgress((int)adl_positionTell(MIDIDevice));
-                            }
-                        });
-                    }
-                } catch (InterruptedException e) {
-                    //e.printStackTrace();
-                }
-            }
-
-            return null;
-        }
-    }
-
-    private SeekSyncThread      seekSyncThread;
+    private PlayerService m_service;
+    private volatile boolean m_bound = false;
+    private volatile boolean m_banksListLoaded = false;
+    private volatile boolean m_fourOpsCountLoaded = false;
+    private volatile boolean m_uiLoaded = false;
 
     private SharedPreferences   m_setup = null;
 
     private String              m_lastFile = "";
     private String              m_lastPath = Environment.getExternalStorageDirectory().getPath();
-    private boolean             m_useCustomBank = false;
     private String              m_lastBankPath = "";
-    private int                 m_ADL_bank = 58;
-    private boolean             m_ADL_tremolo = false;
-    private boolean             m_ADL_vibrato = false;
-    private boolean             m_ADL_scalable = false;
-    private boolean             m_ADL_adlibdrums = false;
-    private boolean             m_ADL_logvolumes = false;
-    private int                 m_adl_numChips = 2;
-    private int                 m_ADL_num4opChannels = -1;
-    private int                 m_ADL_volumeModel = 0;
+
+    private int                 m_chipsCount = 2;
+    private int                 m_fourOpsCount = -1;
+
+    private BroadcastReceiver mBroadcastReceiver= new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String intentType = intent.getStringExtra("INTENT_TYPE");
+            if(intentType.equalsIgnoreCase("SEEKBAR_RESULT")){
+                int percentage = intent.getIntExtra("PERCENTAGE", -1);
+                SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
+                if(percentage >= 0)
+                    musPos.setProgress(percentage);
+            }
+        }
+    };
+
+    public void seekerStart()
+    {
+        //Register Broadcast receiver
+        LocalBroadcastManager.getInstance(this).registerReceiver(mBroadcastReceiver, new IntentFilter("ADLMIDI_Broadcast"));
+    }
+
+    public void seekerStop()
+    {
+        //Unregister Broadcast receiver
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBroadcastReceiver);
+    }
+
+    /** Defines callbacks for service binding, passed to bindService() */
+    private ServiceConnection mConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName className,
+                                       IBinder service) {
+            // We've bound to LocalService, cast the IBinder and get LocalService instance
+            PlayerService.LocalBinder binder = (PlayerService.LocalBinder) service;
+            m_service = binder.getService();
+            m_bound = true;
+            initUiSetup();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            m_bound = false;
+        }
+    };
+
+    private void initUiSetup()
+    {
+        if (m_bound) {
+            m_service.loadSetup(m_setup);
+            boolean isPlaying = m_service.isPlaying();
+
+            if(isPlaying) {
+                seekerStart();
+                Toast toast = Toast.makeText(getApplicationContext(),
+                        "Already playing", Toast.LENGTH_SHORT);
+                toast.show();
+            }
+
+            if(m_uiLoaded)
+                return;
+
+            /***
+             * Music position seeker
+             */
+            SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
+            musPos.setMax(m_service.getSongLength());
+            musPos.setProgress(m_service.getPosition());
+            musPos.setProgress(0);
+            musPos.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                //private double dstPos = 0;
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    if(fromUser && m_bound)
+                        m_service.setPosition(progress);
+                }
+
+                @Override
+                public void onStartTrackingTouch(SeekBar seekBar) {
+                }
+
+                @Override
+                public void onStopTrackingTouch(SeekBar seekBar) {
+                }
+            });
+
+            /***
+             * Filename title
+             */
+            // Example of a call to a native method
+            TextView tv = (TextView) findViewById(R.id.currentFileName);
+            tv.setText(PlayerService.stringFromJNI());
+            if(isPlaying) {
+                tv.setText(m_service.getCurrentMusicPath());
+            }
+
+            /***
+             * Bank name title
+             */
+            TextView cbl = (TextView) findViewById(R.id.bankFileName);
+            m_lastBankPath = m_service.getBankPath();
+            if(!m_lastBankPath.isEmpty()) {
+                File f = new File(m_lastBankPath);
+                cbl.setText(f.getName());
+            } else {
+                cbl.setText("<No custom bank>");
+            }
+
+
+            /***
+             * Embedded banks list combobox
+             */
+            //Fill bank number box
+            List<String> spinnerArray = m_service.getEmbeddedBanksList();
+            ArrayAdapter<String> adapter = new ArrayAdapter<String>(
+                    this, android.R.layout.simple_spinner_item, spinnerArray);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            Spinner sItems = (Spinner) findViewById(R.id.bankNo);
+            sItems.setAdapter(adapter);
+            sItems.setSelection(m_service.getEmbeddedBank());
+
+            m_banksListLoaded = false;
+            sItems.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                public void onItemSelected(AdapterView<?> parent,
+                                           View itemSelected, int selectedItemPosition, long selectedId) {
+                    if(!m_banksListLoaded)
+                    {
+                        m_banksListLoaded = true;
+                        return;
+                    }
+
+                    if(m_bound)
+                        m_service.setEmbeddedBank(selectedItemPosition);
+
+                    Toast toast = Toast.makeText(getApplicationContext(),
+                            "Bank changed to: " + selectedItemPosition, Toast.LENGTH_SHORT);
+                    toast.show();
+                }
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+
+            /*****
+             * Use custom bank checkbox
+             */
+            CheckBox useCustomBank = (CheckBox)findViewById(R.id.useCustom);
+            useCustomBank.setChecked(m_service.getUseCustomBank());
+            useCustomBank.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                                                         @Override
+                                                         public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                                                             if(m_bound)
+                                                                 m_service.setUseCustomBank(isChecked);
+                                                         }
+                                                     }
+            );
+
+
+            /*****
+             * Volume model combo-box
+             */
+            Spinner sVolModel = (Spinner) findViewById(R.id.volumeRangesModel);
+            final String[] volumeModelItems = {"[Auto]", "Generic", "CMF", "DMX", "Apogee", "9X" };
+
+            ArrayAdapter<String> adapterVM = new ArrayAdapter<String>(
+                    this, android.R.layout.simple_spinner_item, volumeModelItems);
+            adapterVM.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            sVolModel.setAdapter(adapterVM);
+            sVolModel.setSelection(m_service.getVolumeModel());
+
+            sVolModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                public void onItemSelected(AdapterView<?> parent,
+                                           View itemSelected, int selectedItemPosition, long selectedId) {
+                    if(m_bound)
+                        m_service.setVolumeModel(selectedItemPosition);
+                }
+
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+
+
+            /*****
+             * Deep Tremolo checkbox
+             */
+            CheckBox deepTremolo = (CheckBox)findViewById(R.id.deepTremolo);
+            deepTremolo.setChecked(m_service.getDeepTremolo());
+            deepTremolo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        if(m_bound)
+                            m_service.setDeepTremolo(isChecked);
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                "Deep tremolo toggled!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
+            );
+
+            /*****
+             * Deep Vibrato checkbox
+             */
+            CheckBox deepVibrato = (CheckBox)findViewById(R.id.deepVibrato);
+            deepVibrato.setChecked(m_service.getDeepVibrato());
+            deepVibrato.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        if(m_bound)
+                            m_service.setDeepVibrato(isChecked);
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                "Deep vibrato toggled!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
+            );
+
+            /*****
+             * Scalable Modulators checkbox
+             */
+            CheckBox scalableMod = (CheckBox)findViewById(R.id.scalableModulation);
+            scalableMod.setChecked(m_service.getScalableModulation());
+            scalableMod.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        if(m_bound)
+                            m_service.setScalableModulators(isChecked);
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                  "Scalable modulation toggled toggled!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
+            );
+
+            /*****
+             * Rhythm-Mode drums checkbox
+             */
+            CheckBox adlDrums = (CheckBox)findViewById(R.id.adlibDrumsMode);
+            adlDrums.setChecked(m_service.getForceRhythmMode());
+            adlDrums.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        if(m_bound)
+                            m_service.setForceRhythmMode(isChecked);
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                "AdLib percussion mode toggled!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
+            );
+
+
+            /*****
+             * Full-Panning Stereo checkbox
+             */
+            CheckBox fullPanningStereo = (CheckBox)findViewById(R.id.fullPanningStereo);
+            fullPanningStereo.setChecked(m_service.getFullPanningStereo());
+            fullPanningStereo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        if(m_bound)
+                            m_service.setFullPanningStereo(isChecked);
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                "Full-Panning toggled!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
+            );
+
+            /*****
+             * Chips count
+             */
+            Button numChipsMinus = (Button) findViewById(R.id.numChipsMinus);
+            numChipsMinus.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    int g = m_chipsCount;
+                    g--;
+                    if(g < 1) {
+                        return;
+                    }
+                    onChipsCountUpdate(g, false);
+                }
+            });
+
+            Button numChipsPlus = (Button) findViewById(R.id.numChipsPlus);
+            numChipsPlus.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    int g = m_chipsCount;
+                    g++;
+                    if(g > 100) {
+                        return;
+                    }
+                    onChipsCountUpdate(g, false);
+                }
+            });
+
+            onChipsCountUpdate(m_service.getChipsCount(), true);
+
+
+            /*****
+             * Number of four-operator channels
+             */
+            Button num4opChansMinus = (Button) findViewById(R.id.num4opChansMinus);
+            num4opChansMinus.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    int g = m_fourOpsCount;
+                    g--;
+                    if(g < -1) {
+                        return;
+                    }
+                    onFourOpsCountUpdate(g, false);
+                }
+            });
+
+            Button num4opChansPlus = (Button) findViewById(R.id.num4opChansPlus);
+            num4opChansPlus.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    int curFourOpMax = m_chipsCount * 6;
+                    int g = m_fourOpsCount;
+                    g++;
+                    if(g > curFourOpMax) {
+                        return;
+                    }
+                    onFourOpsCountUpdate(g, false);
+                }
+            });
+
+            onFourOpsCountUpdate(m_service.getFourOpChanCount(), true);
+
+            /********Everything UI related has been initialized!*******/
+            m_uiLoaded = true;
+        }
+    }
+
+    private void playerServiceStart()
+    {
+        Intent intent = new Intent(this, PlayerService.class);
+        intent.setAction(PlayerService.ACTION_START_FOREGROUND_SERVICE);
+        startService(intent);
+    }
+
+    private void playerServiceStop()
+    {
+        Intent intent = new Intent(this, PlayerService.class);
+        intent.setAction(PlayerService.ACTION_STOP_FOREGROUND_SERVICE);
+        startService(intent);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,278 +422,42 @@ public class Player extends AppCompatActivity {
         m_setup = getPreferences(Context.MODE_PRIVATE);
 
         m_lastPath              = m_setup.getString("lastPath", m_lastPath);
-        m_useCustomBank         = m_setup.getBoolean("useCustomBank", m_useCustomBank);
-        m_lastBankPath          = m_setup.getString("lastBankPath", m_lastBankPath);
-        m_ADL_bank              = m_setup.getInt("adlBank", m_ADL_bank);
-        m_ADL_tremolo           = m_setup.getBoolean("flagTremolo", m_ADL_tremolo);
-        m_ADL_vibrato           = m_setup.getBoolean("flagVibrato", m_ADL_vibrato);
-        m_ADL_scalable          = m_setup.getBoolean("flagScalable", m_ADL_scalable);
-        m_ADL_adlibdrums        = m_setup.getBoolean("flagAdlibDrums", m_ADL_adlibdrums);
-        m_ADL_logvolumes        = m_setup.getBoolean("flagLogVolumes", m_ADL_logvolumes);
-        m_adl_numChips          = m_setup.getInt("numChips", m_adl_numChips);
-        m_ADL_num4opChannels    = m_setup.getInt("num4opChannels", m_ADL_num4opChannels);
-        m_ADL_volumeModel       = m_setup.getInt("volumeModel", m_ADL_volumeModel);
-
-        //Fill bank number box
-        List<String> spinnerArray =  new ArrayList<String>();
-        for(Integer i=0; i<adl_getBanksCount(); i++)
-        {
-            spinnerArray.add(i.toString() + " - " + adl_getBankName(i));
-        }
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(
-                this, android.R.layout.simple_spinner_item, spinnerArray);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        Spinner sItems = (Spinner) findViewById(R.id.bankNo);
-        sItems.setAdapter(adapter);
-        sItems.setSelection(m_ADL_bank);
-
-        sItems.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            public void onItemSelected(AdapterView<?> parent,
-                                       View itemSelected, int selectedItemPosition, long selectedId) {
-                m_ADL_bank = selectedItemPosition;
-                if(!m_lastFile.isEmpty() && (MIDIDevice!=0)) {
-                    if (isPlaying) {
-                        playerStop();
-                        initPlayer();
-                        adl_openFile(MIDIDevice, m_lastFile);
-                        playerPlay();
-                    }
-                    else {
-                        initPlayer();
-                        adl_openFile(MIDIDevice, m_lastFile);
-                    }
-                }
-
-                m_setup.edit().putInt("adlBank", m_ADL_bank).apply();
-
-                Toast toast = Toast.makeText(getApplicationContext(),
-                        "Bank changed to: " + selectedItemPosition, Toast.LENGTH_SHORT);
-                toast.show();
-            }
-            public void onNothingSelected(AdapterView<?> parent) {
-            }
-        });
-
-        Spinner sVolModel = (Spinner) findViewById(R.id.volumeRangesModel);
-        final String[] volumeModelItems = {"[Auto]", "Generic", "CMF", "DMX", "Apogee", "9X" };
-
-        ArrayAdapter<String> adapterVM = new ArrayAdapter<String>(
-                this, android.R.layout.simple_spinner_item, volumeModelItems);
-        adapterVM.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        sVolModel.setAdapter(adapterVM);
-        sVolModel.setSelection(m_ADL_volumeModel);
-
-        sVolModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            public void onItemSelected(AdapterView<?> parent,
-                                       View itemSelected, int selectedItemPosition, long selectedId) {
-                m_ADL_volumeModel = selectedItemPosition;
-                if(!m_lastFile.isEmpty() && (MIDIDevice!=0)) {
-                    if (isPlaying) {
-                        playerStop();
-                        initPlayer();
-                        adl_openFile(MIDIDevice, m_lastFile);
-                        playerPlay();
-                    }
-                    else {
-                        initPlayer();
-                        adl_openFile(MIDIDevice, m_lastFile);
-                    }
-                }
-
-                m_setup.edit().putInt("volumeModel", m_ADL_volumeModel).apply();
-            }
-
-            public void onNothingSelected(AdapterView<?> parent) {
-            }
-        });
-
-
-
-        CheckBox deepTremolo = (CheckBox)findViewById(R.id.deepTremolo);
-        deepTremolo.setChecked(m_ADL_tremolo);
-        deepTremolo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-               @Override
-               public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                   m_ADL_tremolo = isChecked;
-                   if(MIDIDevice != 0)
-                        adl_setHTremolo(MIDIDevice, m_ADL_tremolo ? 1 : 0);
-                   m_setup.edit().putBoolean("flagTremolo", m_ADL_tremolo).apply();
-                   Toast toast = Toast.makeText(getApplicationContext(),
-                           "Deep tremolo toggled!", Toast.LENGTH_SHORT);
-                   toast.show();
-               }
-           }
-        );
-
-        CheckBox deepVibrato = (CheckBox)findViewById(R.id.deepVibrato);
-        deepVibrato.setChecked(m_ADL_vibrato);
-        deepVibrato.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-               @Override
-               public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                   m_ADL_vibrato = isChecked;
-                   if(MIDIDevice != 0)
-                       adl_setHVibrato(MIDIDevice, m_ADL_vibrato ? 1 : 0);
-                   m_setup.edit().putBoolean("flagVibrato", m_ADL_vibrato).apply();
-                   Toast toast = Toast.makeText(getApplicationContext(),
-                           "Deep vibrato toggled!", Toast.LENGTH_SHORT);
-                   toast.show();
-               }
-           }
-        );
-
-        CheckBox scalableMod = (CheckBox)findViewById(R.id.scalableModulation);
-        scalableMod.setChecked(m_ADL_scalable);
-        scalableMod.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                   @Override
-                   public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                       m_ADL_scalable = isChecked;
-                       if(MIDIDevice != 0)
-                           adl_setScaleModulators(MIDIDevice, m_ADL_scalable ? 1 : 0);
-                       m_setup.edit().putBoolean("flagScalable", m_ADL_scalable).apply();
-                       Toast toast = Toast.makeText(getApplicationContext(),
-                               "Scalabme modulation toggled toggled!", Toast.LENGTH_SHORT);
-                       toast.show();
-                   }
-               }
-        );
-
-        CheckBox adlDrums = (CheckBox)findViewById(R.id.adlibDrumsMode);
-        adlDrums.setChecked(m_ADL_adlibdrums);
-        adlDrums.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-               @Override
-               public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                   m_ADL_adlibdrums = isChecked;
-                   if(MIDIDevice != 0)
-                       adl_setPercMode(MIDIDevice, m_ADL_adlibdrums ? 1 : 0);
-                   m_setup.edit().putBoolean("flagAdlibDrums", m_ADL_adlibdrums).apply();
-                   Toast toast = Toast.makeText(getApplicationContext(),
-                           "AdLib percussion mode toggled!", Toast.LENGTH_SHORT);
-                   toast.show();
-               }
-           }
-        );
-
-        NumberPicker numChips = (NumberPicker)findViewById(R.id.numChips);
-        numChips.setMinValue(1);
-        numChips.setMaxValue(100);
-        numChips.setValue(m_adl_numChips);
-        numChips.setWrapSelectorWheel(false);
-        TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
-        numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_adl_numChips));
-
-        numChips.setOnValueChangedListener(new NumberPicker.OnValueChangeListener()
-        {
-            @Override
-            public void onValueChange(NumberPicker picker, int oldVal, int newVal)
-            {
-                m_adl_numChips = picker.getValue();
-                if(m_adl_numChips <=1) {
-                    m_adl_numChips = 1;
-                    picker.setValue(1);
-                } else if(m_adl_numChips >100) {
-                    m_adl_numChips = 100;
-                    picker.setValue(100);
-                }
-                NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
-                if(m_ADL_num4opChannels > 6 * m_adl_numChips) {
-                    m_ADL_num4opChannels = 6* m_adl_numChips;
-                    num4opChannels.setValue( m_ADL_num4opChannels + 1);
-                    m_setup.edit().putInt("num4opChannels", m_ADL_num4opChannels).apply();
-                    TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
-                    if(m_ADL_num4opChannels >= 0)
-                        num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
-                    else
-                        num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
-                }
-                num4opChannels.setMaxValue((m_adl_numChips * 6) + 1);
-
-                TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
-                numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_adl_numChips));
-
-                m_setup.edit().putInt("numChips", m_adl_numChips).apply();
-            }
-        });
-
-        NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
-        num4opChannels.setFormatter(new NumberPicker.Formatter() {
-            @Override
-            public String format(int index) {
-                return Integer.toString(index - 1);
-            }
-        });
-        num4opChannels.setMinValue(0);
-        num4opChannels.setMaxValue((m_adl_numChips * 6) + 1);
-        num4opChannels.setWrapSelectorWheel(false);
-        TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
-        if(m_ADL_num4opChannels >= 0)
-            num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
-        else
-            num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
-
-        num4opChannels.setOnValueChangedListener(new NumberPicker.OnValueChangeListener() {
-            @Override
-            public void onValueChange(NumberPicker picker, int oldVal, int newVal) {
-                m_ADL_num4opChannels = ((int)picker.getValue() - 1);
-                if(m_ADL_num4opChannels <= -1) {
-                    m_ADL_num4opChannels = -1;
-                    picker.setValue(0);
-                } else if(m_ADL_num4opChannels > 6* m_adl_numChips) {
-                    m_ADL_num4opChannels = 6* m_adl_numChips;
-                    picker.setValue(m_ADL_num4opChannels + 1);
-                }
-                TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
-                if(m_ADL_num4opChannels >= 0)
-                    num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_ADL_num4opChannels));
-                else
-                    num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
-                m_setup.edit().putInt("num4opChannels", m_ADL_num4opChannels).apply();
-            }
-        });
-
-        num4opChannels.setValue(m_ADL_num4opChannels + 1);
-
-        /* ========================================================================
-         * Workaround for a drawing of first element of NumberPicker bug:
-         * https://stackoverflow.com/questions/17708325/android-numberpicker-with-formatter-doesnt-format-on-first-rendering
-         */
-        try {
-            Method method = num4opChannels.getClass().getDeclaredMethod("changeValueByOne", boolean.class);
-            method.setAccessible(true);
-            method.invoke(num4opChannels, true);
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
-        }
-        /* ======================================================================== */
-
-        // Example of a call to a native method
-        TextView tv = (TextView) findViewById(R.id.sample_text);
-        tv.setText(stringFromJNI());
 
         Button quitb = (Button) findViewById(R.id.quitapp);
         quitb.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                playerStop();
-                uninitPlayer();
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                    finishAffinity();
-                } else {
-                    finish();
+                Log.d(LOG_TAG, "Quit: Trying to stop seeker");
+                seekerStop();
+                if(m_bound) {
+                    Log.d(LOG_TAG, "Quit: Stopping player");
+                    m_service.playerStop();
+                    Log.d(LOG_TAG, "Quit: De-Initializing player");
+                    m_service.unInitPlayer();
                 }
+                Log.d(LOG_TAG, "Quit: Stopping player service");
+                playerServiceStop();
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    Log.d(LOG_TAG, "Quit: Finish Affinity");
+                    Player.this.finishAffinity();
+                } else {
+                    Log.d(LOG_TAG, "Quit: Just finish");
+                    Player.this.finish();
+                }
+                Log.d(LOG_TAG, "Quit: Collect garbage");
                 System.gc();
+
+                Log.d(LOG_TAG, "Quit: New Handler");
                 Handler handler = new Handler();
+                Log.d(LOG_TAG, "Quit: Wait until call Exit");
                 handler.postDelayed(new Runnable(){
                     @Override
                     public void run(){
+                        Log.d(LOG_TAG, "Quit: Do Exit NOW!");
                         System.exit(0);
                     }
-                }, 1000);
+                }, 3000);
             }
         });
 
@@ -408,149 +492,99 @@ public class Player extends AppCompatActivity {
                 OnOpenBankFileClick(view);
             }
         });
+    }
 
-        TextView cbl = (TextView) findViewById(R.id.bankFileName);
-        if(!m_lastBankPath.isEmpty()) {
-            File f = new File(m_lastBankPath);
-            cbl.setText(f.getName());
-        } else {
-            cbl.setText("<No custom bank>");
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        // Bind to LocalService
+        Intent intent = new Intent(this, PlayerService.class);
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Unbind from the service
+        if (m_bound) {
+            unbindService(mConnection);
+            m_bound = false;
         }
+    }
 
-        CheckBox useCustomBank = (CheckBox)findViewById(R.id.useCustom);
-        useCustomBank.setChecked(m_useCustomBank);
-        useCustomBank.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-              @Override
-              public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                  m_useCustomBank = isChecked;
-                  m_setup.edit().putBoolean("useCustomBank", m_useCustomBank).apply();
-              }
-          }
-        );
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_MENU) {
 
+            /***
+             * TODO: Rpleace this crap with properly made settings box
+             * (this one can't receive changed value for "input" EditText field)
+             */
 
-        SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
-        musPos.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            //private double dstPos = 0;
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if(isPlaying && (MIDIDevice != 0) && fromUser)
-                    adl_positionSeek(MIDIDevice, (double)progress);
+            AlertDialog.Builder alert = new AlertDialog.Builder(this);
+
+            alert.setTitle("Setup");
+            alert.setMessage("Gaining level");
+
+            // Set an EditText view to get user input
+            final EditText input = new EditText(this);
+            input.setRawInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+            alert.setView(input);
+
+            if(m_bound) {
+                input.setText(Double.toString(m_service.gainingGet()));
             }
 
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-            }
+            alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int whichButton) {
+                    String txtvalue = input.getText().toString();
+                    if(m_bound) {
+                        double value = Double.parseDouble(txtvalue);
+                        m_service.setGaining(value);
+                    }
+                }
+            });
 
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-            }
-        });
-    }
+            alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int whichButton) {
+                    // Canceled.
+                }
+            });
 
-    private void playerPlay()
-    {
-        if(isPlaying)
-            return;
-
-        if(MIDIDevice==0)
-            return;
-
-        isPlaying = true;
-        Context ctx = getApplicationContext();
-        Intent notificationIntent = new Intent(ctx, Player.class);
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-
-        PendingIntent intent = PendingIntent.getActivity(ctx, 0, notificationIntent, 0);
-
-        Notification b = null;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
-            b = new Notification.Builder(ctx)
-                    .setContentTitle("Playing " + m_lastFile)
-                    .setContentText("Playing music!")
-                    .setSmallIcon(R.drawable.ic_stat_name)
-                    .setContentIntent(intent)
-                    .build();
-        } else {
-            b = new Notification.Builder(ctx)
-                    .setContentTitle("Playing " + m_lastFile)
-                    .setContentText("Playing music!")
-                    .setSmallIcon(R.drawable.ic_stat_name)
-                    .setContentIntent(intent)
-                    .getNotification();
+            alert.show();
+            return true;
         }
-        b.flags |= Notification.FLAG_NO_CLEAR|Notification.FLAG_ONGOING_EVENT;
-        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        notificationManager.notify(0, b);
-
-        startPlaying(MIDIDevice);
-        seekSyncThread = new SeekSyncThread();
-        seekSyncThread.execute(0);
+        return super.onKeyUp(keyCode, event);
     }
 
-    private void playerStop() {
-        if(!isPlaying)
-            return;
-
-        isPlaying = false;
-        seekSyncThread.cancel(true);
-
-        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        notificationManager.cancelAll();
-
-        stopPlaying();
-    }
-
-    private void uninitPlayer()
-    {
-        if(MIDIDevice>0)
-        {
-            adl_close(MIDIDevice);
-            MIDIDevice = 0;
-        }
-    }
-    private boolean initPlayer()
-    {
-        uninitPlayer();
-        MIDIDevice = adl_init(44100);
-        if(m_lastBankPath.isEmpty() || !m_useCustomBank) {
-            adl_setBank(MIDIDevice, m_ADL_bank);
-        } else {
-            if(adl_openBankFile(MIDIDevice, m_lastBankPath) < 0)
-                return false;
-        }
-        adl_setNumChips(MIDIDevice, m_adl_numChips);
-        adl_setRunAtPcmRate(MIDIDevice, 1); // Reduces CPU usage, BUT, also reduces sounding accuracy
-        if(m_ADL_num4opChannels >= 0) // -1 is "Auto"
-            adl_setNumFourOpsChn(MIDIDevice, m_ADL_num4opChannels);
-        adl_setHTremolo(MIDIDevice, m_ADL_tremolo?1:0);
-        adl_setHVibrato(MIDIDevice, m_ADL_vibrato?1:0);
-        adl_setScaleModulators(MIDIDevice, m_ADL_scalable?1:0);
-        adl_setPercMode(MIDIDevice, m_ADL_adlibdrums?1:0);
-        adl_setLogarithmicVolumes(MIDIDevice, m_ADL_logvolumes?1:0);
-        adl_setLoopEnabled(MIDIDevice, 1);
-        adl_setVolumeRangeModel(MIDIDevice, m_ADL_volumeModel);
-        return true;
-    }
 
     public void OnPlayClick(View view)
     {
-        if(!isPlaying)
-        {
-            playerPlay();
-        } else {
-            playerStop();
+        if(m_bound) {
+            if(!m_service.hasLoadedMusic())
+                return;
+            if(!m_service.isPlaying()) {
+                playerServiceStart();
+                seekerStart();
+            }
+            m_service.togglePlayPause();
+            if(!m_service.isPlaying()) {
+                seekerStop();
+                playerServiceStop();
+            }
         }
     }
 
     public void OnRestartClick(View view)
     {
-        if(isPlaying && (MIDIDevice>0))
-        {
-            playerStop();
-            initPlayer();
-            adl_openFile(MIDIDevice, m_lastFile);
-            playerPlay();
+        if(m_bound) {
+            if(!m_service.hasLoadedMusic())
+                return;
+            if(!m_service.isPlaying()) {
+                playerServiceStart();
+                seekerStart();
+            }
+            m_service.playerRestart();
         }
     }
 
@@ -618,7 +652,6 @@ public class Player extends AppCompatActivity {
                     @Override
                     public void OnSelectedFile(String fileName, String lastPath) {
                         m_lastBankPath = fileName;
-                        m_setup.edit().putString("lastBankPath", m_lastBankPath).apply();
 
                         TextView cbl = (TextView) findViewById(R.id.bankFileName);
                         if(!m_lastBankPath.isEmpty()) {
@@ -627,6 +660,8 @@ public class Player extends AppCompatActivity {
                         } else {
                             cbl.setText("<No custom bank>");
                         }
+                        if(m_bound)
+                            m_service.openBank(m_lastBankPath);
                     }
                 });
         fileDialog.show();
@@ -645,168 +680,96 @@ public class Player extends AppCompatActivity {
                     @Override
                     public void OnSelectedFile(String fileName, String lastPath) {
                         Toast.makeText(getApplicationContext(), fileName, Toast.LENGTH_LONG).show();
-                        TextView tv = (TextView) findViewById(R.id.sample_text);
+                        TextView tv = (TextView) findViewById(R.id.currentFileName);
                         tv.setText(fileName);
 
                         m_lastPath = lastPath;
-                        //Abort previos playing state
-                        boolean wasPlay = isPlaying;
-                        if(isPlaying)
-                            playerStop();
-                        if(!initPlayer())
-                        {
-                            playerStop();
-                            uninitPlayer();
-                            AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
-                            b.setTitle("Failed to initialize player");
-                            b.setMessage("Can't initialize player because of " + adl_errorInfo(MIDIDevice));
-                            b.setNegativeButton(android.R.string.ok, null);
-                            b.show();
-                            m_lastFile = "";
-                            return;
-                        }
-                        m_lastFile = fileName;
-                        m_setup.edit().putString("lastPath", m_lastPath).apply();
-                        if(adl_openFile(MIDIDevice, m_lastFile) < 0) {
-                            AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
-                            b.setTitle("Failed to open file");
-                            b.setMessage("Can't open music file because of " + adl_errorInfo(MIDIDevice));
-                            b.setNegativeButton(android.R.string.ok, null);
-                            b.show();
-                            m_lastFile = "";
-                        } else {
-                            double time = adl_totalTimeLength(MIDIDevice);
-                            SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
-                            musPos.setMax((int)time);
-                            musPos.setProgress(0);
-                            if (wasPlay)
-                                playerPlay();
+                        if(m_bound) {
+                            //Abort previously playing state
+                            boolean wasPlay = m_service.isPlaying();
+                            if (m_service.isPlaying())
+                                m_service.playerStop();
+                            if (!m_service.initPlayer()) {
+                                m_service.playerStop();
+                                m_service.unInitPlayer();
+                                AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
+                                b.setTitle("Failed to initialize player");
+                                b.setMessage("Can't initialize player because of " + m_service.getLastError());
+                                b.setNegativeButton(android.R.string.ok, null);
+                                b.show();
+                                m_lastFile = "";
+                                return;
+                            }
+                            m_lastFile = fileName;
+                            m_setup.edit().putString("lastPath", m_lastPath).apply();
+
+                            if (!m_service.openMusic(m_lastFile)) {
+                                AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
+                                b.setTitle("Failed to open file");
+                                b.setMessage("Can't open music file because of " + m_service.getLastError());
+                                b.setNegativeButton(android.R.string.ok, null);
+                                b.show();
+                                m_lastFile = "";
+                            } else {
+                                SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
+                                musPos.setMax(m_service.getSongLength());
+                                musPos.setProgress(0);
+                                if (wasPlay)
+                                    m_service.playerStart();
+                            }
                         }
                     }
                 });
         fileDialog.show();
     }
 
-    /**
-     * A native method that is implemented by the 'native-lib' native library,
-     * which is packaged with this application.
-     */
-    public native String stringFromJNI();
+    void onChipsCountUpdate(int chipsCount, boolean silent)
+    {
+        int fourOpsMax = chipsCount * 6;
 
-    /**
-     * Start OpenSLES player with fetching specified ADLMIDI device
-     * @param device pointer to currently constructed ADLMIDI device
-     */
-    public native void startPlaying(long device);
+        if(chipsCount < 1) {
+            chipsCount = 1;
+        } else if(chipsCount > 100) {
+            chipsCount = 100;
+        }
 
-    /**
-     * Stop OpenSLES player
-     */
-    public native void stopPlaying();
+        m_chipsCount = chipsCount;
+        if(m_bound && !silent) {
+            m_service.setChipsCount(m_chipsCount);
+            m_service.applySetup();
+            Log.d(LOG_TAG, String.format(Locale.getDefault(), "Chips: Written=%d", m_chipsCount));
+        }
 
-//    /* Sets number of emulated sound cards (from 1 to 100). Emulation of multiple sound cards exchanges polyphony limits*/
-//    extern int adl_setNumChips(struct ADL_MIDIPlayer*device, int numCards);
-    public native int adl_setNumChips(long device, int numCards);
-//
-///* Sets a number of the patches bank from 0 to N banks */
-//    extern int adl_setBank(struct ADL_MIDIPlayer* device, int bank);
-//
-    public native int adl_setBank(long device, int bank);
+        if(m_fourOpsCount > fourOpsMax) {
+            onFourOpsCountUpdate(m_fourOpsCount, silent);
+        }
 
-///* Returns total number of available banks */
-//    extern int adl_getBanksCount();
-    public native int adl_getBanksCount();
+        TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
+        numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_chipsCount));
+    }
 
-    public native String adl_getBankName(int bank);
-//
-///*Sets number of 4-chan operators*/
-//    extern int adl_setNumFourOpsChn(struct ADL_MIDIPlayer*device, int ops4);
-    public native int adl_setNumFourOpsChn(long device, int ops4);
-//
-///*Enable or disable AdLib percussion mode*/
-//    extern void adl_setPercMode(struct ADL_MIDIPlayer* device, int percmod);
-    public native void adl_setPercMode(long device, int percmod);
-//
-///*Enable or disable deep vibrato*/
-//    extern void adl_setHVibrato(struct ADL_MIDIPlayer* device, int hvibro);
-//
-    public native void adl_setHVibrato(long device, int hvibrato);
-///*Enable or disable deep tremolo*/
-//    extern void adl_setHTremolo(struct ADL_MIDIPlayer* device, int htremo);
-//
-    public native void adl_setHTremolo(long device, int htremo);
-///*Enable or disable Enables scaling of modulator volumes*/
-//    extern void adl_setScaleModulators(struct ADL_MIDIPlayer* device, int smod);
-//
-    public native void adl_setScaleModulators(long device, int smod);
-///*Enable or disable built-in loop (built-in loop supports 'loopStart' and 'loopEnd' tags to loop specific part)*/
-//    extern void adl_setLoopEnabled(struct ADL_MIDIPlayer* device, int loopEn);
-//
-    public native void adl_setLoopEnabled(long device, int loopEn);
+    void onFourOpsCountUpdate(int fourOpsCount, boolean silent)
+    {
+        int fourOpsMax = m_chipsCount * 6;
 
-///    /*Enable or disable Logariphmic volume changer */
-//    extern void adl_setLogarithmicVolumes(struct ADL_MIDIPlayer* device, int logvol);
-    public native void adl_setLogarithmicVolumes(long device, int logvol);
+        if(fourOpsCount > fourOpsMax) {
+            fourOpsCount = fourOpsMax;
+        } else if(fourOpsCount < -1) {
+            fourOpsCount = -1;
+        }
 
-//    /*Set different volume range model */
-//    extern void adl_setVolumeRangeModel(struct ADL_MIDIPlayer *device, int volumeModel);
-    public native void adl_setVolumeRangeModel(long device, int volumeModel);
+        m_fourOpsCount = fourOpsCount;
 
-    public native int adl_setRunAtPcmRate(long device, int enabled);
+        if(m_bound && !silent) {
+            m_service.setFourOpChanCount(fourOpsCount);
+            Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: Written=%d", fourOpsCount));
+            m_service.applySetup();
+        }
 
-///*Returns string which contains last error message*/
-//    extern const char* adl_errorString();
-    public native String adl_errorString();
-
-///*Returns string which contains last error message on specific device*/
-//    extern const char *adl_errorInfo(ADL_MIDIPlayer *device);
-    public native String adl_errorInfo(long device);
-
-//
-//    /*Initialize ADLMIDI Player device*/
-//    extern struct ADL_MIDIPlayer* adl_init(long sample_rate);
-    public native long adl_init(long sampleRate);
-
-//
-///*Load WOPL bank file from File System. Is recommended to call adl_reset() to apply changes to already-loaded file player or real-time.*/
-//    extern int adl_openBankFile(struct ADL_MIDIPlayer *device, const char *filePath);
-    public native int adl_openBankFile(long device, String file);
-//
-///*Load MIDI file from File System*/
-//    extern int adl_openFile(struct ADL_MIDIPlayer* device, char *filePath);
-    public native int adl_openFile(long device, String file);
-//
-///*Load MIDI file from memory data*/
-//    extern int adl_openData(struct ADL_MIDIPlayer* device, void* mem, long size);
-    public native int adl_openData(long device, byte[] array);
-//
-///*Resets MIDI player*/
-//    extern void adl_reset(struct ADL_MIDIPlayer*device);
-    public native void adl_reset(long device);
-//
-///*Close and delete ADLMIDI device*/
-//    extern void adl_close(struct ADL_MIDIPlayer *device);
-    public native void adl_close(long device);
-//
-///*Take a sample buffer*/
-//    extern int  adl_play(struct ADL_MIDIPlayer*device, int sampleCount, short out[]);
-    public native int adl_play(long device, short[] buffer);
-
-/*Get total time length of current song*/
-//extern double adl_totalTimeLength(struct ADL_MIDIPlayer *device);
-    public native double adl_totalTimeLength(long device);
-
-/*Jump to absolute time position in seconds*/
-//extern void adl_positionSeek(struct ADL_MIDIPlayer *device, double seconds);
-    public native void adl_positionSeek(long device, double seconds);
-
-/*Get current time position in seconds*/
-//extern double adl_positionTell(struct ADL_MIDIPlayer *device);
-    public native double adl_positionTell(long device);
-
-
-    // Used to load the 'native-lib' library on application startup.
-    static {
-        System.loadLibrary("native-lib");
+        TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
+        if(m_fourOpsCount >= 0)
+            num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_fourOpsCount));
+        else
+            num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
     }
 }

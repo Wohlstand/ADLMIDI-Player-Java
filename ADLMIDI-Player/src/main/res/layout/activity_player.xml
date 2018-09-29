@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/activity_player"
     android:layout_width="match_parent"
@@ -11,29 +11,29 @@
         android:id="@+id/activity_playerZ"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="@dimen/activity_vertical_margin"
         android:paddingLeft="@dimen/activity_horizontal_margin"
+        android:paddingTop="@dimen/activity_vertical_margin"
         android:paddingRight="@dimen/activity_horizontal_margin"
-        android:paddingTop="@dimen/activity_vertical_margin">
+        android:paddingBottom="@dimen/activity_vertical_margin">
 
         <TextView
-            android:id="@+id/sample_text"
+            android:id="@+id/currentFileName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentRight="true"
             android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
             android:layout_alignParentTop="true"
-            android:text="Hello World!" />
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:text="@string/no_files_loaded" />
 
         <Button
             android:id="@+id/openFile"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
+            android:layout_below="@+id/currentFileName"
             android:layout_alignParentStart="true"
-            android:layout_below="@+id/sample_text"
+            android:layout_alignParentLeft="true"
             android:text="@string/open"
             tools:text="@string/open" />
 
@@ -41,7 +41,7 @@
             android:id="@+id/playPause"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/sample_text"
+            android:layout_below="@+id/currentFileName"
             android:layout_toEndOf="@+id/openFile"
             android:layout_toRightOf="@+id/openFile"
             android:text="@string/playpause"
@@ -51,9 +51,9 @@
             android:id="@+id/restart"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_below="@+id/currentFileName"
             android:layout_alignParentEnd="true"
             android:layout_alignParentRight="true"
-            android:layout_below="@+id/sample_text"
             android:layout_toEndOf="@+id/playPause"
             android:layout_toRightOf="@+id/playPause"
             android:text="@string/restart"
@@ -63,12 +63,14 @@
             android:id="@+id/deepTremolo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true"
             android:layout_below="@+id/openFile"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:layout_marginTop="24dp"
-            android:layout_toLeftOf="@+id/restart"
-            android:layout_toStartOf="@+id/restart"
+            android:layout_toEndOf="@+id/restart"
+            android:layout_toRightOf="@+id/restart"
             android:text="@string/htremolo"
             tools:text="@string/htremolo" />
 
@@ -76,11 +78,13 @@
             android:id="@+id/deepVibrato"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignEnd="@+id/deepTremolo"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true"
-            android:layout_alignRight="@+id/deepTremolo"
             android:layout_below="@+id/deepTremolo"
+            android:layout_alignEnd="@+id/deepTremolo"
+            android:layout_alignRight="@+id/deepTremolo"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:text="@string/hvibrato"
             tools:text="@string/hvibrato" />
 
@@ -88,11 +92,13 @@
             android:id="@+id/scalableModulation"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignEnd="@+id/deepVibrato"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true"
-            android:layout_alignRight="@+id/deepVibrato"
             android:layout_below="@+id/deepVibrato"
+            android:layout_alignEnd="@+id/deepVibrato"
+            android:layout_alignRight="@+id/deepVibrato"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:text="@string/scalemod"
             tools:text="@string/scalemod" />
 
@@ -100,23 +106,39 @@
             android:id="@+id/adlibDrumsMode"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignEnd="@+id/scalableModulation"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true"
-            android:layout_alignRight="@+id/scalableModulation"
             android:layout_below="@+id/scalableModulation"
+            android:layout_alignEnd="@+id/scalableModulation"
+            android:layout_alignRight="@+id/scalableModulation"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:text="@string/adlibdrums"
             tools:text="@string/adlibdrums" />
+
+        <CheckBox
+            android:id="@+id/fullPanningStereo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/adlibDrumsMode"
+            android:layout_alignEnd="@+id/adlibDrumsMode"
+            android:layout_alignRight="@+id/adlibDrumsMode"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:text="@string/full_panning_stereo"
+            tools:text="@string/full_panning_stereo" />
 
         <TextView
             android:id="@+id/volumeRangesModelLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentRight="true"
+            android:layout_below="@+id/fullPanningStereo"
             android:layout_alignParentStart="true"
-            android:layout_below="@+id/adlibDrumsMode"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:text="@string/volumesModel"
             tools:text="@string/volumesModel" />
 
@@ -124,21 +146,21 @@
             android:id="@+id/volumeRangesModel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentRight="true"
+            android:layout_below="@+id/volumeRangesModelLabel"
             android:layout_alignParentStart="true"
-            android:layout_below="@+id/volumeRangesModelLabel" />
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true" />
 
         <TextView
             android:id="@+id/musicBankLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentRight="true"
-            android:layout_alignParentStart="true"
             android:layout_below="@+id/volumeRangesModel"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:text="@string/bankNo"
             tools:text="@string/bankNo" />
 
@@ -146,20 +168,20 @@
             android:id="@+id/bankNo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentRight="true"
+            android:layout_below="@+id/musicBankLabel"
             android:layout_alignParentStart="true"
-            android:layout_below="@+id/musicBankLabel" />
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true" />
 
         <Button
             android:id="@+id/customBank"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
+            android:layout_below="@+id/bankNo"
             android:layout_alignParentStart="true"
-            android:text="@string/chooseBank"
-            android:layout_below="@+id/bankNo" />
+            android:layout_alignParentLeft="true"
+            android:text="@string/chooseBank" />
 
         <CheckBox
             android:id="@+id/useCustom"
@@ -175,109 +197,128 @@
             android:id="@+id/bankFileName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true"
             android:layout_below="@+id/customBank"
-            android:text="&lt;Bank File&gt;" />
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:text="@string/bank_file_empty" />
 
         <SeekBar
             android:id="@+id/musPos"
             style="@style/Widget.AppCompat.SeekBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="35px"
-            android:layout_marginBottom="35px"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentRight="true"
-            android:layout_alignParentStart="true"
             android:layout_below="@+id/bankFileName"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:layout_marginTop="15dp"
+            android:layout_marginBottom="15dp"
             android:max="100"
             android:progress="0" />
 
-
-        <TextView
-            android:id="@+id/numChipsLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true"
+        <android.support.constraint.ConstraintLayout
+            android:layout_width="368dp"
+            android:layout_height="272dp"
             android:layout_below="@+id/musPos"
-            android:layout_marginTop="19dp"
-            android:text="@string/numChips"
-            tools:text="@string/numChips" />
-
-        <NumberPicker
-            android:id="@+id/numChips"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
             android:layout_alignParentStart="true"
-            android:layout_below="@+id/numChipsLabel"
-            android:descendantFocusability="blocksDescendants"
-            android:ems="10"
-            android:inputType="numberSigned"
-            android:orientation="horizontal" />
+            android:layout_alignParentLeft="false"
+            android:layout_marginLeft="0dp"
+            android:layout_marginStart="0dp"
+            android:layout_marginTop="3dp"
+            android:layout_marginBottom="34dp">
 
-        <NumberPicker
-            android:id="@+id/num4opChans"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignBaseline="@+id/numChips"
-            android:layout_alignBottom="@+id/numChips"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentRight="true"
-            android:descendantFocusability="blocksDescendants"
-            android:ems="10"
-            android:inputType="numberSigned"
-            android:orientation="horizontal" />
+            <Button
+                android:id="@+id/num4opChansMinus"
+                android:layout_width="42dp"
+                android:layout_height="48dp"
+                android:text="@string/sign_minus"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/textView3" />
 
-        <Button
-            android:id="@+id/quitapp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentRight="true"
-            android:layout_alignParentStart="true"
-            android:layout_below="@+id/numChips"
-            android:text="@string/quit"
-            tools:text="@string/quit" />
+            <Button
+                android:id="@+id/num4opChansPlus"
+                android:layout_width="42dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginLeft="8dp"
+                android:text="@string/sign_plus"
+                app:layout_constraintStart_toEndOf="@+id/num4opChansCount"
+                app:layout_constraintTop_toBottomOf="@+id/textView3" />
 
-        <TextView
-            android:id="@+id/num4opChansLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentRight="true"
-            android:layout_below="@+id/numChipsLabel"
-            android:layout_marginTop="29dp"
-            android:text="@string/num4opChans"
-            tools:text="@string/num4opChans" />
+            <TextView
+                android:id="@+id/textView2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/numChips"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
-        <TextView
-            android:id="@+id/num4opChansCount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_above="@+id/quitapp"
-            android:layout_alignTop="@+id/num4opChans"
-            android:layout_toLeftOf="@+id/num4opChans"
-            android:layout_toStartOf="@+id/num4opChans"
-            android:text="TextView"
-            android:textAlignment="center"
-            android:textStyle="normal|italic" />
+            <Button
+                android:id="@+id/numChipsMinus"
+                android:layout_width="42dp"
+                android:layout_height="48dp"
+                android:text="@string/sign_minus"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/textView2" />
 
-        <TextView
-            android:id="@+id/numChipsCount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignBottom="@+id/numChips"
-            android:layout_alignTop="@+id/numChips"
-            android:layout_toEndOf="@+id/numChips"
-            android:layout_toRightOf="@+id/numChips"
-            android:text="TextView"
-            android:textAllCaps="false"
-            android:textStyle="normal|italic" />
+            <Button
+                android:id="@+id/numChipsPlus"
+                android:layout_width="42dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginLeft="8dp"
+                android:text="@string/sign_plus"
+                app:layout_constraintStart_toEndOf="@+id/numChipsCount"
+                app:layout_constraintTop_toBottomOf="@+id/textView2" />
+
+            <TextView
+                android:id="@+id/textView3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginTop="18dp"
+                android:text="@string/num4opChans"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/numChipsMinus" />
+
+            <TextView
+                android:id="@+id/numChipsCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginLeft="8dp"
+                android:layout_marginTop="17dp"
+                android:text="@string/vrmAuto"
+                app:layout_constraintStart_toEndOf="@+id/numChipsMinus"
+                app:layout_constraintTop_toBottomOf="@+id/textView2" />
+
+            <TextView
+                android:id="@+id/num4opChansCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginLeft="8dp"
+                android:layout_marginTop="17dp"
+                android:text="@string/vrmAuto"
+                app:layout_constraintStart_toEndOf="@+id/num4opChansMinus"
+                app:layout_constraintTop_toBottomOf="@+id/textView3" />
+
+            <Button
+                android:id="@+id/quitapp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/quit"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+        </android.support.constraint.ConstraintLayout>
+
+
 
     </RelativeLayout>
 </ScrollView>

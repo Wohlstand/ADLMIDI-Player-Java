@@ -11,7 +11,6 @@
     <string name="numChips">Number of emulated chips</string>
     <string name="num4opChans">Total number of 4-op channels</string>
     <string name="restart">Restart</string>
-    <string name="logvolumes">Logarophmic volumes</string>
     <string name="volumesModel">Volume ranges model</string>
     <string name="vrmAuto">[Auto]</string>
     <string name="vrmGeneric">Generic</string>
@@ -21,4 +20,9 @@
     <string name="vrm9x">9X</string>
     <string name="chooseBank">Choose custom bank</string>
     <string name="useCustom">Use custom</string>
+    <string name="bank_file_empty"><![CDATA[<Bank File>]]></string>
+    <string name="sign_minus">-</string>
+    <string name="sign_plus">+</string>
+    <string name="full_panning_stereo">Full-panning stereo</string>
+    <string name="no_files_loaded"><![CDATA[<No files loaded>]]></string>
 </resources>
