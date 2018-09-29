@@ -1,9 +1,5 @@
 package ru.wohlsoft.adlmidiplayer;
 
-import android.app.IntentService;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -12,22 +8,14 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
-import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.os.AsyncTask;
-import android.text.Editable;
 import android.text.InputType;
-import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.AdapterView;
@@ -35,7 +23,6 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
-import android.widget.NumberPicker;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -49,11 +36,6 @@ import android.support.v4.app.ActivityCompat;
 import android.widget.Toast;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.text.DateFormat;
-import java.text.NumberFormat;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -165,7 +147,7 @@ public class Player extends AppCompatActivity {
              * Filename title
              */
             // Example of a call to a native method
-            TextView tv = (TextView) findViewById(R.id.sample_text);
+            TextView tv = (TextView) findViewById(R.id.currentFileName);
             tv.setText(PlayerService.stringFromJNI());
             if(isPlaying) {
                 tv.setText(m_service.getCurrentMusicPath());
@@ -262,15 +244,15 @@ public class Player extends AppCompatActivity {
             CheckBox deepTremolo = (CheckBox)findViewById(R.id.deepTremolo);
             deepTremolo.setChecked(m_service.getDeepTremolo());
             deepTremolo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                                                       @Override
-                                                       public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                                                           if(m_bound)
-                                                               m_service.setDeepTremolo(isChecked);
-                                                           Toast toast = Toast.makeText(getApplicationContext(),
-                                                                   "Deep tremolo toggled!", Toast.LENGTH_SHORT);
-                                                           toast.show();
-                                                       }
-                                                   }
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        if(m_bound)
+                            m_service.setDeepTremolo(isChecked);
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                "Deep tremolo toggled!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
             );
 
             /*****
@@ -279,15 +261,15 @@ public class Player extends AppCompatActivity {
             CheckBox deepVibrato = (CheckBox)findViewById(R.id.deepVibrato);
             deepVibrato.setChecked(m_service.getDeepVibrato());
             deepVibrato.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                                                       @Override
-                                                       public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                                                           if(m_bound)
-                                                               m_service.setDeepVibrato(isChecked);
-                                                           Toast toast = Toast.makeText(getApplicationContext(),
-                                                                   "Deep vibrato toggled!", Toast.LENGTH_SHORT);
-                                                           toast.show();
-                                                       }
-                                                   }
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        if(m_bound)
+                            m_service.setDeepVibrato(isChecked);
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                "Deep vibrato toggled!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
             );
 
             /*****
@@ -296,15 +278,15 @@ public class Player extends AppCompatActivity {
             CheckBox scalableMod = (CheckBox)findViewById(R.id.scalableModulation);
             scalableMod.setChecked(m_service.getScalableModulation());
             scalableMod.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                                                       @Override
-                                                       public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                                                           if(m_bound)
-                                                               m_service.setScalableModulators(isChecked);
-                                                           Toast toast = Toast.makeText(getApplicationContext(),
-                                                                   "Scalable modulation toggled toggled!", Toast.LENGTH_SHORT);
-                                                           toast.show();
-                                                       }
-                                                   }
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        if(m_bound)
+                            m_service.setScalableModulators(isChecked);
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                  "Scalable modulation toggled toggled!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
             );
 
             /*****
@@ -313,17 +295,34 @@ public class Player extends AppCompatActivity {
             CheckBox adlDrums = (CheckBox)findViewById(R.id.adlibDrumsMode);
             adlDrums.setChecked(m_service.getForceRhythmMode());
             adlDrums.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                                                    @Override
-                                                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                                                        if(m_bound)
-                                                            m_service.setForceRhythmMode(isChecked);
-                                                        Toast toast = Toast.makeText(getApplicationContext(),
-                                                                "AdLib percussion mode toggled!", Toast.LENGTH_SHORT);
-                                                        toast.show();
-                                                    }
-                                                }
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        if(m_bound)
+                            m_service.setForceRhythmMode(isChecked);
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                "AdLib percussion mode toggled!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
             );
 
+
+            /*****
+             * Full-Panning Stereo checkbox
+             */
+            CheckBox fullPanningStereo = (CheckBox)findViewById(R.id.fullPanningStereo);
+            fullPanningStereo.setChecked(m_service.getFullPanningStereo());
+            fullPanningStereo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        if(m_bound)
+                            m_service.setFullPanningStereo(isChecked);
+                        Toast toast = Toast.makeText(getApplicationContext(),
+                                "Full-Panning toggled!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
+            );
 
             /*****
              * Chips count
@@ -681,7 +680,7 @@ public class Player extends AppCompatActivity {
                     @Override
                     public void OnSelectedFile(String fileName, String lastPath) {
                         Toast.makeText(getApplicationContext(), fileName, Toast.LENGTH_LONG).show();
-                        TextView tv = (TextView) findViewById(R.id.sample_text);
+                        TextView tv = (TextView) findViewById(R.id.currentFileName);
                         tv.setText(fileName);
 
                         m_lastPath = lastPath;

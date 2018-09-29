@@ -17,7 +17,7 @@
         android:paddingBottom="@dimen/activity_vertical_margin">
 
         <TextView
-            android:id="@+id/sample_text"
+            android:id="@+id/currentFileName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentStart="true"
@@ -25,13 +25,13 @@
             android:layout_alignParentTop="true"
             android:layout_alignParentEnd="true"
             android:layout_alignParentRight="true"
-            android:text="Hello World!" />
+            android:text="@string/no_files_loaded" />
 
         <Button
             android:id="@+id/openFile"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/sample_text"
+            android:layout_below="@+id/currentFileName"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="true"
             android:text="@string/open"
@@ -41,7 +41,7 @@
             android:id="@+id/playPause"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/sample_text"
+            android:layout_below="@+id/currentFileName"
             android:layout_toEndOf="@+id/openFile"
             android:layout_toRightOf="@+id/openFile"
             android:text="@string/playpause"
@@ -51,7 +51,7 @@
             android:id="@+id/restart"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/sample_text"
+            android:layout_below="@+id/currentFileName"
             android:layout_alignParentEnd="true"
             android:layout_alignParentRight="true"
             android:layout_toEndOf="@+id/playPause"
@@ -66,9 +66,11 @@
             android:layout_below="@+id/openFile"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:layout_marginTop="24dp"
-            android:layout_toStartOf="@+id/restart"
-            android:layout_toLeftOf="@+id/restart"
+            android:layout_toEndOf="@+id/restart"
+            android:layout_toRightOf="@+id/restart"
             android:text="@string/htremolo"
             tools:text="@string/htremolo" />
 
@@ -81,6 +83,8 @@
             android:layout_alignRight="@+id/deepTremolo"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:text="@string/hvibrato"
             tools:text="@string/hvibrato" />
 
@@ -93,6 +97,8 @@
             android:layout_alignRight="@+id/deepVibrato"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:text="@string/scalemod"
             tools:text="@string/scalemod" />
 
@@ -105,14 +111,30 @@
             android:layout_alignRight="@+id/scalableModulation"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:text="@string/adlibdrums"
             tools:text="@string/adlibdrums" />
+
+        <CheckBox
+            android:id="@+id/fullPanningStereo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/adlibDrumsMode"
+            android:layout_alignEnd="@+id/adlibDrumsMode"
+            android:layout_alignRight="@+id/adlibDrumsMode"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:text="@string/full_panning_stereo"
+            tools:text="@string/full_panning_stereo" />
 
         <TextView
             android:id="@+id/volumeRangesModelLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/adlibDrumsMode"
+            android:layout_below="@+id/fullPanningStereo"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="true"
             android:layout_alignParentEnd="true"
@@ -201,6 +223,7 @@
             android:layout_below="@+id/musPos"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="false"
+            android:layout_marginLeft="0dp"
             android:layout_marginStart="0dp"
             android:layout_marginTop="3dp"
             android:layout_marginBottom="34dp">
@@ -294,6 +317,7 @@
                 app:layout_constraintStart_toStartOf="parent" />
 
         </android.support.constraint.ConstraintLayout>
+
 
 
     </RelativeLayout>

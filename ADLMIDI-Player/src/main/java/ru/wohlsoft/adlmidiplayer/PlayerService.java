@@ -58,6 +58,7 @@ public class PlayerService extends Service {
     private int                 m_ADL_vibrato = -1;
     private int                 m_ADL_scalable = -1;
     private int                 m_ADL_adlibdrums = -1;
+    private int                 m_ADL_softPanEnabled = 0;
 
     private int                 m_adl_numChips = 2;
     private int                 m_ADL_num4opChannels = -1;
@@ -252,6 +253,8 @@ public class PlayerService extends Service {
             m_ADL_vibrato = setup.getBoolean("flagVibrato", m_ADL_vibrato > 0) ? 1 : -1;
             m_ADL_scalable = setup.getBoolean("flagScalable", m_ADL_scalable > 0) ? 1 : -1;
             m_ADL_adlibdrums = setup.getBoolean("flagAdlibDrums", m_ADL_adlibdrums > 0) ? 1 : -1;
+            m_ADL_softPanEnabled = setup.getBoolean("flagSoftPan", m_ADL_softPanEnabled > 0) ? 1 : 0;
+
             m_adl_numChips = setup.getInt("numChips", m_adl_numChips);
             m_ADL_num4opChannels = setup.getInt("num4opChannels", m_ADL_num4opChannels);
             m_ADL_volumeModel = setup.getInt("volumeModel", m_ADL_volumeModel);
@@ -279,11 +282,11 @@ public class PlayerService extends Service {
             m_lastErrorString = adl_errorString();
             return false;
         }
-
-        return applySetup();
+        applySetup();
+        return reloadBank();
     }
 
-    public boolean applySetup()
+    public boolean reloadBank()
     {
         if(MIDIDevice == 0) {
             return false;
@@ -297,6 +300,14 @@ public class PlayerService extends Service {
                 return false;
             }
         }
+        return true;
+    }
+
+    public void applySetup()
+    {
+        if(MIDIDevice == 0) {
+            return;
+        }
 
         adl_setNumChips(MIDIDevice, m_adl_numChips);
         adl_setRunAtPcmRate(MIDIDevice, 1); // Reduces CPU usage, BUT, also reduces sounding accuracy
@@ -305,10 +316,9 @@ public class PlayerService extends Service {
         adl_setHVibrato(MIDIDevice, m_ADL_vibrato);
         adl_setScaleModulators(MIDIDevice, m_ADL_scalable);
         adl_setPercMode(MIDIDevice, m_ADL_adlibdrums);
+        adl_setSoftPanEnabled(MIDIDevice, m_ADL_softPanEnabled);
         adl_setLoopEnabled(MIDIDevice, 1);
         adl_setVolumeRangeModel(MIDIDevice, m_ADL_volumeModel);
-
-        return true;
     }
 
     public String getLastError()
@@ -323,7 +333,7 @@ public class PlayerService extends Service {
         if(MIDIDevice == 0) {
             return;
         }
-        applySetup();
+        reloadBank();
     }
     public String getBankPath()
     {
@@ -337,7 +347,7 @@ public class PlayerService extends Service {
         if(MIDIDevice == 0) {
             return;
         }
-        applySetup();
+        reloadBank();
     }
     public boolean getUseCustomBank()
     {
@@ -351,7 +361,7 @@ public class PlayerService extends Service {
         if(MIDIDevice == 0) {
             return;
         }
-        applySetup();
+        reloadBank();
     }
     public int getEmbeddedBank()
     {
@@ -427,6 +437,20 @@ public class PlayerService extends Service {
     public boolean getForceRhythmMode()
     {
         return m_ADL_adlibdrums > 0;
+    }
+
+    public void setFullPanningStereo(boolean flag)
+    {
+        m_ADL_softPanEnabled = flag ? 1 : 0;
+        m_setup.edit().putBoolean("flagSoftPan", flag).apply();
+        if(MIDIDevice == 0) {
+            return;
+        }
+        adl_setSoftPanEnabled(MIDIDevice, m_ADL_softPanEnabled);
+    }
+    public boolean getFullPanningStereo()
+    {
+        return m_ADL_softPanEnabled > 0;
     }
 
     public void setChipsCount(int chips)
@@ -705,6 +729,8 @@ public class PlayerService extends Service {
     public static native void adl_setVolumeRangeModel(long device, int volumeModel);
 
     public static native int adl_setRunAtPcmRate(long device, int enabled);
+
+    public static native void adl_setSoftPanEnabled(long device, int enabled);
 
     ///*Returns string which contains last error message*/
 //    extern const char* adl_errorString();

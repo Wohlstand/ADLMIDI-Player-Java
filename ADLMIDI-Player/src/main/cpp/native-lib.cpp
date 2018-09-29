@@ -486,3 +486,12 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setRunAtPcmRate(JNIEnv *env, j
     pthread_mutex_unlock(&g_lock);
     return ret;
 }
+
+JNIEXPORT void JNICALL
+Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setSoftPanEnabled(JNIEnv *env, jobject /*instance*/,
+                                                                  jlong device, jint enabled)
+{
+    pthread_mutex_lock(&g_lock);
+    adl_setSoftPanEnabled(ADLDEV, (int)enabled);
+    pthread_mutex_unlock(&g_lock);
+}
