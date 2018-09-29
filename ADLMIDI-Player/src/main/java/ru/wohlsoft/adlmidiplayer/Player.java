@@ -74,6 +74,9 @@ public class Player extends AppCompatActivity {
     private String              m_lastPath = Environment.getExternalStorageDirectory().getPath();
     private String              m_lastBankPath = "";
 
+    private int                 m_chipsCount = 2;
+    private int                 m_fourOpsCount = -1;
+
     private BroadcastReceiver mBroadcastReceiver= new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -323,20 +326,18 @@ public class Player extends AppCompatActivity {
 
 
             /*****
-             * Chips count spinner
+             * Chips count
              */
             Button numChipsMinus = (Button) findViewById(R.id.numChipsMinus);
             numChipsMinus.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    TextView numChips = (TextView)findViewById(R.id.numChips);
-                    int g = Integer.parseInt(numChips.getText().toString());
+                    int g = m_chipsCount;
                     g--;
                     if(g < 1) {
-                        g = 1;
                         return;
                     }
-                    numChips.setText(Integer.toString(g));
+                    onChipsCountUpdate(g, false);
                 }
             });
 
@@ -344,135 +345,31 @@ public class Player extends AppCompatActivity {
             numChipsPlus.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    TextView numChips = (TextView)findViewById(R.id.numChips);
-                    int g = Integer.parseInt(numChips.getText().toString());
+                    int g = m_chipsCount;
                     g++;
                     if(g > 100) {
-                        g = 100;
                         return;
                     }
-                    numChips.setText(Integer.toString(g));
+                    onChipsCountUpdate(g, false);
                 }
             });
 
-            TextView numChips = (TextView)findViewById(R.id.numChips);
-            numChips.setText(Integer.toString(m_service.getChipsCount()));
+            onChipsCountUpdate(m_service.getChipsCount(), true);
 
-            TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
-            numChipsCounter.setText(Integer.toString(m_service.getChipsCount()));
-
-            numChips.addTextChangedListener(new TextWatcher() {
-
-                @Override
-                public void afterTextChanged(Editable s) {}
-
-                @Override
-                public void beforeTextChanged(CharSequence s, int start,
-                                              int count, int after) {
-                }
-
-                @Override
-                public void onTextChanged(CharSequence s, int start,
-                                          int before, int count) {
-                    TextView numChips = (TextView)findViewById(R.id.numChips);
-                    TextView num4opChans = (TextView)findViewById(R.id.num4opChans);
-                    TextView num4opChannels = (TextView)findViewById(R.id.num4opChans);
-                    int chipsCount = Integer.parseInt(s.toString());
-                    int fourOpsCountVal = Integer.parseInt(num4opChans.getText().toString());
-                    int fourOpsMax = 0;
-
-                    if(m_bound) {
-                        m_service.setChipsCount(chipsCount);
-                        fourOpsMax = chipsCount * 6;
-                        m_service.applySetup();
-                        Log.d(LOG_TAG, String.format(Locale.getDefault(), "Chips: Written=%d", chipsCount));
-                    }
-
-                    if(chipsCount < 1) {
-                        chipsCount = 1;
-                        numChips.setText(Integer.toString(chipsCount));
-                        return;
-                    } else if(chipsCount > 100) {
-                        chipsCount = 100;
-                        numChips.setText(Integer.toString(chipsCount));
-                        return;
-                    }
-
-                    if(fourOpsCountVal > fourOpsMax) {
-                        fourOpsCountVal = fourOpsMax;
-                        num4opChannels.setText(Integer.toString(fourOpsCountVal));
-                        TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
-                        if(fourOpsCountVal >= 0)
-                            num4opCounter.setText(String.format(Locale.getDefault(), "%d", fourOpsCountVal));
-                        else
-                            num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
-
-                    }
-
-                    TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
-                    numChipsCounter.setText(String.format(Locale.getDefault(), "%d", chipsCount));
-                }
-            });
-//
-//
-//            numChips.setOnValueChangedListener(new NumberPicker.OnValueChangeListener()
-//            {
-//                @Override
-//                public void onValueChange(NumberPicker picker, int oldVal, int newVal)
-//                {
-//                    int chipsCount = picker.getValue();
-//                    int old4opsCountVal = 0;
-//                    int new4opsCountVal = 0;
-//                    int fourOpsMax = 0;
-//                    if(m_bound) {
-//                        old4opsCountVal = m_service.getFourOpChanCount();
-//                        m_service.setChipsCount(chipsCount);
-//                        fourOpsMax = m_service.getFourOpMax();
-//                        new4opsCountVal = m_service.getFourOpChanCount();
-//                        m_service.applySetup();
-//                    }
-//                    if(chipsCount <=1) {
-//                        chipsCount = 1;
-//                        picker.setValue(1);
-//                    } else if(chipsCount >100) {
-//                        chipsCount = 100;
-//                        picker.setValue(100);
-//                    }
-//                    NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
-//                    if(old4opsCountVal > fourOpsMax) {
-//                        num4opChannels.setValue( new4opsCountVal + 1);
-//                        TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
-//                        if(new4opsCountVal >= 0)
-//                            num4opCounter.setText(String.format(Locale.getDefault(), "%d", new4opsCountVal));
-//                        else
-//                            num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
-//                    }
-//                    num4opChannels.setMaxValue(fourOpsMax + 1);
-//
-//                    TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
-//                    numChipsCounter.setText(String.format(Locale.getDefault(), "%d", chipsCount));
-//                }
-//            });
 
             /*****
-             * Number of four-operator channels spinner
+             * Number of four-operator channels
              */
             Button num4opChansMinus = (Button) findViewById(R.id.num4opChansMinus);
             num4opChansMinus.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    TextView num4opChans = (TextView)findViewById(R.id.num4opChans);
-                    TextView num4opChansCount = (TextView)findViewById(R.id.num4opChansCount);
-                    int g = Integer.parseInt(num4opChans.getText().toString());
+                    int g = m_fourOpsCount;
                     g--;
                     if(g < -1) {
                         return;
                     }
-                    num4opChans.setText(Integer.toString(g));
-                    if(g >= 0)
-                        num4opChansCount.setText(Integer.toString(g));
-                    else
-                        num4opChansCount.setText(String.format(Locale.getDefault(), "<Auto>"));
+                    onFourOpsCountUpdate(g, false);
                 }
             });
 
@@ -480,162 +377,19 @@ public class Player extends AppCompatActivity {
             num4opChansPlus.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    TextView num4opChans = (TextView)findViewById(R.id.num4opChans);
-                    TextView num4opChansCount = (TextView)findViewById(R.id.num4opChansCount);
-                    TextView numChips = (TextView)findViewById(R.id.numChips);
-                    int curFourOpMax = Integer.parseInt(numChips.getText().toString()) * 6;
-                    int g = Integer.parseInt(num4opChans.getText().toString());
+                    int curFourOpMax = m_chipsCount * 6;
+                    int g = m_fourOpsCount;
                     g++;
                     if(g > curFourOpMax) {
                         return;
                     }
-                    num4opChans.setText(Integer.toString(g));
-                    if(g >= 0)
-                        num4opChansCount.setText(Integer.toString(g));
-                    else
-                        num4opChansCount.setText(String.format(Locale.getDefault(), "<Auto>"));
+                    onFourOpsCountUpdate(g, false);
                 }
             });
 
-            TextView num4opChans = (TextView)findViewById(R.id.num4opChans);
-            int fourOpsCount = m_service.getFourOpChanCount();
-            num4opChans.setText(Integer.toString(fourOpsCount));
+            onFourOpsCountUpdate(m_service.getFourOpChanCount(), true);
 
-            TextView num4opChansCount = (TextView)findViewById(R.id.num4opChansCount);
-            if(fourOpsCount >= 0)
-                num4opChansCount.setText(Integer.toString(fourOpsCount));
-            else
-                num4opChansCount.setText(String.format(Locale.getDefault(), "<Auto>"));
-
-            num4opChans.addTextChangedListener(new TextWatcher() {
-
-                @Override
-                public void afterTextChanged(Editable s) {}
-
-                @Override
-                public void beforeTextChanged(CharSequence s, int start,
-                                              int count, int after) {
-                }
-
-                @Override
-                public void onTextChanged(CharSequence s, int start,
-                                          int before, int count) {
-                    //                    int count = ((int)picker.getValue() - 1);
-//                    Log.d(LOG_TAG, String.format(Locale.getDefault(),
-//                            "4ops: picker.value=%d, count %d, o=%d, n=%d", picker.getValue(), count, oldVal, newVal
-//                            )
-//                    );
-                    TextView num4opChans = (TextView)findViewById(R.id.num4opChans);
-                    TextView numChips = (TextView)findViewById(R.id.numChips);
-                    int curFourOpMax = Integer.parseInt(numChips.getText().toString()) * 6;
-                    if(count <= -1) {
-                        count = -1;
-                        num4opChans.setText(Integer.toString(count));
-                        return;
-                    } else if(count > curFourOpMax) {
-                        count = curFourOpMax;
-                        num4opChans.setText(Integer.toString(count));
-                        return;
-                    }
-
-                    if(m_bound) {
-                        m_service.setFourOpChanCount(count);
-                        Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: Written=%d", count));
-                        m_service.applySetup();
-                    }
-                    TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
-                    if(count >= 0)
-                        num4opCounter.setText(String.format(Locale.getDefault(), "%d", count));
-                    else
-                        num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
-                }
-            });
-
-//            NumberPicker num4opChannels = (NumberPicker)findViewById(R.id.num4opChans);
-//            num4opChannels.setFormatter(new NumberPicker.Formatter() {
-//                @Override
-//                public String format(int index) {
-//                    return Integer.toString(index - 1);
-//                }
-//            });
-//            num4opChannels.setMinValue(0);
-//            num4opChannels.setMaxValue(m_service.getFourOpMax() + 1);
-//            num4opChannels.setWrapSelectorWheel(false);
-//            TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
-//            int curFourOpsCount = m_service.getFourOpChanCount();
-//            Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: Restored old=%d", curFourOpsCount));
-//            if(curFourOpsCount >= 0)
-//                num4opCounter.setText(String.format(Locale.getDefault(), "%d", curFourOpsCount));
-//            else
-//                num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
-//
-//            num4opChannels.setValue(curFourOpsCount + 1);
-//            Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: setValue=%d", curFourOpsCount + 1));
-//
-//            num4opChannels.setOnValueChangedListener(new NumberPicker.OnValueChangeListener() {
-//                @Override
-//                public void onValueChange(NumberPicker picker, int oldVal, int newVal) {
-//                    if(!m_fourOpsCountLoaded) {
-//                        m_fourOpsCountLoaded = true;
-//                        return;
-//                    }
-//                    int count = ((int)picker.getValue() - 1);
-//                    Log.d(LOG_TAG, String.format(Locale.getDefault(),
-//                            "4ops: picker.value=%d, count %d, o=%d, n=%d", picker.getValue(), count, oldVal, newVal
-//                            )
-//                    );
-//                    int curFourOpMax = 0;
-//                    if(m_bound)
-//                        curFourOpMax = m_service.getFourOpMax();
-//                    if(count <= -1) {
-//                        count = -1;
-//                        picker.setValue(0);
-//                    } else if(count > curFourOpMax) {
-//                        count = curFourOpMax;
-//                        picker.setValue(count + 1);
-//                    }
-//
-//                    if(m_bound) {
-//                        m_service.setFourOpChanCount(count);
-//                        Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: Written=%d", count));
-//                        m_service.applySetup();
-//                    }
-//                    TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
-//                    if(count >= 0)
-//                        num4opCounter.setText(String.format(Locale.getDefault(), "%d", count));
-//                    else
-//                        num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
-//                }
-//            });
-
-
-
-//            num4opChannels.setValue(curFourOpsCount + 1);
-//            Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: setValue=%d", curFourOpsCount + 1));
-//            num4opChannels.setValue(curFourOpsCount + 2);
-//            Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: setValue=%d", curFourOpsCount + 2));
-//            num4opChannels.setValue(curFourOpsCount + 1);
-//            Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: setValue=%d", curFourOpsCount + 1));
-//
-//            /* ========================================================================
-//             * Workaround for a drawing of first element of NumberPicker bug:
-//             * https://stackoverflow.com/questions/17708325/android-numberpicker-with-formatter-doesnt-format-on-first-rendering
-//             */
-//            try {
-//                Method method = num4opChannels.getClass().getDeclaredMethod("changeValueByOne", boolean.class);
-//                method.setAccessible(true);
-//                method.invoke(num4opChannels, true);
-//            } catch (NoSuchMethodException e) {
-//                e.printStackTrace();
-//            } catch (IllegalArgumentException e) {
-//                e.printStackTrace();
-//            } catch (IllegalAccessException e) {
-//                e.printStackTrace();
-//            } catch (InvocationTargetException e) {
-//                e.printStackTrace();
-//            }
-//            /* ======================================================================== */
-
+            /********Everything UI related has been initialized!*******/
             m_uiLoaded = true;
         }
     }
@@ -804,6 +558,7 @@ public class Player extends AppCompatActivity {
         return super.onKeyUp(keyCode, event);
     }
 
+
     public void OnPlayClick(View view)
     {
         if(m_bound) {
@@ -967,5 +722,55 @@ public class Player extends AppCompatActivity {
                     }
                 });
         fileDialog.show();
+    }
+
+    void onChipsCountUpdate(int chipsCount, boolean silent)
+    {
+        int fourOpsMax = chipsCount * 6;
+
+        if(chipsCount < 1) {
+            chipsCount = 1;
+        } else if(chipsCount > 100) {
+            chipsCount = 100;
+        }
+
+        m_chipsCount = chipsCount;
+        if(m_bound && !silent) {
+            m_service.setChipsCount(m_chipsCount);
+            m_service.applySetup();
+            Log.d(LOG_TAG, String.format(Locale.getDefault(), "Chips: Written=%d", m_chipsCount));
+        }
+
+        if(m_fourOpsCount > fourOpsMax) {
+            onFourOpsCountUpdate(m_fourOpsCount, silent);
+        }
+
+        TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
+        numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_chipsCount));
+    }
+
+    void onFourOpsCountUpdate(int fourOpsCount, boolean silent)
+    {
+        int fourOpsMax = m_chipsCount * 6;
+
+        if(fourOpsCount > fourOpsMax) {
+            fourOpsCount = fourOpsMax;
+        } else if(fourOpsCount < -1) {
+            fourOpsCount = -1;
+        }
+
+        m_fourOpsCount = fourOpsCount;
+
+        if(m_bound && !silent) {
+            m_service.setFourOpChanCount(fourOpsCount);
+            Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: Written=%d", fourOpsCount));
+            m_service.applySetup();
+        }
+
+        TextView num4opCounter = (TextView)findViewById(R.id.num4opChansCount);
+        if(m_fourOpsCount >= 0)
+            num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_fourOpsCount));
+        else
+            num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
     }
 }

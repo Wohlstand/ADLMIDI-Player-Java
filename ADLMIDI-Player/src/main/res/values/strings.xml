@@ -21,4 +21,6 @@
     <string name="chooseBank">Choose custom bank</string>
     <string name="useCustom">Use custom</string>
     <string name="bank_file_empty"><![CDATA[<Bank File>]]></string>
+    <string name="sign_minus">-</string>
+    <string name="sign_plus">+</string>
 </resources>

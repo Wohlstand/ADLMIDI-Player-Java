@@ -209,28 +209,18 @@
                 android:id="@+id/num4opChansMinus"
                 android:layout_width="42dp"
                 android:layout_height="48dp"
-                android:layout_marginTop="8dp"
-                android:text="-"
+                android:text="@string/sign_minus"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textView3" />
-
-            <EditText
-                android:id="@+id/num4opChans"
-                android:layout_width="70dp"
-                android:layout_height="48dp"
-                android:layout_marginTop="8dp"
-                android:ems="10"
-                android:inputType="number|numberSigned"
-                app:layout_constraintStart_toEndOf="@+id/numChipsMinus"
                 app:layout_constraintTop_toBottomOf="@+id/textView3" />
 
             <Button
                 android:id="@+id/num4opChansPlus"
                 android:layout_width="42dp"
                 android:layout_height="48dp"
-                android:layout_marginTop="8dp"
-                android:text="+"
-                app:layout_constraintStart_toEndOf="@+id/numChips"
+                android:layout_marginStart="8dp"
+                android:layout_marginLeft="8dp"
+                android:text="@string/sign_plus"
+                app:layout_constraintStart_toEndOf="@+id/num4opChansCount"
                 app:layout_constraintTop_toBottomOf="@+id/textView3" />
 
             <TextView
@@ -247,7 +237,7 @@
                 android:id="@+id/numChipsMinus"
                 android:layout_width="42dp"
                 android:layout_height="48dp"
-                android:text="-"
+                android:text="@string/sign_minus"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/textView2" />
 
@@ -255,17 +245,10 @@
                 android:id="@+id/numChipsPlus"
                 android:layout_width="42dp"
                 android:layout_height="48dp"
-                android:text="+"
-                app:layout_constraintStart_toEndOf="@+id/numChips"
-                app:layout_constraintTop_toBottomOf="@+id/textView2" />
-
-            <EditText
-                android:id="@+id/numChips"
-                android:layout_width="70dp"
-                android:layout_height="48dp"
-                android:ems="10"
-                android:inputType="number"
-                app:layout_constraintStart_toEndOf="@+id/numChipsMinus"
+                android:layout_marginStart="8dp"
+                android:layout_marginLeft="8dp"
+                android:text="@string/sign_plus"
+                app:layout_constraintStart_toEndOf="@+id/numChipsCount"
                 app:layout_constraintTop_toBottomOf="@+id/textView2" />
 
             <TextView
@@ -286,8 +269,8 @@
                 android:layout_marginStart="8dp"
                 android:layout_marginLeft="8dp"
                 android:layout_marginTop="17dp"
-                android:text="TextView"
-                app:layout_constraintStart_toEndOf="@+id/numChipsPlus"
+                android:text="@string/vrmAuto"
+                app:layout_constraintStart_toEndOf="@+id/numChipsMinus"
                 app:layout_constraintTop_toBottomOf="@+id/textView2" />
 
             <TextView
@@ -296,9 +279,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:layout_marginLeft="8dp"
-                android:layout_marginTop="22dp"
-                android:text="TextView"
-                app:layout_constraintStart_toEndOf="@+id/num4opChansPlus"
+                android:layout_marginTop="17dp"
+                android:text="@string/vrmAuto"
+                app:layout_constraintStart_toEndOf="@+id/num4opChansMinus"
                 app:layout_constraintTop_toBottomOf="@+id/textView3" />
 
             <Button
