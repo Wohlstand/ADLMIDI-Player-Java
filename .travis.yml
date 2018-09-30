@@ -30,6 +30,7 @@ android:
     - extra-android-m2repository
     # Specify at least one system image
     - sys-img-armeabi-v7a-android-$ANDROID_API_LEVEL
+    - sys-img-x86_64-android-$ANDROID_API_LEVEL
     #- sys-img-armeabi-v7a-google_apis-$ANDROID_API_LEVEL
     #- sys-img-armeabi-v7a-android-$ANDROID_API_LEVEL
     #- sys-img-armeabi-v7a-google_apis-$ANDROID_API_LEVEL
@@ -64,11 +65,13 @@ before_install:
 
   - chmod +x gradlew
   - ./gradlew dependencies || true
+  - ./gradlew assembleDebug
 
 # Emulator Management: Create, Start and Wait
 before_script:
   #- echo no | android create avd --force -n test -t android-22 --abi armeabi-v7a --tag google_apis  #--tag ${ANDROID_TAG}
   - echo y | android update sdk --all -u -t sys-img-armeabi-v7a-android-${ANDROID_API_LEVEL}
+  - echo y | android update sdk --all -u -t sys-img-x86_64-android-${ANDROID_API_LEVEL}
   - android list targets
   - echo no | android create avd --force -n test -t android-${ANDROID_API_LEVEL} --abi armeabi-v7a
   - emulator -avd test -no-audio -no-window &
