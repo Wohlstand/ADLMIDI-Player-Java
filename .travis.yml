@@ -10,11 +10,12 @@ language: android
 sudo: required
 env:
   global:
-    - ANDROID_API_LEVEL=26
-    - ANDROID_BUILD_TOOLS_VERSION=26.0.2
+    - ANDROID_API_LEVEL=28
+    - ANDROID_BUILD_TOOLS_VERSION=28.0.3
     - ANDROID_ABI=armeabi-v7a
     - ANDROID_TAG=google_apis
-    - ANDROID_NDK_REVISION=r16
+    - ANDROID_NDK_REVISION=r17
+    - ADB_INSTALL_TIMEOUT=5 # minutes
 
 android:
   components:
@@ -29,13 +30,14 @@ android:
     - extra-android-m2repository
     # Specify at least one system image
     - sys-img-armeabi-v7a-android-$ANDROID_API_LEVEL
-    - sys-img-armeabi-v7a-google_apis-$ANDROID_API_LEVEL
-    #- sys-img-armeabi-v7a-android-22
-    #- sys-img-armeabi-v7a-google_apis-22
+    #- sys-img-armeabi-v7a-google_apis-$ANDROID_API_LEVEL
+    #- sys-img-armeabi-v7a-android-$ANDROID_API_LEVEL
+    #- sys-img-armeabi-v7a-google_apis-$ANDROID_API_LEVEL
   licenses:
-    - 'android-sdk-license-.+'
-    - 'google-gdk-license-.+'
-    - 'build-tools-.+'
+    - android-sdk-preview-license-.+
+    - android-sdk-license-.+
+    - google-gdk-license-.+
+    - build-tools-.+
 
 before_install:
   # By default, we get an older version of libstdc++6 so we need to update it
@@ -44,8 +46,15 @@ before_install:
   - sudo apt-get update
   - sudo apt-get install libstdc++6
 
-  - echo y | android update sdk --no-ui --all --filter "tools"
-  - echo y | android update sdk --no-ui --all --filter build-tools-26.0.2,android-26,extra-android-m2repository
+  - mkdir "$ANDROID_HOME/licenses" || true
+  - echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
+  - echo -e "\nd56f5187479451eabf01fb78af6dfcb131a6481e" > "$ANDROID_HOME/licenses/google-gdk-license"
+  - echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+  - chmod +x gradlew
+  - ./gradlew dependencies || true
+
+  # - echo y | android update sdk --no-ui --all --filter "tools"
+  # - echo y | android update sdk --no-ui --all --filter build-tools-${ANDROID_BUILD_TOOLS_VERSION},android-${ANDROID_API_LEVEL},extra-android-m2repository
   - wget https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_REVISION}-linux-x86_64.zip -O ndk.zip
   - unzip ndk.zip -d . > /dev/null
   - export ANDROID_NDK_HOME=`pwd`/android-ndk-${ANDROID_NDK_REVISION}
