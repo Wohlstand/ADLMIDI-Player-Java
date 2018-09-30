@@ -36,6 +36,8 @@ import android.support.v4.app.ActivityCompat;
 import android.widget.Toast;
 
 import java.io.File;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
 
@@ -71,6 +73,14 @@ public class Player extends AppCompatActivity {
             }
         }
     };
+
+    public static double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+
+        BigDecimal bd = new BigDecimal(value);
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
 
     public void seekerStart()
     {
@@ -195,6 +205,7 @@ public class Player extends AppCompatActivity {
                             "Bank changed to: " + selectedItemPosition, Toast.LENGTH_SHORT);
                     toast.show();
                 }
+
                 public void onNothingSelected(AdapterView<?> parent) {
                 }
             });
@@ -205,13 +216,12 @@ public class Player extends AppCompatActivity {
             CheckBox useCustomBank = (CheckBox)findViewById(R.id.useCustom);
             useCustomBank.setChecked(m_service.getUseCustomBank());
             useCustomBank.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                                                         @Override
-                                                         public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                                                             if(m_bound)
-                                                                 m_service.setUseCustomBank(isChecked);
-                                                         }
-                                                     }
-            );
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    if(m_bound)
+                        m_service.setUseCustomBank(isChecked);
+                }
+            });
 
 
             /*****
@@ -244,16 +254,15 @@ public class Player extends AppCompatActivity {
             CheckBox deepTremolo = (CheckBox)findViewById(R.id.deepTremolo);
             deepTremolo.setChecked(m_service.getDeepTremolo());
             deepTremolo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
+                @Override
                     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                        if(m_bound)
-                            m_service.setDeepTremolo(isChecked);
-                        Toast toast = Toast.makeText(getApplicationContext(),
-                                "Deep tremolo toggled!", Toast.LENGTH_SHORT);
-                        toast.show();
-                    }
+                    if(m_bound)
+                        m_service.setDeepTremolo(isChecked);
+                    Toast toast = Toast.makeText(getApplicationContext(),
+                            "Deep tremolo toggled!", Toast.LENGTH_SHORT);
+                    toast.show();
                 }
-            );
+            });
 
             /*****
              * Deep Vibrato checkbox
@@ -261,16 +270,15 @@ public class Player extends AppCompatActivity {
             CheckBox deepVibrato = (CheckBox)findViewById(R.id.deepVibrato);
             deepVibrato.setChecked(m_service.getDeepVibrato());
             deepVibrato.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                        if(m_bound)
-                            m_service.setDeepVibrato(isChecked);
-                        Toast toast = Toast.makeText(getApplicationContext(),
-                                "Deep vibrato toggled!", Toast.LENGTH_SHORT);
-                        toast.show();
-                    }
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(m_bound)
+                    m_service.setDeepVibrato(isChecked);
+                Toast toast = Toast.makeText(getApplicationContext(),
+                        "Deep vibrato toggled!", Toast.LENGTH_SHORT);
+                toast.show();
                 }
-            );
+            });
 
             /*****
              * Scalable Modulators checkbox
@@ -278,16 +286,15 @@ public class Player extends AppCompatActivity {
             CheckBox scalableMod = (CheckBox)findViewById(R.id.scalableModulation);
             scalableMod.setChecked(m_service.getScalableModulation());
             scalableMod.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                        if(m_bound)
-                            m_service.setScalableModulators(isChecked);
-                        Toast toast = Toast.makeText(getApplicationContext(),
-                                  "Scalable modulation toggled toggled!", Toast.LENGTH_SHORT);
-                        toast.show();
-                    }
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    if(m_bound)
+                        m_service.setScalableModulators(isChecked);
+                    Toast toast = Toast.makeText(getApplicationContext(),
+                              "Scalable modulation toggled toggled!", Toast.LENGTH_SHORT);
+                    toast.show();
                 }
-            );
+            });
 
             /*****
              * Rhythm-Mode drums checkbox
@@ -295,16 +302,15 @@ public class Player extends AppCompatActivity {
             CheckBox adlDrums = (CheckBox)findViewById(R.id.adlibDrumsMode);
             adlDrums.setChecked(m_service.getForceRhythmMode());
             adlDrums.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                        if(m_bound)
-                            m_service.setForceRhythmMode(isChecked);
-                        Toast toast = Toast.makeText(getApplicationContext(),
-                                "AdLib percussion mode toggled!", Toast.LENGTH_SHORT);
-                        toast.show();
-                    }
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    if(m_bound)
+                        m_service.setForceRhythmMode(isChecked);
+                    Toast toast = Toast.makeText(getApplicationContext(),
+                            "AdLib percussion mode toggled!", Toast.LENGTH_SHORT);
+                    toast.show();
                 }
-            );
+            });
 
 
             /*****
@@ -313,16 +319,15 @@ public class Player extends AppCompatActivity {
             CheckBox fullPanningStereo = (CheckBox)findViewById(R.id.fullPanningStereo);
             fullPanningStereo.setChecked(m_service.getFullPanningStereo());
             fullPanningStereo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                        if(m_bound)
-                            m_service.setFullPanningStereo(isChecked);
-                        Toast toast = Toast.makeText(getApplicationContext(),
-                                "Full-Panning toggled!", Toast.LENGTH_SHORT);
-                        toast.show();
-                    }
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    if(m_bound)
+                        m_service.setFullPanningStereo(isChecked);
+                    Toast toast = Toast.makeText(getApplicationContext(),
+                            "Full-Panning toggled!", Toast.LENGTH_SHORT);
+                    toast.show();
                 }
-            );
+            });
 
             /*****
              * Chips count
@@ -387,6 +392,65 @@ public class Player extends AppCompatActivity {
             });
 
             onFourOpsCountUpdate(m_service.getFourOpChanCount(), true);
+
+            /*****
+             * Gain level
+             */
+            Button gainMinusMinus = (Button) findViewById(R.id.gainFactorMinusMinus);
+            gainMinusMinus.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if(m_bound) {
+                        double gain = m_service.gainingGet();
+                        gain -= 1.0;
+                        if(gain < 0.1)
+                            gain += 1.0;
+                        onGainUpdate(gain, false);
+                    }
+                }
+            });
+
+            Button gainMinus = (Button) findViewById(R.id.gainFactorMinus);
+            gainMinus.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if(m_bound) {
+                        double gain = m_service.gainingGet();
+                        gain -= 0.1;
+                        if(gain < 0.1)
+                            gain += 0.1;
+                        onGainUpdate(gain, false);
+                    }
+                }
+            });
+
+            Button gainPlus = (Button) findViewById(R.id.gainFactorPlus);
+            gainPlus.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if(m_bound) {
+                        double gain = m_service.gainingGet();
+                        gain += 0.1;
+                        onGainUpdate(gain, false);
+                    }
+                }
+            });
+
+            Button gainPlusPlus = (Button) findViewById(R.id.gainFactorPlusPlus);
+            gainPlusPlus.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if(m_bound) {
+                        double gain = m_service.gainingGet();
+                        gain += 1.0;
+                        onGainUpdate(gain, false);
+                    }
+                }
+            });
+
+            onGainUpdate(m_service.gainingGet(), true);
+
+
 
             /********Everything UI related has been initialized!*******/
             m_uiLoaded = true;
@@ -538,10 +602,7 @@ public class Player extends AppCompatActivity {
             alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int whichButton) {
                     String txtvalue = input.getText().toString();
-                    if(m_bound) {
-                        double value = Double.parseDouble(txtvalue);
-                        m_service.setGaining(value);
-                    }
+                    onGainUpdate(Double.parseDouble(txtvalue), false);
                 }
             });
 
@@ -777,5 +838,15 @@ public class Player extends AppCompatActivity {
             num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_fourOpsCount));
         else
             num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
+    }
+
+    void onGainUpdate(double gainLevel, boolean silent)
+    {
+        gainLevel = round(gainLevel, 1);
+        if(m_bound && !silent) {
+            m_service.gainingSet(gainLevel);
+        }
+        TextView gainFactor = (TextView)findViewById(R.id.gainFactor);
+        gainFactor.setText(Double.toString(gainLevel));
     }
 }

@@ -31,6 +31,7 @@ import java.util.List;
 
 public class PlayerService extends Service {
     private static int FOREGROUND_ID=4478;
+    private static String NOTIFICATION_ID="ADLMIDI-Player";
     final String LOG_TAG = "PlayerService";
 
     private SharedPreferences   m_setup = null;
@@ -197,7 +198,7 @@ public class PlayerService extends Service {
         PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
 
         // Create notification builder.
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_ID);
 
         // Make notification show big text.
         NotificationCompat.BigTextStyle bigTextStyle = new NotificationCompat.BigTextStyle();

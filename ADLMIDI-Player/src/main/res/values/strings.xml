@@ -25,4 +25,7 @@
     <string name="sign_plus">+</string>
     <string name="full_panning_stereo">Full-panning stereo</string>
     <string name="no_files_loaded"><![CDATA[<No files loaded>]]></string>
+    <string name="gain_factor">Gain factor</string>
+    <string name="sign_plusplus">++</string>
+    <string name="sign_minusminus">--</string>
 </resources>

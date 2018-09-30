@@ -26,4 +26,7 @@
     <string name="sign_minus">-</string>
     <string name="sign_plus">+</string>
     <string name="no_files_loaded"><![CDATA[<Нет загруженных файлов>]]></string>
+    <string name="gain_factor">Фактор усиления</string>
+    <string name="sign_plusplus">++</string>
+    <string name="sign_minusminus">--</string>
 </resources>
