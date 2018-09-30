@@ -11,7 +11,16 @@
 pthread_mutex_t g_lock;
 bool mutex_created = false;
 
-typedef int (*AndroidAudioCallback)(short *buffer, int num_samples);
+typedef int16_t sample_t;
+
+static ADLMIDI_AudioFormat g_audioFormat
+{
+    ADLMIDI_SampleType_S16,
+    sizeof(sample_t),
+    sizeof(sample_t) * 2
+};
+
+typedef int (*AndroidAudioCallback)(sample_t *buffer, int num_samples);
 bool OpenSLWrap_Init(AndroidAudioCallback cb);
 void OpenSLWrap_Shutdown();
 
@@ -45,12 +54,12 @@ static SLPlayItf    bqPlayerPlay;
 static SLAndroidSimpleBufferQueueItf    bqPlayerBufferQueue;
 static SLMuteSoloItf                    bqPlayerMuteSolo;
 static SLVolumeItf                      bqPlayerVolume;
-#define BUFFER_SIZE 40960
+#define BUFFER_SIZE 20480
 #define BUFFER_SIZE_IN_SAMPLES (BUFFER_SIZE / 2)
 
 // Double buffering.
 static int      bufferLen[2] = {0, 0};
-static short    buffer[2][BUFFER_SIZE_IN_SAMPLES];
+static sample_t buffer[2][BUFFER_SIZE_IN_SAMPLES];
 static int      curBuffer = 0;
 static AndroidAudioCallback audioCallback;
 
@@ -67,12 +76,12 @@ static void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
     assert(bq == bqPlayerBufferQueue);
     assert(NULL == context);
     pthread_mutex_lock(&g_lock);
-    short *nextBuffer = buffer[curBuffer];
+    sample_t *nextBuffer = buffer[curBuffer];
     int nextSize = bufferLen[curBuffer];
-    if(nextSize>0)
+    if(nextSize > 0)
     {
         SLresult result;
-        result = (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, nextBuffer, nextSize*2);
+        result = (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, nextBuffer, nextSize * 2);
         // Comment from sample code:
         // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
         // which for this code example would indicate a programming error
@@ -90,7 +99,7 @@ bool OpenSLWrap_Init(AndroidAudioCallback cb)
     audioCallback = cb;
     SLresult result;
 
-    memset(buffer, 0, BUFFER_SIZE*2);
+    memset(buffer, 0, BUFFER_SIZE * sizeof(sample_t));
     bufferLen[0] = BUFFER_SIZE_IN_SAMPLES;
     bufferLen[1] = BUFFER_SIZE_IN_SAMPLES;
 
@@ -107,15 +116,28 @@ bool OpenSLWrap_Init(AndroidAudioCallback cb)
     assert(SL_RESULT_SUCCESS == result);
 
     SLDataLocator_AndroidSimpleBufferQueue loc_bufq = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 2};
-    SLDataFormat_PCM format_pcm = {
-            SL_DATAFORMAT_PCM,
-            2,
-            SL_SAMPLINGRATE_44_1,
-            SL_PCMSAMPLEFORMAT_FIXED_16,
-            SL_PCMSAMPLEFORMAT_FIXED_16,
-            SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,
-            SL_BYTEORDER_LITTLEENDIAN
-    };
+
+    /* for Android 21+*/
+//    SLAndroidDataFormat_PCM_EX format_pcm;
+//    format_pcm.formatType = SL_ANDROID_DATAFORMAT_PCM_EX;
+//    format_pcm.numChannels = 2;
+//    format_pcm.sampleRate = SL_SAMPLINGRATE_44_1;
+//    format_pcm.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_32;
+//    format_pcm.containerSize = SL_PCMSAMPLEFORMAT_FIXED_32;
+//    format_pcm.channelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
+//    format_pcm.endianness = SL_BYTEORDER_LITTLEENDIAN;
+//    format_pcm.representation = SL_ANDROID_PCM_REPRESENTATION_FLOAT;
+
+    /* for Android <21 */
+    SLDataFormat_PCM format_pcm;
+    format_pcm.formatType = SL_DATAFORMAT_PCM;
+    format_pcm.numChannels = 2;
+    format_pcm.samplesPerSec = SL_SAMPLINGRATE_44_1;
+    format_pcm.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_16;
+    format_pcm.containerSize = SL_PCMSAMPLEFORMAT_FIXED_16;
+    format_pcm.channelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
+    format_pcm.endianness = SL_BYTEORDER_LITTLEENDIAN;
+
     SLDataSource audioSrc = {&loc_bufq, &format_pcm};
 
     // configure audio sink
@@ -160,7 +182,7 @@ void OpenSLWrap_Shutdown()
     result = (*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_STOPPED);
     assert(SL_RESULT_SUCCESS == result);
 
-    memset(buffer, 0, BUFFER_SIZE*2);
+    memset(buffer, 0, BUFFER_SIZE * sizeof(sample_t));
     bufferLen[0] = BUFFER_SIZE_IN_SAMPLES;
     bufferLen[1] = BUFFER_SIZE_IN_SAMPLES;
 
@@ -188,15 +210,18 @@ void OpenSLWrap_Shutdown()
  ********************** Minimal OpenSL ES wrapper implementation END ****************************
  ************************************************************************************************/
 
-int audioCallbackFunction(short *buffer, int num_samples)
+int audioCallbackFunction(sample_t *buffer, int num_samples)
 {
-    int ret = adl_play(playingDevice, num_samples, buffer);
+    ADL_UInt8 *buff = (ADL_UInt8*)buffer;
+    int ret = adl_playFormat(playingDevice, num_samples,
+            buff, buff + g_audioFormat.containerSize,
+            &g_audioFormat);
 
-    if(g_gaining > 1.0)
+    if((g_gaining > 0.1) && (g_gaining != 1.0))
     {
         for(size_t i = 0; i < num_samples; i++)
         {
-            buffer[i] = static_cast<short>(static_cast<double>(buffer[i]) * g_gaining);
+            buffer[i] = static_cast<sample_t>(static_cast<double>(buffer[i]) * g_gaining);
         }
     }
 
