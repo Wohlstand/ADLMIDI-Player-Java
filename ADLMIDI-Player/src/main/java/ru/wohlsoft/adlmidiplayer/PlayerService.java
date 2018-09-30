@@ -272,6 +272,11 @@ public class PlayerService extends Service {
         }
     }
 
+    public boolean isReady()
+    {
+        return (MIDIDevice != 0);
+    }
+
     public boolean initPlayer()
     {
         if(MIDIDevice == 0) { //Create context when it wasn't created

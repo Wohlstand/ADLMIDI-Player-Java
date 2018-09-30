@@ -689,16 +689,20 @@ public class Player extends AppCompatActivity {
                             boolean wasPlay = m_service.isPlaying();
                             if (m_service.isPlaying())
                                 m_service.playerStop();
-                            if (!m_service.initPlayer()) {
-                                m_service.playerStop();
-                                m_service.unInitPlayer();
-                                AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
-                                b.setTitle("Failed to initialize player");
-                                b.setMessage("Can't initialize player because of " + m_service.getLastError());
-                                b.setNegativeButton(android.R.string.ok, null);
-                                b.show();
-                                m_lastFile = "";
-                                return;
+                            if(!m_service.isReady())
+                            {
+                                if (!m_service.initPlayer())
+                                {
+                                    m_service.playerStop();
+                                    m_service.unInitPlayer();
+                                    AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
+                                    b.setTitle("Failed to initialize player");
+                                    b.setMessage("Can't initialize player because of " + m_service.getLastError());
+                                    b.setNegativeButton(android.R.string.ok, null);
+                                    b.show();
+                                    m_lastFile = "";
+                                    return;
+                                }
                             }
                             m_lastFile = fileName;
                             m_setup.edit().putString("lastPath", m_lastPath).apply();
