@@ -2,6 +2,7 @@ package ru.wohlsoft.adlmidiplayer;
 
 import android.app.IntentService;
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
@@ -14,6 +15,7 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.AsyncTask;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
@@ -45,6 +47,7 @@ public class PlayerService extends Service {
     public final int            BUF_SIZE = 10240;
     private long                MIDIDevice = 0;
     private volatile boolean    m_isPlaying = false;
+    private volatile boolean    m_isRunning = false;
 
     private volatile boolean    m_isInit = false;
 
@@ -169,6 +172,26 @@ public class PlayerService extends Service {
     {
         // Log.d(TAG_FOREGROUND_SERVICE, "Start foreground service.");
 
+        // Start foreground service.
+        startForeground(FOREGROUND_ID, getNotify());
+        m_isRunning = true;
+    }
+
+    private void stopForegroundService()
+    {
+        Log.d(TAG_FOREGROUND_SERVICE, "Stop foreground service.");
+
+        // Stop foreground service and remove the notification.
+        stopForeground(true);
+
+        // Stop the foreground service.
+        stopSelf();
+
+        m_isRunning = false;
+    }
+
+    private Notification getNotify()
+    {
         // Create notification default intent.
         Intent intent = new Intent();
         PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
@@ -178,17 +201,19 @@ public class PlayerService extends Service {
 
         // Make notification show big text.
         NotificationCompat.BigTextStyle bigTextStyle = new NotificationCompat.BigTextStyle();
-        bigTextStyle.setBigContentTitle("ADLMIDI Playing");
+        bigTextStyle.setBigContentTitle("ADLMIDI Player");
         bigTextStyle.bigText("Playing " + m_lastFile);
         // Set big text style.
         builder.setStyle(bigTextStyle);
 
         builder.setWhen(System.currentTimeMillis());
-        builder.setSmallIcon(R.drawable.ic_stat_name);
+        builder.setSmallIcon(R.drawable.ic_music_playing);
         Bitmap largeIconBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher);
         builder.setLargeIcon(largeIconBitmap);
         // Make the notification max priority.
-        builder.setPriority(Notification.PRIORITY_MAX);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            builder.setPriority(Notification.PRIORITY_MAX);
+        }
         // Make head-up notification.
         builder.setFullScreenIntent(pendingIntent, true);
 
@@ -219,21 +244,7 @@ public class PlayerService extends Service {
         builder.addAction(stopAction);
 
         // Build the notification.
-        Notification notification = builder.build();
-
-        // Start foreground service.
-        startForeground(1, notification);
-    }
-
-    private void stopForegroundService()
-    {
-        Log.d(TAG_FOREGROUND_SERVICE, "Stop foreground service.");
-
-        // Stop foreground service and remove the notification.
-        stopForeground(true);
-
-        // Stop the foreground service.
-        stopSelf();
+        return builder.build();
     }
 
     public boolean isServiceReady()
@@ -322,8 +333,8 @@ public class PlayerService extends Service {
         adl_setScaleModulators(MIDIDevice, m_ADL_scalable);
         adl_setPercMode(MIDIDevice, m_ADL_adlibdrums);
         adl_setSoftPanEnabled(MIDIDevice, m_ADL_softPanEnabled);
-        adl_setLoopEnabled(MIDIDevice, 1);
         adl_setVolumeRangeModel(MIDIDevice, m_ADL_volumeModel);
+        adl_setLoopEnabled(MIDIDevice, 1);
     }
 
     public String getLastError()
@@ -545,7 +556,16 @@ public class PlayerService extends Service {
             m_lastErrorString = adl_errorInfo(MIDIDevice);
             return false;
         }
+
+        boolean fileUpdated = !m_lastFile.equals(musicFile);
         m_lastFile = musicFile;
+        if(m_isRunning && fileUpdated)
+        {
+            m_lastFile = musicFile;
+            NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            mNotificationManager.notify(FOREGROUND_ID, getNotify());
+        }
+
         return true;
     }
 
@@ -574,6 +594,8 @@ public class PlayerService extends Service {
     public boolean playerRestart() {
         if(m_isPlaying)
             playerStop();
+        reloadBank();
+        applySetup();
         openMusic(m_lastFile);
         return playerStart();
     }

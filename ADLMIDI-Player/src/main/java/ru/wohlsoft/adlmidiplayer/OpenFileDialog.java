@@ -60,6 +60,8 @@ public class OpenFileDialog extends AlertDialog.Builder {
                 view.setText(file.getName());
                 if (file.isDirectory()) {
                     setDrawable(view, folderIcon);
+                    view.setTextColor(Color.DKGRAY);
+                    view.setBackgroundColor(Color.LTGRAY);
                 } else {
                     setDrawable(view, fileIcon);
                     view.setTextColor(Color.BLACK);
@@ -229,7 +231,7 @@ public class OpenFileDialog extends AlertDialog.Builder {
         return textView;
     }
 
-    public int getTextWidth(String text, Paint paint) {
+    private int getTextWidth(String text, Paint paint) {
         Rect bounds = new Rect();
         paint.getTextBounds(text, 0, text.length(), bounds);
         return bounds.left + bounds.width() + 80;

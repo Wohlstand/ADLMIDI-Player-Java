@@ -687,7 +687,7 @@ public class Player extends AppCompatActivity {
                         if(m_bound) {
                             //Abort previously playing state
                             boolean wasPlay = m_service.isPlaying();
-                            if (m_service.isPlaying())
+                            if(m_service.isPlaying())
                                 m_service.playerStop();
                             if(!m_service.isReady())
                             {
@@ -707,6 +707,8 @@ public class Player extends AppCompatActivity {
                             m_lastFile = fileName;
                             m_setup.edit().putString("lastPath", m_lastPath).apply();
 
+                            //Reload bank for a case if CMF file was passed that cleans custom bank
+                            m_service.reloadBank();
                             if (!m_service.openMusic(m_lastFile)) {
                                 AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
                                 b.setTitle("Failed to open file");
