@@ -1,6 +1,5 @@
 package ru.wohlsoft.adlmidiplayer;
 
-import android.app.IntentService;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -10,28 +9,20 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Build;
-import android.os.Environment;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Message;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
-import android.widget.SeekBar;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class PlayerService extends Service {
     private static int FOREGROUND_ID=4478;
-    private static String NOTIFICATION_ID="ADLMIDI-Player";
+    private static final String NOTIFICATION_ID="ADLMIDI-Player";
     final String LOG_TAG = "PlayerService";
 
     private SharedPreferences   m_setup = null;
