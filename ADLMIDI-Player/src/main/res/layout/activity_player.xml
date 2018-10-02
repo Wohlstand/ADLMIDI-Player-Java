@@ -117,12 +117,26 @@
             tools:text="@string/adlibdrums" />
 
         <CheckBox
-            android:id="@+id/fullPanningStereo"
+            android:id="@+id/runAtPcmRate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@+id/adlibDrumsMode"
             android:layout_alignEnd="@+id/adlibDrumsMode"
             android:layout_alignRight="@+id/adlibDrumsMode"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:text="@string/run_at_pcm_rate"
+            tools:text="@string/run_at_pcm_rate" />
+
+        <CheckBox
+            android:id="@+id/fullPanningStereo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/runAtPcmRate"
+            android:layout_alignEnd="@+id/runAtPcmRate"
+            android:layout_alignRight="@+id/runAtPcmRate"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="true"
             android:layout_alignParentEnd="true"

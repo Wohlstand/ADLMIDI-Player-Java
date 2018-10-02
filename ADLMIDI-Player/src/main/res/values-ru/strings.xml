@@ -29,4 +29,5 @@
     <string name="gain_factor">Фактор усиления</string>
     <string name="sign_plusplus">++</string>
     <string name="sign_minusminus">--</string>
+    <string name="run_at_pcm_rate">Работа на PCM-частоте (Легче для ЦПУ)</string>
 </resources>
