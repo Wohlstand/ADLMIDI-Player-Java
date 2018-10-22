@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 3.2)
-project (libADLMIDI C CXX)
+project (libADLMIDI VERSION 1.4.0 LANGUAGES C CXX)
+
+include(GNUInstallDirs)
 
 #===========================================================================================
 # Strip garbage
@@ -98,6 +100,7 @@ option(WITH_MIDIPLAY        "Build also demo MIDI player" OFF)
 option(MIDIPLAY_WAVE_ONLY   "Build Demo MIDI player without support of real time playing. It will output into WAV only." OFF)
 option(WITH_ADLMIDI2        "Build also classic ADLMIDI player [EXPERIMENTAL]" OFF)
 option(WITH_VLC_PLUGIN      "Build also a plugin for VLC Media Player" OFF)
+option(VLC_PLUGIN_NOINSTALL "Don't install VLC plugin into VLC directory" OFF)
 option(WITH_OLD_UTILS       "Build also old utilities" OFF)
 option(WITH_XMI2MID         "Build a XMI to MIDI converter" OFF)
 option(EXAMPLE_SDL2_AUDIO   "Build also a simple SDL2 demo MIDI player" OFF)
@@ -281,7 +284,8 @@ if(NOT WITH_CPP_EXTRAS)
     add_definitions(-DADLMIDI_DISABLE_CPP_EXTRAS)
 endif()
 
-if(libADLMIDI_STATIC)
+# === Static library ====
+if(libADLMIDI_STATIC OR WITH_VLC_PLUGIN)
     add_library(ADLMIDI_static STATIC ${libADLMIDI_SOURCES})
     set_target_properties(ADLMIDI_static PROPERTIES OUTPUT_NAME ADLMIDI)
     target_include_directories(ADLMIDI_static PUBLIC ${libADLMIDI_SOURCE_DIR}/include)
@@ -291,8 +295,12 @@ if(libADLMIDI_STATIC)
     if(WITH_EMBEDDED_BANKS AND WITH_GENADLDATA)
         add_dependencies(ADLMIDI_static gen-adldata-run)
     endif()
+    if(NOT libADLMIDI_STATIC)
+        set_target_properties(ADLMIDI_static PROPERTIES EXCLUDE_FROM_ALL TRUE)
+    endif()
 endif()
 
+# === Shared library ====
 if(libADLMIDI_SHARED)
     add_library(ADLMIDI_shared SHARED ${libADLMIDI_SOURCES})
     set_target_properties(ADLMIDI_shared PROPERTIES OUTPUT_NAME ADLMIDI)
@@ -302,10 +310,15 @@ if(libADLMIDI_SHARED)
     list(APPEND libADLMIDI_INSTALLS ADLMIDI_shared)
     if(WIN32)
         target_compile_definitions(ADLMIDI_shared PRIVATE "-DADLMIDI_BUILD_DLL")
+        if(CMAKE_COMPILER_IS_GNUCXX)
+            set_property(TARGET ADLMIDI_shared APPEND_STRING PROPERTY LINK_FLAGS " -static-libgcc -static-libstdc++")
+            set_property(TARGET ADLMIDI_shared APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-Bstatic,--whole-archive -lpthread -Wl,-Bdynamic,--no-whole-archive")
+        endif()
     endif()
     if(WITH_EMBEDDED_BANKS AND WITH_GENADLDATA)
         add_dependencies(ADLMIDI_shared gen-adldata-run)
     endif()
+    set_target_properties(ADLMIDI_shared PROPERTIES SOVERSION "1")
 endif()
 
 if(NOT libADLMIDI_STATIC AND NOT libADLMIDI_SHARED)
@@ -314,6 +327,12 @@ You must enable at least one of them!")
 endif()
 
 add_library(ADLMIDI_IF INTERFACE)
+
+if(libADLMIDI_STATIC OR WITH_VLC_PLUGIN)
+    add_library(ADLMIDI_IF_STATIC INTERFACE)
+    target_link_libraries(ADLMIDI_IF_STATIC INTERFACE ADLMIDI_static)
+endif()
+
 if(libADLMIDI_SHARED)
     target_link_libraries(ADLMIDI_IF INTERFACE ADLMIDI_shared)
 else()
@@ -517,22 +536,26 @@ if(WITH_VLC_PLUGIN)
     target_include_directories(adlmidi_vlc_plugin PRIVATE
             ${LIBVLC_INCLUDE_DIR}/vlc/plugins
             ${LIBVLC_INCLUDE_DIR}/vlc)
-    target_link_libraries(adlmidi_vlc_plugin ADLMIDI_IF vlccore m stdc++)
-    # target_link_libraries(adlmidi_vlc_plugin INTERFACE "-export-symbol-regex ^vlc_entry")
 
-    install(TARGETS adlmidi_vlc_plugin DESTINATION "${VLCPLUGIN_CODEC_INSTALL_PATH}")
+    set(ADLMIDIVLC_LIBS ADLMIDI_IF_STATIC ${LIBVLCCORE_LIBRARY} m)
 
-    if(libADLMIDI_SHARED)
-        add_dependencies(adlmidi_vlc_plugin ADLMIDI_shared)
-        # ========= WIP =========
-        # set_target_properties(adlmidiplay PROPERTIES COMPILE_FLAGS "-Wl,-rpath='$$ORIGIN/../lib'")
-    else()
-        if(NOT libADLMIDI_STATIC)
-            message(FATAL_ERROR "libADLMIDI is required to be built!")
-        endif()
-        add_dependencies(adlmidi_vlc_plugin ADLMIDI_static)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows" AND CMAKE_COMPILER_IS_GNUCXX)
+        set_property(TARGET adlmidi_vlc_plugin APPEND_STRING PROPERTY LINK_FLAGS " -static-libgcc -static-libstdc++")
+        set_property(TARGET adlmidi_vlc_plugin APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-Bstatic,--whole-archive -lpthread -Wl,-Bdynamic,--no-whole-archive")
+    elseif(NOT WIN32)
+        list(APPEND ADLMIDIVLC_LIBS stdc++)
     endif()
 
+    target_link_libraries(adlmidi_vlc_plugin ${ADLMIDIVLC_LIBS})
+    # target_link_libraries(adlmidi_vlc_plugin INTERFACE "-export-symbol-regex ^vlc_entry")
+
+    if(NOT VLC_PLUGIN_NOINSTALL)
+        install(TARGETS adlmidi_vlc_plugin DESTINATION "${VLCPLUGIN_CODEC_INSTALL_PATH}")
+    else()
+        install(TARGETS adlmidi_vlc_plugin DESTINATION "${CMAKE_INSTALL_LIBDIR}/vlc-codec/")
+    endif()
+
+    add_dependencies(adlmidi_vlc_plugin ADLMIDI_static)
 endif()
 
 if(WITH_HQ_RESAMPLER)
@@ -540,22 +563,28 @@ if(WITH_HQ_RESAMPLER)
         target_compile_definitions(ADLMIDI_shared PRIVATE -DADLMIDI_ENABLE_HQ_RESAMPLER)
         target_link_libraries(ADLMIDI_shared PUBLIC "${ZITA_RESAMPLER_LIBRARY}")
     endif()
-    if(libADLMIDI_STATIC)
+    if(libADLMIDI_STATIC OR WITH_VLC_PLUGIN)
         target_compile_definitions(ADLMIDI_static PRIVATE -DADLMIDI_ENABLE_HQ_RESAMPLER)
         target_link_libraries(ADLMIDI_static PUBLIC "${ZITA_RESAMPLER_LIBRARY}")
     endif()
 endif()
 
 install(TARGETS ${libADLMIDI_INSTALLS}
-        RUNTIME DESTINATION "bin"
-        LIBRARY DESTINATION "lib"
-        ARCHIVE DESTINATION "lib"
-        INCLUDES DESTINATION "include")
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 install(FILES
         include/adlmidi.h
         include/adlmidi.hpp
-        DESTINATION include/)
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+
+if(NOT ANDROID)
+    configure_file(libADLMIDI.pc.in libADLMIDI.pc @ONLY)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libADLMIDI.pc"
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+endif()
 
 option(WITH_UNIT_TESTS "Enable unit testing" OFF)
 if(WITH_UNIT_TESTS)
