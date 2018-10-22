@@ -222,6 +222,7 @@ public class PlayerService extends Service {
         builder.setStyle(bigTextStyle);
 
         builder.setWhen(System.currentTimeMillis());
+        builder.setContentTitle(getResources().getString(R.string.app_name));
         builder.setContentText(getResources().getString(R.string.app_name));
         builder.setSmallIcon(R.drawable.ic_music_playing);
         Bitmap largeIconBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher);
