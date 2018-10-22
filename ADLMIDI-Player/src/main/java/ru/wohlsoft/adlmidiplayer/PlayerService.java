@@ -1,6 +1,7 @@
 package ru.wohlsoft.adlmidiplayer;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -22,12 +23,15 @@ import java.util.List;
 
 public class PlayerService extends Service {
     private static int FOREGROUND_ID=4478;
-    private static final String NOTIFICATION_ID="ADLMIDI-Player";
+    private static final String NOTIFICATION_ID = "ADLMIDI-Player";
     final String LOG_TAG = "PlayerService";
 
     private SharedPreferences   m_setup = null;
 
     private static final String TAG_FOREGROUND_SERVICE = "FOREGROUND_SERVICE";
+
+    // The id of the channel.
+    private static final String channel_id = "adlmidi_channel_01";
 
     public static final String ACTION_START_FOREGROUND_SERVICE = "ACTION_START_FOREGROUND_SERVICE";
     public static final String ACTION_STOP_FOREGROUND_SERVICE = "ACTION_STOP_FOREGROUND_SERVICE";
@@ -117,6 +121,19 @@ public class PlayerService extends Service {
     public void onCreate() {
         super.onCreate();
         Log.d(LOG_TAG, "onCreate");
+
+        // Create notification channel for Android Oreo and higher
+        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+        {
+            NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+            int importance = NotificationManager.IMPORTANCE_LOW;
+
+            NotificationChannel mChannel = null;
+            mChannel = new NotificationChannel(channel_id, getResources().getString(R.string.app_name), importance);
+
+            mNotificationManager.createNotificationChannel(mChannel);
+        }
     }
 
     @Override
@@ -193,14 +210,19 @@ public class PlayerService extends Service {
         // Create notification builder.
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_ID);
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            builder.setChannelId(channel_id);
+        }
+
         // Make notification show big text.
         NotificationCompat.BigTextStyle bigTextStyle = new NotificationCompat.BigTextStyle();
-        bigTextStyle.setBigContentTitle("ADLMIDI Player");
+        bigTextStyle.setBigContentTitle(getResources().getString(R.string.app_name));
         bigTextStyle.bigText("Playing " + m_lastFile);
         // Set big text style.
         builder.setStyle(bigTextStyle);
 
         builder.setWhen(System.currentTimeMillis());
+        builder.setContentText(getResources().getString(R.string.app_name));
         builder.setSmallIcon(R.drawable.ic_music_playing);
         Bitmap largeIconBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher);
         builder.setLargeIcon(largeIconBitmap);
