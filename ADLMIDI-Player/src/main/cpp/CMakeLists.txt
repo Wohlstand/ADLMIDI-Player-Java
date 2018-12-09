@@ -3,11 +3,14 @@ project (libADLMIDI VERSION 1.4.0 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 
+# Prefer C++98 standard
+set(CMAKE_CXX_STANDARD 98)
+
 #===========================================================================================
 # Strip garbage
 if(APPLE)
     set(LINK_FLAGS_RELEASE  "${LINK_FLAGS_RELEASE} -dead_strip")
-elseif(NOT MSVC AND NOT MSDOS)
+elseif(NOT MSVC AND NOT MSDOS AND NOT OPENBSD_LOCALBASE)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Os -s -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,-s")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Os -s -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,-s")
     set(LINK_FLAGS_RELEASE  "${LINK_FLAGS_RELEASE} -Wl,--gc-sections -Wl,-s")
@@ -47,6 +50,11 @@ IF(NOT WIN32 AND NOT DJGPP AND NOT MSDOS)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 ENDIF()
+
+if(OPENBSD_LOCALBASE)
+    message("OpenBSD Detected!")
+    include_directories(/usr/local/include)
+endif()
 
 if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_LESS 3.2)
     message("==Legacy CMake detected! Turning C++11 for everything==")
@@ -315,6 +323,9 @@ if(libADLMIDI_SHARED)
             set_property(TARGET ADLMIDI_shared APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-Bstatic,--whole-archive -lpthread -Wl,-Bdynamic,--no-whole-archive")
         endif()
     endif()
+    if(OPENBSD_LOCALBASE)
+        set_property(TARGET ADLMIDI_shared APPEND_STRING PROPERTY LINK_FLAGS " -lc")
+    endif()
     if(WITH_EMBEDDED_BANKS AND WITH_GENADLDATA)
         add_dependencies(ADLMIDI_shared gen-adldata-run)
     endif()
@@ -373,7 +384,11 @@ if(WITH_MIDIPLAY)
         if(MSDOS OR DJGPP)
             target_link_libraries(adlmidiplay ADLMIDI_IF)
         else()
-            target_link_libraries(adlmidiplay ADLMIDI_IF ${SDL2_LIBRARY} pthread dl m stdc++)
+            set(ADLMIDIPLAY_LIBS ADLMIDI_IF ${SDL2_LIBRARY} pthread dl m stdc++)
+            if(OPENBSD_LOCALBASE)
+                list(REMOVE_ITEM ADLMIDIPLAY_LIBS dl)
+            endif()
+            target_link_libraries(adlmidiplay ${ADLMIDIPLAY_LIBS})
         endif()
     endif()
 
@@ -435,7 +450,11 @@ if(WITH_ADLMIDI2)
     elseif(DJGPP OR MSDOS)
         target_link_libraries(adlmidi2 ADLMIDI_IF)
     else()
-        target_link_libraries(adlmidi2 ADLMIDI_IF ${SDL2_LIBRARY} pthread dl m stdc++)
+        set(ADLMIDI2_LIBS ADLMIDI_IF ${SDL2_LIBRARY} pthread dl m stdc++)
+        if(OPENBSD_LOCALBASE)
+            list(REMOVE_ITEM ADLMIDI2_LIBS dl)
+        endif()
+        target_link_libraries(adlmidi2 ${ADLMIDI2_LIBS})
     endif()
 
     if(NOT WITH_CPP_EXTRAS)
@@ -591,6 +610,16 @@ if(WITH_UNIT_TESTS)
     enable_testing()
     add_subdirectory(test)
 endif()
+
+# === Version check ====
+set(VERSION_CHECK_SOURCE "
+    #include \"adlmidi.h\"
+    #if !(ADLMIDI_VERSION_MAJOR == ${PROJECT_VERSION_MAJOR} && ADLMIDI_VERSION_MINOR == ${PROJECT_VERSION_MINOR} && ADLMIDI_VERSION_PATCHLEVEL == ${PROJECT_VERSION_PATCH})
+    #error Project and source code version do not match!
+    #endif")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version_check.c" "${VERSION_CHECK_SOURCE}")
+add_library(ADLMIDI_version_check OBJECT "${CMAKE_CURRENT_BINARY_DIR}/version_check.c")
+target_include_directories(ADLMIDI_version_check PRIVATE "include")
 
 message("==== libADLMIDI options ====")
 message("libADLMIDI_STATIC        = ${libADLMIDI_STATIC}")
