@@ -1,8 +1,8 @@
 /*
- * libADLMIDI is a free MIDI to WAV conversion library with OPL3 emulation
+ * libADLMIDI is a free Software MIDI synthesizer library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2015-2018 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2019 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -105,7 +105,7 @@ inline bool isXgPercChannel(uint8_t msb, uint8_t lsb)
 
 void MIDIplay::AdlChannel::addAge(int64_t us)
 {
-    const int64_t neg = 1000 * static_cast<int64_t>(-0x1FFFFFFFll);
+    const int64_t neg = 1000 * static_cast<int64_t>(-0x1FFFFFFFl);
     if(users.empty())
     {
         koff_time_until_neglible_us = std::max(koff_time_until_neglible_us - us, neg);

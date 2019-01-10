@@ -26,8 +26,8 @@ set(WITH_OLD_UTILS OFF)
 set(EXAMPLE_SDL2_AUDIO OFF)
 add_subdirectory(${ADLMIDI_JniBind_SOURCE_DIR}/src/main/cpp)
 
-add_library(ADLMIDI INTERFACE)
-target_link_libraries(ADLMIDI INTERFACE ADLMIDI_static)
+add_library(ADLMIDI_IF INTERFACE)
+target_link_libraries(ADLMIDI_IF INTERFACE ADLMIDI_static)
 
 add_library( # Sets the name of the library.
              native-lib
@@ -40,7 +40,7 @@ add_library( # Sets the name of the library.
              # file are automatically included.
              src/main/cpp/native-lib.cpp )
 
-target_link_libraries(native-lib ADLMIDI)
+target_link_libraries(native-lib ADLMIDI_IF)
 target_include_directories(native-lib PUBLIC src/main/cpp/include)
 add_dependencies(native-lib ADLMIDI_static)
 

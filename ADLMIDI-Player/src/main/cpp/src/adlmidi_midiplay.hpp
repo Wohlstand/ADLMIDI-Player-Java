@@ -1,8 +1,8 @@
 /*
- * libADLMIDI is a free MIDI to WAV conversion library with OPL3 emulation
+ * libADLMIDI is a free Software MIDI synthesizer library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2015-2018 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2019 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -253,8 +253,8 @@ public:
 
         //! Active notes in the channel
         pl_list<NoteInfo> activenotes;
-        typedef typename pl_list<NoteInfo>::iterator notes_iterator;
-        typedef typename pl_list<NoteInfo>::const_iterator const_notes_iterator;
+        typedef pl_list<NoteInfo>::iterator notes_iterator;
+        typedef pl_list<NoteInfo>::const_iterator const_notes_iterator;
 
         notes_iterator find_activenote(unsigned note)
         {
@@ -405,8 +405,8 @@ public:
         MIDIchannel::NoteInfo::Phys recent_ins;
 
         pl_list<LocationData> users;
-        typedef typename pl_list<LocationData>::iterator users_iterator;
-        typedef typename pl_list<LocationData>::const_iterator const_users_iterator;
+        typedef pl_list<LocationData>::iterator users_iterator;
+        typedef pl_list<LocationData>::const_iterator const_users_iterator;
 
         users_iterator find_user(const Location &loc)
         {
