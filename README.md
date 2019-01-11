@@ -1,7 +1,7 @@
 # ADLMIDI-Player-Java
 Implementation of ADLMIDI based MIDI-player for Android
 
-It's a MIDI-player based on emulator of a Frequency Modulation chip Yamaha OPL3. This small MIDI-player made with using of [libADLMIDI](https://github.com/Wohlstand/libADLMIDI/) library - a fork of origina ADLMIDI a console program implementation.
+It's a MIDI-player based on emulator of a Frequency Modulation chip Yamaha OPL3. This small MIDI-player made with using of [libADLMIDI](https://github.com/Wohlstand/libADLMIDI/) library - a fork of original ADLMIDI a console program implementation.
 
 # Key features
 
