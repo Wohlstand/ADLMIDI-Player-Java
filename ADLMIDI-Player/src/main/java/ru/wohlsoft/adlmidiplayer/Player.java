@@ -1,5 +1,6 @@
 package ru.wohlsoft.adlmidiplayer;
 
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -67,7 +68,7 @@ public class Player extends AppCompatActivity {
             String intentType = intent.getStringExtra("INTENT_TYPE");
             if(intentType.equalsIgnoreCase("SEEKBAR_RESULT")){
                 int percentage = intent.getIntExtra("PERCENTAGE", -1);
-                SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
+                SeekBar musPos = findViewById(R.id.musPos);
                 if(percentage >= 0)
                     musPos.setProgress(percentage);
             }
@@ -113,6 +114,7 @@ public class Player extends AppCompatActivity {
         }
     };
 
+    @SuppressLint("SetTextI18n")
     private void initUiSetup()
     {
         if (m_bound) {
@@ -129,7 +131,7 @@ public class Player extends AppCompatActivity {
             if(m_uiLoaded)
                 return;
 
-            /***
+            /*
              * Music position seeker
              */
             SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
@@ -153,7 +155,7 @@ public class Player extends AppCompatActivity {
                 }
             });
 
-            /***
+            /*
              * Filename title
              */
             // Example of a call to a native method
@@ -163,7 +165,7 @@ public class Player extends AppCompatActivity {
                 tv.setText(m_service.getCurrentMusicPath());
             }
 
-            /***
+            /*
              * Bank name title
              */
             TextView cbl = (TextView) findViewById(R.id.bankFileName);
@@ -176,7 +178,7 @@ public class Player extends AppCompatActivity {
             }
 
 
-            /***
+            /*
              * Embedded banks list combobox
              */
             //Fill bank number box
@@ -210,7 +212,7 @@ public class Player extends AppCompatActivity {
                 }
             });
 
-            /*****
+            /*
              * Use custom bank checkbox
              */
             CheckBox useCustomBank = (CheckBox)findViewById(R.id.useCustom);
@@ -224,7 +226,7 @@ public class Player extends AppCompatActivity {
             });
 
 
-            /*****
+            /*
              * Volume model combo-box
              */
             Spinner sVolModel = (Spinner) findViewById(R.id.volumeRangesModel);
@@ -248,7 +250,7 @@ public class Player extends AppCompatActivity {
             });
 
 
-            /*****
+            /*
              * Deep Tremolo checkbox
              */
             CheckBox deepTremolo = (CheckBox)findViewById(R.id.deepTremolo);
@@ -264,7 +266,7 @@ public class Player extends AppCompatActivity {
                 }
             });
 
-            /*****
+            /*
              * Deep Vibrato checkbox
              */
             CheckBox deepVibrato = (CheckBox)findViewById(R.id.deepVibrato);
@@ -280,7 +282,7 @@ public class Player extends AppCompatActivity {
                 }
             });
 
-            /*****
+            /*
              * Scalable Modulators checkbox
              */
             CheckBox scalableMod = (CheckBox)findViewById(R.id.scalableModulation);
@@ -296,7 +298,7 @@ public class Player extends AppCompatActivity {
                 }
             });
 
-            /*****
+            /*
              * Rhythm-Mode drums checkbox
              */
             CheckBox adlDrums = (CheckBox)findViewById(R.id.adlibDrumsMode);
@@ -312,7 +314,7 @@ public class Player extends AppCompatActivity {
                 }
             });
 
-            /*****
+            /*
              * Run at PCM Rate checkbox
              */
             CheckBox runAtPcmRate = (CheckBox)findViewById(R.id.runAtPcmRate);
@@ -328,7 +330,7 @@ public class Player extends AppCompatActivity {
                 }
             });
 
-            /*****
+            /*
              * Full-Panning Stereo checkbox
              */
             CheckBox fullPanningStereo = (CheckBox)findViewById(R.id.fullPanningStereo);
@@ -344,7 +346,7 @@ public class Player extends AppCompatActivity {
                 }
             });
 
-            /*****
+            /*
              * Chips count
              */
             Button numChipsMinus = (Button) findViewById(R.id.numChipsMinus);
@@ -376,7 +378,7 @@ public class Player extends AppCompatActivity {
             onChipsCountUpdate(m_service.getChipsCount(), true);
 
 
-            /*****
+            /*
              * Number of four-operator channels
              */
             Button num4opChansMinus = (Button) findViewById(R.id.num4opChansMinus);
@@ -408,7 +410,7 @@ public class Player extends AppCompatActivity {
 
             onFourOpsCountUpdate(m_service.getFourOpChanCount(), true);
 
-            /*****
+            /*
              * Gain level
              */
             Button gainMinusMinus = (Button) findViewById(R.id.gainFactorMinusMinus);
@@ -467,7 +469,7 @@ public class Player extends AppCompatActivity {
 
 
 
-            /********Everything UI related has been initialized!*******/
+            /* *******Everything UI related has been initialized!****** */
             m_uiLoaded = true;
         }
     }
@@ -476,14 +478,22 @@ public class Player extends AppCompatActivity {
     {
         Intent intent = new Intent(this, PlayerService.class);
         intent.setAction(PlayerService.ACTION_START_FOREGROUND_SERVICE);
-        startService(intent);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
     }
 
     private void playerServiceStop()
     {
         Intent intent = new Intent(this, PlayerService.class);
         intent.setAction(PlayerService.ACTION_STOP_FOREGROUND_SERVICE);
-        startService(intent);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
     }
 
     @Override
@@ -830,6 +840,7 @@ public class Player extends AppCompatActivity {
         numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_chipsCount));
     }
 
+    @SuppressLint("SetTextI18n")
     void onFourOpsCountUpdate(int fourOpsCount, boolean silent)
     {
         int fourOpsMax = m_chipsCount * 6;
@@ -852,7 +863,7 @@ public class Player extends AppCompatActivity {
         if(m_fourOpsCount >= 0)
             num4opCounter.setText(String.format(Locale.getDefault(), "%d", m_fourOpsCount));
         else
-            num4opCounter.setText(String.format(Locale.getDefault(), "<Auto>"));
+            num4opCounter.setText("<Auto>");
     }
 
     void onGainUpdate(double gainLevel, boolean silent)
@@ -862,6 +873,6 @@ public class Player extends AppCompatActivity {
             m_service.gainingSet(gainLevel);
         }
         TextView gainFactor = (TextView)findViewById(R.id.gainFactor);
-        gainFactor.setText(Double.toString(gainLevel));
+        gainFactor.setText(String.format(Locale.getDefault(), "%.1f", gainLevel));
     }
 }
