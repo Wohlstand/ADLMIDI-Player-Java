@@ -14,7 +14,7 @@ env:
     - ANDROID_BUILD_TOOLS_VERSION=28.0.3
     - ANDROID_ABI=armeabi-v7a
     - ANDROID_TAG=google_apis
-    - ANDROID_NDK_REVISION=r17
+    - ANDROID_NDK_REVISION=r19
     - ADB_INSTALL_TIMEOUT=5 # minutes
 
 android:
@@ -35,10 +35,11 @@ android:
     #- sys-img-armeabi-v7a-android-$ANDROID_API_LEVEL
     #- sys-img-armeabi-v7a-google_apis-$ANDROID_API_LEVEL
   licenses:
-    - android-sdk-preview-license-.+
-    - android-sdk-license-.+
+    - android-sdk-preview-license.+
+    - android-sdk-license.+
     - google-gdk-license-.+
     - build-tools-.+
+    - cmake.+
 
 before_install:
   # By default, we get an older version of libstdc++6 so we need to update it
