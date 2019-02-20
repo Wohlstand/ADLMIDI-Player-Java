@@ -33,6 +33,8 @@ android {
             jniDebuggable true
             renderscriptDebuggable false
             minifyEnabled false
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-DEVDEBUG'
         }
     }
 
