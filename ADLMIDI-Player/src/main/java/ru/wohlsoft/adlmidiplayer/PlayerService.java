@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PlayerService extends Service {
-    private static int FOREGROUND_ID=4478;
+    private static int FOREGROUND_ID = 4478;
     private static final String NOTIFICATION_ID = "ADLMIDI-Player";
     final String LOG_TAG = "PlayerService";
 
@@ -94,7 +94,7 @@ public class PlayerService extends Service {
     // This is the object that receives interactions from clients.
     private final IBinder mBinder = new LocalBinder();
 
-    public class LocalBinder extends Binder {
+    class LocalBinder extends Binder {
         PlayerService getService() {
             return PlayerService.this;
         }
@@ -129,9 +129,7 @@ public class PlayerService extends Service {
 
             int importance = NotificationManager.IMPORTANCE_LOW;
 
-            NotificationChannel mChannel = null;
-            mChannel = new NotificationChannel(channel_id, getResources().getString(R.string.app_name), importance);
-
+            NotificationChannel mChannel = new NotificationChannel(channel_id, getResources().getString(R.string.app_name), importance);
             mNotificationManager.createNotificationChannel(mChannel);
         }
     }
@@ -145,33 +143,37 @@ public class PlayerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        Log.d(LOG_TAG, "onStartCommand");
         if(intent != null)
         {
             String action = intent.getAction();
 
-            switch (action)
+            if(action != null)
             {
-                case ACTION_START_FOREGROUND_SERVICE:
-                    startForegroundService();
-                    // Toast.makeText(getApplicationContext(), "Foreground service is started.", Toast.LENGTH_LONG).show();
-                    break;
-                case ACTION_STOP_FOREGROUND_SERVICE:
-                    playerStop();
-                    stopForegroundService();
-                    // Toast.makeText(getApplicationContext(), "Foreground service is stopped.", Toast.LENGTH_LONG).show();
-                    break;
-                case ACTION_PLAY:
-                    playerStart();
-                    // Toast.makeText(getApplicationContext(), "You click Play button.", Toast.LENGTH_LONG).show();
-                    break;
-                case ACTION_STOP:
-                    playerStop();
-                    stopForegroundService();
-                    break;
-                case ACTION_PAUSE:
-                    playerStop();
-                    // Toast.makeText(getApplicationContext(), "You click Pause button.", Toast.LENGTH_LONG).show();
-                    break;
+                switch (action)
+                {
+                    case ACTION_START_FOREGROUND_SERVICE:
+                        startForgroundPlayer();
+                        // Toast.makeText(getApplicationContext(), "Foreground service is started.", Toast.LENGTH_LONG).show();
+                        break;
+                    case ACTION_STOP_FOREGROUND_SERVICE:
+                        playerStop();
+                        stopForegroundPlayer();
+                        // Toast.makeText(getApplicationContext(), "Foreground service is stopped.", Toast.LENGTH_LONG).show();
+                        break;
+                    case ACTION_PLAY:
+                        playerStart();
+                        // Toast.makeText(getApplicationContext(), "You click Play button.", Toast.LENGTH_LONG).show();
+                        break;
+                    case ACTION_STOP:
+                        playerStop();
+                        stopForegroundPlayer();
+                        break;
+                    case ACTION_PAUSE:
+                        playerStop();
+                        // Toast.makeText(getApplicationContext(), "You click Pause button.", Toast.LENGTH_LONG).show();
+                        break;
+                }
             }
         }
         // Toast.makeText(this, "service starting", Toast.LENGTH_SHORT).show();
@@ -179,19 +181,19 @@ public class PlayerService extends Service {
     }
 
     /* Used to build and start foreground service. */
-    private void startForegroundService()
+    private void startForgroundPlayer()
     {
         // Log.d(TAG_FOREGROUND_SERVICE, "Start foreground service.");
-
         // Start foreground service.
         startForeground(FOREGROUND_ID, getNotify());
         m_isRunning = true;
     }
 
-    private void stopForegroundService()
+    private void stopForegroundPlayer()
     {
-        Log.d(TAG_FOREGROUND_SERVICE, "Stop foreground service.");
-
+        if(!m_isRunning)
+            return;
+        // Log.d(TAG_FOREGROUND_SERVICE, "Stop foreground service.");
         // Stop foreground service and remove the notification.
         stopForeground(true);
 
@@ -535,7 +537,7 @@ public class PlayerService extends Service {
 
     List<String> getEmbeddedBanksList()
     {
-        List<String> spinnerArray =  new ArrayList<String>();
+        List<String> spinnerArray = new ArrayList<>();
         for(int i = 0; i < PlayerService.adl_getBanksCount(); i++)
         {
             spinnerArray.add(Integer.toString(i) + " - " + PlayerService.adl_getBankName(i));

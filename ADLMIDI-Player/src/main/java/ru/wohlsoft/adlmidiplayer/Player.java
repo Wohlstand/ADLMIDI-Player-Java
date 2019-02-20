@@ -13,6 +13,7 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -45,7 +46,9 @@ import java.util.Locale;
 public class Player extends AppCompatActivity {
     //private int                 MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 1;
     final String LOG_TAG = "PlayerService";
-    private boolean             permission_readAllowed = false;
+
+    public static final int READ_PERMISSION_FOR_BANK = 1;
+    public static final int READ_PERMISSION_FOR_MUSIC = 2;
 
     private PlayerService m_service;
     private volatile boolean m_bound = false;
@@ -501,13 +504,6 @@ public class Player extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_player);
 
-        permission_readAllowed = true;
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-            permission_readAllowed =
-                    ContextCompat.checkSelfPermission(this,
-                            Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
-        }
-
         m_setup = getPreferences(Context.MODE_PRIVATE);
 
         m_lastPath              = m_setup.getString("lastPath", m_lastPath);
@@ -581,6 +577,14 @@ public class Player extends AppCompatActivity {
                 OnOpenBankFileClick(view);
             }
         });
+
+        //TODO: find a correct way to handle externally opening files
+//        Uri url = getIntent().getData();
+//        Bundle extras = getIntent().getExtras();
+//        if(extras != null)
+//        {
+//
+//        }
     }
 
 
@@ -674,7 +678,7 @@ public class Player extends AppCompatActivity {
         }
     }
 
-    private boolean checkFilePermissions()
+    private boolean checkFilePermissions(int requestCode)
     {
         if( (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) &&
                 (ContextCompat.checkSelfPermission(this,
@@ -689,44 +693,51 @@ public class Player extends AppCompatActivity {
                 AlertDialog.Builder b = new AlertDialog.Builder(this);
                 b.setTitle("Permission denied");
                 b.setMessage("Sorry, but permission is denied!\n"+
-                        "Please, check permissions to application!");
+                             "Please, check the Read Extrnal Storage permission to application!");
                 b.setNegativeButton(android.R.string.ok, null);
                 b.show();
-                return false;
+                return true;
             }
             else
             {
                 // No explanation needed, we can request the permission.
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                    ActivityCompat.requestPermissions(this,
-                            new String[] { Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
-                }
+                ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.READ_EXTERNAL_STORAGE}, requestCode);
                 //MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE
                 // MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE is an
                 // app-defined int constant. The callback method gets the
                 // result of the request.
             }
-            return false;
+            return true;
         }
 
-        if(!permission_readAllowed)
-        {
-            AlertDialog.Builder b = new AlertDialog.Builder(this);
-            b.setTitle("Failed permissions");
-            b.setMessage("Can't open file dialog because permission denied. Restart application to take effects!");
-            b.setNegativeButton(android.R.string.ok, null);
-            b.show();
-            return false;
-        }
+        return false;
+    }
 
-        return true;
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (grantResults.length == 1 &&
+            permissions[0].equals(Manifest.permission.READ_EXTERNAL_STORAGE) &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        ) {
+            if (requestCode == READ_PERMISSION_FOR_BANK) {
+                openBankDialog();
+            } else if (requestCode == READ_PERMISSION_FOR_MUSIC) {
+                openMusicFileDialog();
+            }
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     public void OnOpenBankFileClick(View view) {
         // Here, thisActivity is the current activity
-        if(!checkFilePermissions())
+        if(checkFilePermissions(READ_PERMISSION_FOR_BANK))
             return;
+        openBankDialog();
+    }
 
+    public void openBankDialog()
+    {
         File file = new File(m_lastBankPath);
         OpenFileDialog fileDialog = new OpenFileDialog(this)
                 .setFilter(".*\\.wopl")
@@ -755,9 +766,13 @@ public class Player extends AppCompatActivity {
 
     public void OnOpenFileClick(View view) {
         // Here, thisActivity is the current activity
-        if(!checkFilePermissions())
+        if(checkFilePermissions(READ_PERMISSION_FOR_MUSIC))
             return;
+        openMusicFileDialog();
+    }
 
+    public void openMusicFileDialog()
+    {
         OpenFileDialog fileDialog = new OpenFileDialog(this)
                 .setFilter(".*\\.mid|.*\\.midi|.*\\.kar|.*\\.rmi|.*\\.imf|.*\\.cmf|.*\\.mus|.*\\.xmi")
                 .setCurrentDirectory(m_lastPath)
