@@ -1,6 +1,6 @@
 #include <jni.h>
 #include <pthread.h>
-#include <assert.h>
+#include <cassert>
 #include <memory.h>
 #include <adlmidi.h>
 #include <string>
@@ -49,7 +49,7 @@ static SLEngineItf  engineEngine;
 static SLObjectItf  outputMixObject;
 
 // buffer queue player interfaces
-static SLObjectItf  bqPlayerObject = NULL;
+static SLObjectItf  bqPlayerObject = nullptr;
 static SLPlayItf    bqPlayerPlay;
 static SLAndroidSimpleBufferQueueItf    bqPlayerBufferQueue;
 static SLMuteSoloItf                    bqPlayerMuteSolo;
@@ -60,12 +60,12 @@ static SLVolumeItf                      bqPlayerVolume;
 // Double buffering.
 static int      bufferLen[2] = {0, 0};
 static sample_t buffer[2][BUFFER_SIZE_IN_SAMPLES];
-static int      curBuffer = 0;
+static size_t   curBuffer = 0;
 static AndroidAudioCallback audioCallback;
 
 static double   g_gaining = 2.0;
 
-ADL_MIDIPlayer* playingDevice = NULL;
+ADL_MIDIPlayer* playingDevice = nullptr;
 
 // This callback handler is called every time a buffer finishes playing.
 // The documentation available is very unclear about how to best manage buffers.
@@ -74,19 +74,20 @@ ADL_MIDIPlayer* playingDevice = NULL;
 static void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
 {
     assert(bq == bqPlayerBufferQueue);
-    assert(NULL == context);
+    assert(nullptr == context);
     pthread_mutex_lock(&g_lock);
     sample_t *nextBuffer = buffer[curBuffer];
     int nextSize = bufferLen[curBuffer];
     if(nextSize > 0)
     {
         SLresult result;
-        result = (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, nextBuffer, nextSize * 2);
+        result = (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, nextBuffer,
+                                                 static_cast<SLuint32>(nextSize * 2));
         // Comment from sample code:
         // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
         // which for this code example would indicate a programming error
         assert(SL_RESULT_SUCCESS == result);
-        curBuffer ^= 1;  // Switch buffer
+        curBuffer ^= 1u;  // Switch buffer
     }
     // Render to the fresh buffer
     bufferLen[curBuffer] = audioCallback(buffer[curBuffer], BUFFER_SIZE_IN_SAMPLES);
@@ -104,13 +105,13 @@ bool OpenSLWrap_Init(AndroidAudioCallback cb)
     bufferLen[1] = BUFFER_SIZE_IN_SAMPLES;
 
     // create engine
-    result = slCreateEngine(&engineObject, 0, NULL, 0, NULL, NULL);
+    result = slCreateEngine(&engineObject, 0, nullptr, 0, nullptr, nullptr);
     assert(SL_RESULT_SUCCESS == result);
     result = (*engineObject)->Realize(engineObject, SL_BOOLEAN_FALSE);
     assert(SL_RESULT_SUCCESS == result);
     result = (*engineObject)->GetInterface(engineObject, SL_IID_ENGINE, &engineEngine);
     assert(SL_RESULT_SUCCESS == result);
-    result = (*engineEngine)->CreateOutputMix(engineEngine, &outputMixObject, 0, 0, 0);
+    result = (*engineEngine)->CreateOutputMix(engineEngine, &outputMixObject, 0, nullptr, nullptr);
     assert(SL_RESULT_SUCCESS == result);
     result = (*outputMixObject)->Realize(outputMixObject, SL_BOOLEAN_FALSE);
     assert(SL_RESULT_SUCCESS == result);
@@ -142,7 +143,7 @@ bool OpenSLWrap_Init(AndroidAudioCallback cb)
 
     // configure audio sink
     SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, outputMixObject};
-    SLDataSink audioSnk = {&loc_outmix, NULL};
+    SLDataSink audioSnk = {&loc_outmix, nullptr};
 
     // create audio player
     const SLInterfaceID ids[2] = {SL_IID_BUFFERQUEUE, SL_IID_VOLUME};
@@ -156,7 +157,7 @@ bool OpenSLWrap_Init(AndroidAudioCallback cb)
     result = (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_BUFFERQUEUE,
                                              &bqPlayerBufferQueue);
     assert(SL_RESULT_SUCCESS == result);
-    result = (*bqPlayerBufferQueue)->RegisterCallback(bqPlayerBufferQueue, bqPlayerCallback, NULL);
+    result = (*bqPlayerBufferQueue)->RegisterCallback(bqPlayerBufferQueue, bqPlayerCallback, nullptr);
     assert(SL_RESULT_SUCCESS == result);
     result = (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_VOLUME, &bqPlayerVolume);
     assert(SL_RESULT_SUCCESS == result);
@@ -170,7 +171,7 @@ bool OpenSLWrap_Init(AndroidAudioCallback cb)
     if (SL_RESULT_SUCCESS != result) {
         return false;
     }
-    curBuffer ^= 1;
+    curBuffer ^= 1u;
     return true;
 }
 
@@ -186,22 +187,22 @@ void OpenSLWrap_Shutdown()
     bufferLen[0] = BUFFER_SIZE_IN_SAMPLES;
     bufferLen[1] = BUFFER_SIZE_IN_SAMPLES;
 
-    if (bqPlayerObject != NULL) {
+    if (bqPlayerObject != nullptr) {
         (*bqPlayerObject)->Destroy(bqPlayerObject);
-        bqPlayerObject = NULL;
-        bqPlayerPlay = NULL;
-        bqPlayerBufferQueue = NULL;
-        bqPlayerMuteSolo = NULL;
-        bqPlayerVolume = NULL;
+        bqPlayerObject = nullptr;
+        bqPlayerPlay = nullptr;
+        bqPlayerBufferQueue = nullptr;
+        bqPlayerMuteSolo = nullptr;
+        bqPlayerVolume = nullptr;
     }
-    if (outputMixObject != NULL) {
+    if (outputMixObject != nullptr) {
         (*outputMixObject)->Destroy(outputMixObject);
-        outputMixObject = NULL;
+        outputMixObject = nullptr;
     }
-    if (engineObject != NULL) {
+    if (engineObject != nullptr) {
         (*engineObject)->Destroy(engineObject);
-        engineObject = NULL;
-        engineEngine = NULL;
+        engineObject = nullptr;
+        engineEngine = nullptr;
     }
     pthread_mutex_unlock(&g_lock);
 }
@@ -231,7 +232,7 @@ int audioCallbackFunction(sample_t *buffer, int num_samples)
 void infiniteLoopStream(ADL_MIDIPlayer* device)
 {
     if(mutex_created) {
-        assert(pthread_mutex_init(&g_lock, NULL) == 0);
+        assert(pthread_mutex_init(&g_lock, nullptr) == 0);
         mutex_created=true;
     }
     playingDevice = device;
@@ -320,7 +321,7 @@ JNIEXPORT jlong JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1init(JNIEnv *env, jobject /*instance*/, jlong sampleRate)
 {
     if(mutex_created) {
-        assert(pthread_mutex_init(&g_lock, NULL) == 0);
+        assert(pthread_mutex_init(&g_lock, nullptr) == 0);
         mutex_created=true;
     }
     struct ADL_MIDIPlayer *p = adl_init((long)sampleRate);
@@ -400,9 +401,9 @@ JNIEXPORT jint JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1openData(JNIEnv *env, jobject /*instance*/, jlong device,
                                                     jbyteArray array_) {
     pthread_mutex_lock(&g_lock);
-    jbyte *array = env->GetByteArrayElements(array_, NULL);
+    jbyte *array = env->GetByteArrayElements(array_, nullptr);
     jsize length =  env->GetArrayLength(array_);
-    jint ret = adl_openData(ADLDEV, array, length);
+    jint ret = adl_openData(ADLDEV, array, static_cast<unsigned long>(length));
     env->ReleaseByteArrayElements(array_, array, 0);
     pthread_mutex_unlock(&g_lock);
     return ret;
@@ -428,9 +429,9 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1play(JNIEnv *env, jobject /*in
                                                 jshortArray buffer_)
 {
     pthread_mutex_lock(&g_lock);
-    jshort *buffer = env->GetShortArrayElements(buffer_, NULL);
+    jshort *buffer = env->GetShortArrayElements(buffer_, nullptr);
     jsize  length =  env->GetArrayLength(buffer_);
-    short* outBuff = (short*)buffer;
+    short* outBuff = reinterpret_cast<short*>(buffer);
     jint gotSamples = adl_play(ADLDEV, length, outBuff);
     env->ReleaseShortArrayElements(buffer_, buffer, 0);
     pthread_mutex_unlock(&g_lock);
@@ -442,7 +443,7 @@ JNIEXPORT jdouble JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1positionTell(JNIEnv *env, jobject /*instance*/, jlong device)
 {
     pthread_mutex_lock(&g_lock);
-    jdouble ret = (jdouble)adl_positionTell(ADLDEV);
+    jdouble ret = static_cast<jdouble>(adl_positionTell(ADLDEV));
     pthread_mutex_unlock(&g_lock);
     return ret;
 }
@@ -451,7 +452,7 @@ JNIEXPORT jdouble JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1totalTimeLength(JNIEnv *env, jobject /*instance*/, jlong device)
 {
     pthread_mutex_lock(&g_lock);
-    jdouble ret = (jdouble)adl_totalTimeLength(ADLDEV);
+    jdouble ret = static_cast<jdouble>(adl_totalTimeLength(ADLDEV));
     pthread_mutex_unlock(&g_lock);
     return ret;
 }
@@ -472,7 +473,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setBank(JNIEnv *env, jobject /
                                                    jint bank)
 {
     pthread_mutex_lock(&g_lock);
-    jint ret = (jint)adl_setBank(ADLDEV, bank);
+    jint ret = static_cast<jint>(adl_setBank(ADLDEV, bank));
     pthread_mutex_unlock(&g_lock);
     return ret;
 }
@@ -483,15 +484,6 @@ JNIEXPORT jstring JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1getBankName(JNIEnv *env, jobject /*instance*/, jint bank)
 {
     return env->NewStringUTF(banknames[(int)bank]);
-}
-
-JNIEXPORT void JNICALL
-Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setLogarithmicVolumes(JNIEnv *env, jobject /*instance*/,
-                                                                 jlong device, jint logvol)
-{
-    pthread_mutex_lock(&g_lock);
-    adl_setLogarithmicVolumes(ADLDEV, (int)logvol);
-    pthread_mutex_unlock(&g_lock);
 }
 
 JNIEXPORT void JNICALL

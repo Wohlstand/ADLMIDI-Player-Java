@@ -536,9 +536,9 @@ public class PlayerService extends Service {
     List<String> getEmbeddedBanksList()
     {
         List<String> spinnerArray =  new ArrayList<String>();
-        for(Integer i = 0; i < PlayerService.adl_getBanksCount(); i++)
+        for(int i = 0; i < PlayerService.adl_getBanksCount(); i++)
         {
-            spinnerArray.add(i.toString() + " - " + PlayerService.adl_getBankName(i));
+            spinnerArray.add(Integer.toString(i) + " - " + PlayerService.adl_getBankName(i));
         }
         return spinnerArray;
     }
@@ -593,7 +593,6 @@ public class PlayerService extends Service {
         m_lastFile = musicFile;
         if(m_isRunning && fileUpdated)
         {
-            m_lastFile = musicFile;
             NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             mNotificationManager.notify(FOREGROUND_ID, getNotify());
         }
@@ -778,10 +777,6 @@ public class PlayerService extends Service {
 //    extern void adl_setLoopEnabled(struct ADL_MIDIPlayer* device, int loopEn);
 //
     public static native void adl_setLoopEnabled(long device, int loopEn);
-
-    ///    /*Enable or disable Logariphmic volume changer */
-//    extern void adl_setLogarithmicVolumes(struct ADL_MIDIPlayer* device, int logvol);
-    public static native void adl_setLogarithmicVolumes(long device, int logvol);
 
     //    /*Set different volume range model */
 //    extern void adl_setVolumeRangeModel(struct ADL_MIDIPlayer *device, int volumeModel);
