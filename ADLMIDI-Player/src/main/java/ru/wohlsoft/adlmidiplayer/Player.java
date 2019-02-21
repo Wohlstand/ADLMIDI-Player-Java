@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
@@ -474,6 +475,9 @@ public class Player extends AppCompatActivity {
 
             /* *******Everything UI related has been initialized!****** */
             m_uiLoaded = true;
+
+            // Try to load external file if requested
+            handleFileIntent();
         }
     }
 
@@ -577,14 +581,6 @@ public class Player extends AppCompatActivity {
                 OnOpenBankFileClick(view);
             }
         });
-
-        //TODO: find a correct way to handle externally opening files
-//        Uri url = getIntent().getData();
-//        Bundle extras = getIntent().getExtras();
-//        if(extras != null)
-//        {
-//
-//        }
     }
 
 
@@ -780,54 +776,77 @@ public class Player extends AppCompatActivity {
                 {
                     @Override
                     public void OnSelectedFile(String fileName, String lastPath) {
-                        Toast.makeText(getApplicationContext(), fileName, Toast.LENGTH_LONG).show();
-                        TextView tv = (TextView) findViewById(R.id.currentFileName);
-                        tv.setText(fileName);
-
-                        m_lastPath = lastPath;
-                        if(m_bound) {
-                            //Abort previously playing state
-                            boolean wasPlay = m_service.isPlaying();
-                            if(m_service.isPlaying())
-                                m_service.playerStop();
-                            if(!m_service.isReady())
-                            {
-                                if (!m_service.initPlayer())
-                                {
-                                    m_service.playerStop();
-                                    m_service.unInitPlayer();
-                                    AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
-                                    b.setTitle("Failed to initialize player");
-                                    b.setMessage("Can't initialize player because of " + m_service.getLastError());
-                                    b.setNegativeButton(android.R.string.ok, null);
-                                    b.show();
-                                    m_lastFile = "";
-                                    return;
-                                }
-                            }
-                            m_lastFile = fileName;
-                            m_setup.edit().putString("lastPath", m_lastPath).apply();
-
-                            //Reload bank for a case if CMF file was passed that cleans custom bank
-                            m_service.reloadBank();
-                            if (!m_service.openMusic(m_lastFile)) {
-                                AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
-                                b.setTitle("Failed to open file");
-                                b.setMessage("Can't open music file because of " + m_service.getLastError());
-                                b.setNegativeButton(android.R.string.ok, null);
-                                b.show();
-                                m_lastFile = "";
-                            } else {
-                                SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
-                                musPos.setMax(m_service.getSongLength());
-                                musPos.setProgress(0);
-                                if (wasPlay)
-                                    m_service.playerStart();
-                            }
-                        }
+                        processMusicFile(fileName, lastPath);
                     }
                 });
         fileDialog.show();
+    }
+
+    private void handleFileIntent()
+    {
+        Uri url = getIntent().getData();
+        if(url != null)
+        {
+            String scheme = url.getScheme();
+            Log.d(LOG_TAG, "Got an URL: " + url + "; gonna check");
+            if(scheme != null && scheme.equals("file"))
+            {
+                String fileName = url.getPath();
+                processMusicFile(fileName, m_lastPath);
+            }
+        }
+    }
+
+    private void processMusicFile(String fileName, String lastPath)
+    {
+        Toast.makeText(getApplicationContext(), fileName, Toast.LENGTH_LONG).show();
+        TextView tv = (TextView) findViewById(R.id.currentFileName);
+        tv.setText(fileName);
+
+        m_lastPath = lastPath;
+        if(m_bound)
+        {
+            //Abort previously playing state
+            boolean wasPlay = m_service.isPlaying();
+            if(m_service.isPlaying())
+                m_service.playerStop();
+            if(!m_service.isReady())
+            {
+                if (!m_service.initPlayer())
+                {
+                    m_service.playerStop();
+                    m_service.unInitPlayer();
+                    AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
+                    b.setTitle("Failed to initialize player");
+                    b.setMessage("Can't initialize player because of " + m_service.getLastError());
+                    b.setNegativeButton(android.R.string.ok, null);
+                    b.show();
+                    m_lastFile = "";
+                    return;
+                }
+            }
+            m_lastFile = fileName;
+            m_setup.edit().putString("lastPath", m_lastPath).apply();
+
+            //Reload bank for a case if CMF file was passed that cleans custom bank
+            m_service.reloadBank();
+            if (!m_service.openMusic(m_lastFile)) {
+                AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
+                b.setTitle("Failed to open file");
+                b.setMessage("Can't open music file because of " + m_service.getLastError());
+                b.setNegativeButton(android.R.string.ok, null);
+                b.show();
+                m_lastFile = "";
+            } else {
+                SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
+                musPos.setMax(m_service.getSongLength());
+                musPos.setProgress(0);
+                if (wasPlay)
+                    m_service.playerStart();
+            }
+        } else {
+            Log.d(LOG_TAG, "Woops, it's NOT BOUND!");
+        }
     }
 
     void onChipsCountUpdate(int chipsCount, boolean silent)
