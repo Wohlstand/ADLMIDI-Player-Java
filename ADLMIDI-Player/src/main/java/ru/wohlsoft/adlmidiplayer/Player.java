@@ -59,7 +59,6 @@ public class Player extends AppCompatActivity {
 
     private SharedPreferences   m_setup = null;
 
-    private String              m_lastFile = "";
     private String              m_lastPath = Environment.getExternalStorageDirectory().getPath();
     private String              m_lastBankPath = "";
 
@@ -536,17 +535,6 @@ public class Player extends AppCompatActivity {
                 }
                 Log.d(LOG_TAG, "Quit: Collect garbage");
                 System.gc();
-
-                Log.d(LOG_TAG, "Quit: New Handler");
-                Handler handler = new Handler();
-                Log.d(LOG_TAG, "Quit: Wait until call Exit");
-                handler.postDelayed(new Runnable(){
-                    @Override
-                    public void run(){
-                        Log.d(LOG_TAG, "Quit: Do Exit NOW!");
-                        System.exit(0);
-                    }
-                }, 3000);
             }
         });
 
@@ -810,6 +798,7 @@ public class Player extends AppCompatActivity {
             boolean wasPlay = m_service.isPlaying();
             if(m_service.isPlaying())
                 m_service.playerStop();
+            String m_lastFile;
             if(!m_service.isReady())
             {
                 if (!m_service.initPlayer())
