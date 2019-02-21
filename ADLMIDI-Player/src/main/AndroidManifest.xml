@@ -18,91 +18,61 @@
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.APP_MUSIC" />
             </intent-filter>
+
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="file" />
+                <data android:scheme="content" />
                 <data android:host="*" />
-                <data android:mimeType="*/*" />
+
+                <data android:mimeType="audio/mid" />
+                <data android:mimeType="audio/midi" />
+                <data android:mimeType="audio/x-mid" />
+                <data android:mimeType="audio/x-midi" />
+                <data android:mimeType="music/midi" />
+                <data android:mimeType="music/x-mid" />
+                <data android:mimeType="music/x-midi" />
+                <data android:mimeType="music/x-karaoke" />
+                <data android:mimeType="x-music/midi" />
+                <data android:mimeType="x-music/x-mid" />
+                <data android:mimeType="x-music/x-midi" />
+                <data android:mimeType="application/mid" />
+                <data android:mimeType="application/midi" />
+                <data android:mimeType="application/x-mid" />
+                <data android:mimeType="application/x-midi" />
+                <data android:mimeType="application/x-mid" />
+                <data android:mimeType="application/x-midi" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:host="*" />
+
                 <data android:pathPattern=".*\\.mid" />
-                <data android:pathPattern=".*\\..*\\.mid" />
-                <data android:pathPattern=".*\\..*\\..*\\.mid" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.mid" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.mid" />
                 <data android:pathPattern=".*\\.MID" />
-                <data android:pathPattern=".*\\..*\\.MID" />
-                <data android:pathPattern=".*\\..*\\..*\\.MID" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.MID" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.MID" />
                 <data android:pathPattern=".*\\.midi" />
-                <data android:pathPattern=".*\\..*\\.midi" />
-                <data android:pathPattern=".*\\..*\\..*\\.midi" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.midi" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.midi" />
                 <data android:pathPattern=".*\\.MIDI" />
-                <data android:pathPattern=".*\\..*\\.MIDI" />
-                <data android:pathPattern=".*\\..*\\..*\\.MIDI" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.MIDI" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.MIDI" />
                 <data android:pathPattern=".*\\.rmi" />
-                <data android:pathPattern=".*\\..*\\.rmi" />
-                <data android:pathPattern=".*\\..*\\..*\\.rmi" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.rmi" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.rmi" />
                 <data android:pathPattern=".*\\.RMI" />
-                <data android:pathPattern=".*\\..*\\.RMI" />
-                <data android:pathPattern=".*\\..*\\..*\\.RMI" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.RMI" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.RMI" />
                 <data android:pathPattern=".*\\.kar" />
-                <data android:pathPattern=".*\\..*\\.kar" />
-                <data android:pathPattern=".*\\..*\\..*\\.kar" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.kar" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.kar" />
                 <data android:pathPattern=".*\\.KAR" />
-                <data android:pathPattern=".*\\..*\\.KAR" />
-                <data android:pathPattern=".*\\..*\\..*\\.KAR" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.KAR" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.KAR" />
                 <data android:pathPattern=".*\\.cmf" />
-                <data android:pathPattern=".*\\..*\\.cmf" />
-                <data android:pathPattern=".*\\..*\\..*\\.cmf" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.cmf" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.cmf" />
                 <data android:pathPattern=".*\\.CMF" />
-                <data android:pathPattern=".*\\..*\\.CMF" />
-                <data android:pathPattern=".*\\..*\\..*\\.CMF" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.CMF" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.CMF" />
                 <data android:pathPattern=".*\\.imf" />
-                <data android:pathPattern=".*\\..*\\.imf" />
-                <data android:pathPattern=".*\\..*\\..*\\.imf" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.imf" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.imf" />
                 <data android:pathPattern=".*\\.IMF" />
-                <data android:pathPattern=".*\\..*\\.IMF" />
-                <data android:pathPattern=".*\\..*\\..*\\.IMF" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.IMF" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.IMF" />
                 <data android:pathPattern=".*\\.mus" />
-                <data android:pathPattern=".*\\..*\\.mus" />
-                <data android:pathPattern=".*\\..*\\..*\\.mus" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.mus" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.mus" />
                 <data android:pathPattern=".*\\.MUS" />
-                <data android:pathPattern=".*\\..*\\.MUS" />
-                <data android:pathPattern=".*\\..*\\..*\\.MUS" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.MUS" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.MUS" />
                 <data android:pathPattern=".*\\.xmi" />
-                <data android:pathPattern=".*\\..*\\.xmi" />
-                <data android:pathPattern=".*\\..*\\..*\\.xmi" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.xmi" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.xmi" />
                 <data android:pathPattern=".*\\.XMI" />
-                <data android:pathPattern=".*\\..*\\.XMI" />
-                <data android:pathPattern=".*\\..*\\..*\\.XMI" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.XMI" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.XMI" />
             </intent-filter>
         </activity>
 

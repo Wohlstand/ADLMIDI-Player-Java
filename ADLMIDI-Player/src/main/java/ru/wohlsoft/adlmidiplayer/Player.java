@@ -3,6 +3,7 @@ package ru.wohlsoft.adlmidiplayer;
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -50,6 +51,7 @@ public class Player extends AppCompatActivity
 
     public static final int READ_PERMISSION_FOR_BANK = 1;
     public static final int READ_PERMISSION_FOR_MUSIC = 2;
+    public static final int READ_PERMISSION_FOR_INTENT = 3;
 
     private PlayerService m_service;
     private volatile boolean m_bound = false;
@@ -708,6 +710,8 @@ public class Player extends AppCompatActivity
                 openBankDialog();
             } else if (requestCode == READ_PERMISSION_FOR_MUSIC) {
                 openMusicFileDialog();
+            } else if (requestCode == READ_PERMISSION_FOR_INTENT) {
+                handleFileIntent();
             }
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -772,15 +776,31 @@ public class Player extends AppCompatActivity
 
     private void handleFileIntent()
     {
-        Uri url = getIntent().getData();
-        if(url != null)
+        Intent intent = getIntent();
+        String scheme = intent.getScheme();
+        if(scheme != null)
         {
-            String scheme = url.getScheme();
-            Log.d(LOG_TAG, "Got an URL: " + url + "; gonna check");
-            if(scheme != null && scheme.equals("file"))
+            if(checkFilePermissions(READ_PERMISSION_FOR_INTENT))
+                return;
+            if(scheme.equals(ContentResolver.SCHEME_FILE))
             {
-                String fileName = url.getPath();
-                processMusicFile(fileName, m_lastPath);
+                Uri url = intent.getData();
+                if(url != null)
+                {
+                    Log.d(LOG_TAG, "Got a file: " + url + ";");
+                    String fileName = url.getPath();
+                    processMusicFile(fileName, m_lastPath);
+                }
+            }
+            else if(scheme.equals(ContentResolver.SCHEME_CONTENT))
+            {
+                Uri url = intent.getData();
+                if(url != null)
+                {
+                    Log.d(LOG_TAG, "Got a content: " + url + ";");
+                    String fileName = url.getPath();
+                    processMusicFile(fileName, m_lastPath);
+                }
             }
         }
     }
