@@ -44,9 +44,9 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
 
-public class Player extends AppCompatActivity {
-    //private int                 MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 1;
-    final String LOG_TAG = "PlayerService";
+public class Player extends AppCompatActivity
+{
+    final String LOG_TAG = "ADLMIDI";
 
     public static final int READ_PERMISSION_FOR_BANK = 1;
     public static final int READ_PERMISSION_FOR_MUSIC = 2;
