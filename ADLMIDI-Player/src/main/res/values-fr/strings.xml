@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lecteur ADLMIDI</string>
+    <string name="adlibdrums">Mode percussions AdLib</string>
+    <string name="bankNo">Banque de timbres</string>
+    <string name="htremolo">Trémolo augmenté</string>
+    <string name="hvibrato">Vibrato augmenté</string>
+    <string name="open">Ouvrir</string>
+    <string name="playpause">Lecture/Pause</string>
+    <string name="quit">Quitter</string>
+    <string name="scalemod">Modulation variable</string>
+    <string name="num4opChans">Nombre total de canaux 4-op</string>
+    <string name="numChips">Nombre de circuits émulés</string>
+    <string name="restart">Redémarrer</string>
+    <string name="volumesModel">Modèle de volume</string>
+    <string name="vrmAuto">[Auto]</string>
+    <string name="vrmGeneric">Générique</string>
+    <string name="vrmCMF">Natif OPL3</string>
+    <string name="vrmDMX">DMX</string>
+    <string name="vrmApogee">Apogee</string>
+    <string name="vrm9x">9X</string>
+    <string name="chooseBank">Choisir banque perso</string>
+    <string name="useCustom">Utiliser le choix perso</string>
+    <string name="bank_file_empty"><![CDATA[<Fichier Banque>]]></string>
+    <string name="full_panning_stereo">Panoramique stéréo étendue</string>
+    <string name="sign_minus">-</string>
+    <string name="sign_plus">+</string>
+    <string name="no_files_loaded"><![CDATA[<Aucun fichier chargé>]]></string>
+    <string name="gain_factor">Facteur de Gain</string>
+    <string name="sign_plusplus">++</string>
+    <string name="sign_minusminus">--</string>
+    <string name="run_at_pcm_rate">Calculer au taux PCM (charge processeur moindre)</string>
+</resources>
