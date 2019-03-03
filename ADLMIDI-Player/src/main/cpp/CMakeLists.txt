@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.2)
-project (libADLMIDI VERSION 1.4.0 LANGUAGES C CXX)
+project (libADLMIDI VERSION 1.4.1 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 
@@ -31,7 +31,8 @@ elseif(NOT MSVC AND NOT MSDOS AND NOT OPENBSD_LOCALBASE)
     if(ANDROID)
         set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -funwind-tables")
         set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -funwind-tables")
-    else()
+    endif()
+    if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s -Wl,--gc-sections -Wl,-s")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s -Wl,--gc-sections -Wl,-s")
         set(LINK_FLAGS_RELEASE  "${LINK_FLAGS_RELEASE} -Wl,--gc-sections -Wl,-s")
@@ -107,6 +108,8 @@ option(WITH_MUS_SUPPORT     "Build with support for DMX MUS files" ON)
 option(WITH_XMI_SUPPORT     "Build with support for AIL XMI files" ON)
 option(USE_DOSBOX_EMULATOR  "Use DosBox 0.74 OPL3 emulator (semi-accurate, suggested for slow or mobile platforms)" ON)
 option(USE_NUKED_EMULATOR   "Use Nuked OPL3 emulator (most accurate, powerful)" ON)
+option(USE_OPAL_EMULATOR    "Use Opal emulator (inaccurate)" ON)
+option(USE_JAVA_EMULATOR    "Use JavaOPL emulator" ON)
 
 option(WITH_GENADLDATA      "Build and run full rebuild of embedded banks cache" OFF)
 option(WITH_GENADLDATA_COMMENTS "Enable comments in generated ADLDATA cache file" OFF)
@@ -155,6 +158,24 @@ function(handle_options targetLib)
             )
         else()
             target_compile_definitions(${targetLib} PUBLIC ADLMIDI_DISABLE_NUKED_EMULATOR)
+        endif()
+
+        if(USE_OPAL_EMULATOR)
+            set(HAS_EMULATOR TRUE)
+            target_sources(${targetLib} PRIVATE
+                ${libADLMIDI_SOURCE_DIR}/src/chips/opal_opl3.cpp
+            )
+        else()
+            target_compile_definitions(${targetLib} PUBLIC ADLMIDI_DISABLE_OPAL_EMULATOR)
+        endif()
+
+        if(USE_JAVA_EMULATOR)
+            set(HAS_EMULATOR TRUE)
+            target_sources(${targetLib} PRIVATE
+                ${libADLMIDI_SOURCE_DIR}/src/chips/java_opl3.cpp
+            )
+        else()
+            target_compile_definitions(${targetLib} PUBLIC ADLMIDI_DISABLE_JAVA_EMULATOR)
         endif()
 
         if(NOT HAS_EMULATOR)
@@ -346,6 +367,8 @@ message("WITH_MUS_SUPPORT         = ${WITH_MUS_SUPPORT}")
 message("WITH_XMI_SUPPORT         = ${WITH_XMI_SUPPORT}")
 message("USE_DOSBOX_EMULATOR      = ${USE_DOSBOX_EMULATOR}")
 message("USE_NUKED_EMULATOR       = ${USE_NUKED_EMULATOR}")
+message("USE_OPAL_EMULATOR        = ${USE_OPAL_EMULATOR}")
+message("USE_JAVA_EMULATOR        = ${USE_JAVA_EMULATOR}")
 
 message("===== Utils and extras =====")
 message("WITH_GENADLDATA          = ${WITH_GENADLDATA}")
