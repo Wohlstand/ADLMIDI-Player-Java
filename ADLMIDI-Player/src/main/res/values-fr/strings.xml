@@ -22,11 +22,8 @@
     <string name="useCustom">Utiliser le choix perso</string>
     <string name="bank_file_empty"><![CDATA[<Fichier Banque>]]></string>
     <string name="full_panning_stereo">Panoramique stéréo étendue</string>
-    <string name="sign_minus">-</string>
-    <string name="sign_plus">+</string>
     <string name="no_files_loaded"><![CDATA[<Aucun fichier chargé>]]></string>
     <string name="gain_factor">Facteur de Gain</string>
-    <string name="sign_plusplus">++</string>
-    <string name="sign_minusminus">--</string>
     <string name="run_at_pcm_rate">Calculer au taux PCM (charge processeur moindre)</string>
+    <string name="emulatorType">Émulateur OPL3</string>
 </resources>

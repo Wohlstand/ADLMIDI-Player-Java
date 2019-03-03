@@ -119,7 +119,6 @@ public class Player extends AppCompatActivity
         }
     };
 
-    @SuppressLint("SetTextI18n")
     private void initUiSetup()
     {
         if (m_bound) {
@@ -230,6 +229,36 @@ public class Player extends AppCompatActivity
                 }
             });
 
+
+            /*
+             * Emulator model combo-box
+             */
+            Spinner sEmulator = (Spinner) findViewById(R.id.emulatorType);
+            final String[] emulatorItems =
+            {
+                "Nuked OPL3 v1.8 (very accurate)",
+                "Nuked OPL3 v1.7 (very accurate)",
+                "DosBox OPL3 (accurate and fast)",
+                "Opal OPL3 (no rhythm-mode)",
+                "Java OPL3 (broken rhythm-mode)"
+            };
+
+            ArrayAdapter<String> adapterEMU = new ArrayAdapter<String>(
+                    this, android.R.layout.simple_spinner_item, emulatorItems);
+            adapterEMU.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            sEmulator.setAdapter(adapterEMU);
+            sEmulator.setSelection(m_service.getEmulator());
+
+            sEmulator.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                public void onItemSelected(AdapterView<?> parent,
+                                           View itemSelected, int selectedItemPosition, long selectedId) {
+                    if(m_bound)
+                        m_service.setEmulator(selectedItemPosition);
+                }
+
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
 
             /*
              * Volume model combo-box
@@ -579,7 +608,7 @@ public class Player extends AppCompatActivity
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_MENU) {
 
-            /***
+            /* **
              * TODO: Rpleace this crap with properly made settings box
              * (this one can't receive changed value for "input" EditText field)
              */

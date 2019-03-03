@@ -60,6 +60,7 @@ public class PlayerService extends Service {
     // Default 1 for performance reasons
     private int                 m_ADL_runAtPcmRate = 1;
 
+    private int                 m_ADL_emulator = 2; // 2 is DosBox
     private int                 m_adl_numChips = 2;
     private int                 m_ADL_num4opChannels = -1;
     private int                 m_ADL_volumeModel = 0;
@@ -284,6 +285,7 @@ public class PlayerService extends Service {
             m_ADL_softPanEnabled = setup.getBoolean("flagSoftPan", m_ADL_softPanEnabled > 0) ? 1 : 0;
             m_ADL_runAtPcmRate = setup.getBoolean("flagRunAtPcmRate", m_ADL_runAtPcmRate > 0) ? 1 : 0;
 
+            m_ADL_emulator = setup.getInt("emulator", m_ADL_emulator);
             m_adl_numChips = setup.getInt("numChips", m_adl_numChips);
             m_ADL_num4opChannels = setup.getInt("num4opChannels", m_ADL_num4opChannels);
             m_ADL_volumeModel = setup.getInt("volumeModel", m_ADL_volumeModel);
@@ -343,6 +345,7 @@ public class PlayerService extends Service {
             return;
         }
 
+        adl_setEmulator(MIDIDevice, m_ADL_emulator);
         adl_setNumChips(MIDIDevice, m_adl_numChips);
         adl_setRunAtPcmRate(MIDIDevice, m_ADL_runAtPcmRate); // Reduces CPU usage, BUT, also reduces sounding accuracy
         adl_setNumFourOpsChn(MIDIDevice, (m_ADL_num4opChannels >= 0) ? m_ADL_num4opChannels : -1); // -1 is "Auto"
@@ -484,6 +487,17 @@ public class PlayerService extends Service {
     public boolean getFullPanningStereo()
     {
         return m_ADL_softPanEnabled > 0;
+    }
+
+    public void setEmulator(int emul)
+    {
+        m_ADL_emulator = emul;
+        m_setup.edit().putInt("emulator", m_ADL_emulator).apply();
+        adl_setEmulator(MIDIDevice, m_ADL_emulator);
+    }
+    public int getEmulator()
+    {
+        return m_ADL_emulator;
     }
 
     public void setChipsCount(int chips)
@@ -722,6 +736,8 @@ public class PlayerService extends Service {
      * @param gaining value of gaining
      */
     public static native void setGaining(double gaining);
+
+    public static native int adl_setEmulator(long device, int emulator);
 
     //    /* Sets number of emulated sound cards (from 1 to 100). Emulation of multiple sound cards exchanges polyphony limits*/
 //    extern int adl_setNumChips(struct ADL_MIDIPlayer*device, int numCards);

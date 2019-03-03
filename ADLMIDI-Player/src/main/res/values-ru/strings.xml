@@ -22,11 +22,8 @@
     <string name="useCustom">Вкл. свой банк</string>
     <string name="bank_file_empty"><![CDATA[<Файл банка>]]></string>
     <string name="full_panning_stereo">Полное стерео</string>
-    <string name="sign_minus">-</string>
-    <string name="sign_plus">+</string>
     <string name="no_files_loaded"><![CDATA[<Нет загруженных файлов>]]></string>
     <string name="gain_factor">Фактор усиления</string>
-    <string name="sign_plusplus">++</string>
-    <string name="sign_minusminus">--</string>
     <string name="run_at_pcm_rate">Работа на PCM-частоте (Легче для ЦПУ)</string>
+    <string name="emulatorType">Эмулятор OPL3</string>
 </resources>

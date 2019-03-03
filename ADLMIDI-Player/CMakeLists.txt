@@ -23,7 +23,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -funwind-tables")
 set(libADLMIDI_SHARED OFF)
 set(libADLMIDI_STATIC ON)
 set(WITH_CPP_EXTRAS OFF)
-set(USE_NUKED_EMULATOR OFF) # For now is no way to toggle emulator from UI, use DosBox only
 set(WITH_MIDIPLAY OFF)
 set(WITH_VLC_PLUGIN OFF)
 set(WITH_OLD_UTILS OFF)

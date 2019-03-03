@@ -293,6 +293,16 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_stringFromJNI(JNIEnv *env, jobject 
 }
 
 JNIEXPORT jint JNICALL
+Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setEmulator(JNIEnv * /*env*/, jclass /*type*/,
+                                                              jlong device, jint emulator)
+{
+    pthread_mutex_lock(&g_lock);
+    jint ret = (jint)adl_switchEmulator(ADLDEV, (int)emulator);
+    pthread_mutex_unlock(&g_lock);
+    return ret;
+}
+
+JNIEXPORT jint JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setNumChips(JNIEnv *env, jobject /*instance*/, jlong device,
                                                        jint numCards) {
     pthread_mutex_lock(&g_lock);
