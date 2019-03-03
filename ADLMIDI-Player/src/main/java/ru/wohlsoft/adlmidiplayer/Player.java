@@ -304,22 +304,6 @@ public class Player extends AppCompatActivity
             });
 
             /*
-             * Rhythm-Mode drums checkbox
-             */
-            CheckBox adlDrums = (CheckBox)findViewById(R.id.adlibDrumsMode);
-            adlDrums.setChecked(m_service.getForceRhythmMode());
-            adlDrums.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    if(m_bound)
-                        m_service.setForceRhythmMode(isChecked);
-                    Toast toast = Toast.makeText(getApplicationContext(),
-                            "AdLib percussion mode toggled!", Toast.LENGTH_SHORT);
-                    toast.show();
-                }
-            });
-
-            /*
              * Run at PCM Rate checkbox
              */
             CheckBox runAtPcmRate = (CheckBox)findViewById(R.id.runAtPcmRate);

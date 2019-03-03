@@ -7,7 +7,6 @@
     <string name="htremolo">Deep Tremolo</string>
     <string name="hvibrato">Deep Vibrato</string>
     <string name="scalemod">Scalable modulation</string>
-    <string name="adlibdrums">AdLib drums mode</string>
     <string name="numChips">Number of emulated chips</string>
     <string name="num4opChans">Total number of 4-op channels</string>
     <string name="restart">Restart</string>

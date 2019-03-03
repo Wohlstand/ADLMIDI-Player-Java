@@ -56,7 +56,6 @@ public class PlayerService extends Service {
     private int                 m_ADL_tremolo = -1;
     private int                 m_ADL_vibrato = -1;
     private int                 m_ADL_scalable = -1;
-    private int                 m_ADL_adlibdrums = -1;
     private int                 m_ADL_softPanEnabled = 0;
     // Default 1 for performance reasons
     private int                 m_ADL_runAtPcmRate = 1;
@@ -282,7 +281,6 @@ public class PlayerService extends Service {
             m_ADL_tremolo = setup.getBoolean("flagTremolo", m_ADL_tremolo > 0) ? 1 : -1;
             m_ADL_vibrato = setup.getBoolean("flagVibrato", m_ADL_vibrato > 0) ? 1 : -1;
             m_ADL_scalable = setup.getBoolean("flagScalable", m_ADL_scalable > 0) ? 1 : -1;
-            m_ADL_adlibdrums = setup.getBoolean("flagAdlibDrums", m_ADL_adlibdrums > 0) ? 1 : -1;
             m_ADL_softPanEnabled = setup.getBoolean("flagSoftPan", m_ADL_softPanEnabled > 0) ? 1 : 0;
             m_ADL_runAtPcmRate = setup.getBoolean("flagRunAtPcmRate", m_ADL_runAtPcmRate > 0) ? 1 : 0;
 
@@ -351,7 +349,6 @@ public class PlayerService extends Service {
         adl_setHTremolo(MIDIDevice, m_ADL_tremolo);
         adl_setHVibrato(MIDIDevice, m_ADL_vibrato);
         adl_setScaleModulators(MIDIDevice, m_ADL_scalable);
-        adl_setPercMode(MIDIDevice, m_ADL_adlibdrums);
         adl_setSoftPanEnabled(MIDIDevice, m_ADL_softPanEnabled);
         adl_setVolumeRangeModel(MIDIDevice, m_ADL_volumeModel);
         adl_setLoopEnabled(MIDIDevice, 1);
@@ -459,20 +456,6 @@ public class PlayerService extends Service {
     public boolean getScalableModulation()
     {
         return m_ADL_scalable > 0;
-    }
-
-    public void setForceRhythmMode(boolean flag)
-    {
-        m_ADL_adlibdrums = flag ? 1 : -1;
-        m_setup.edit().putBoolean("flagAdlibDrums", flag).apply();
-        if(MIDIDevice == 0) {
-            return;
-        }
-        adl_setPercMode(MIDIDevice, m_ADL_adlibdrums);
-    }
-    public boolean getForceRhythmMode()
-    {
-        return m_ADL_adlibdrums > 0;
     }
 
     public void setRunAtPcmRate(boolean flag)
@@ -758,10 +741,6 @@ public class PlayerService extends Service {
 ///*Sets number of 4-chan operators*/
 //    extern int adl_setNumFourOpsChn(struct ADL_MIDIPlayer*device, int ops4);
     public static native int adl_setNumFourOpsChn(long device, int ops4);
-    //
-///*Enable or disable AdLib percussion mode*/
-//    extern void adl_setPercMode(struct ADL_MIDIPlayer* device, int percmod);
-    public static native void adl_setPercMode(long device, int percmod);
     //
 ///*Enable or disable deep vibrato*/
 //    extern void adl_setHVibrato(struct ADL_MIDIPlayer* device, int hvibro);

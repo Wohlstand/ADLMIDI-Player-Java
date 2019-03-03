@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ADLMIDI Player</string>
-    <string name="adlibdrums">AdLib drums mode</string>
     <string name="bankNo">Music bank</string>
     <string name="htremolo">Deep Tremolo</string>
     <string name="hvibrato">Deep Vibrato</string>

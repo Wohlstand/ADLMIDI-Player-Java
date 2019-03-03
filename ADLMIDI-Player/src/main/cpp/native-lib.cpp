@@ -331,15 +331,6 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1init(JNIEnv *env, jobject /*in
 }
 
 JNIEXPORT void JNICALL
-Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setPercMode(JNIEnv *env, jobject /*instance*/, jlong device,
-                                                       jint percmod)
-{
-    pthread_mutex_lock(&g_lock);
-    adl_setPercMode(ADLDEV, (int)percmod);
-    pthread_mutex_unlock(&g_lock);
-}
-
-JNIEXPORT void JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setHVibrato(JNIEnv *env, jobject /*instance*/, jlong device,
                                                        jint hvibrato)
 {

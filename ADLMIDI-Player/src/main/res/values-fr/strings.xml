@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lecteur ADLMIDI</string>
-    <string name="adlibdrums">Mode percussions AdLib</string>
     <string name="bankNo">Banque de timbres</string>
     <string name="htremolo">Trémolo augmenté</string>
     <string name="hvibrato">Vibrato augmenté</string>
