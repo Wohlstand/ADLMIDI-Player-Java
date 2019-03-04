@@ -491,9 +491,11 @@ public class PlayerService extends Service {
 
     public void setEmulator(int emul)
     {
+        if(m_ADL_emulator != emul)
+            adl_setEmulator(MIDIDevice, emul);
         m_ADL_emulator = emul;
         m_setup.edit().putInt("emulator", m_ADL_emulator).apply();
-        adl_setEmulator(MIDIDevice, m_ADL_emulator);
+
     }
     public int getEmulator()
     {
