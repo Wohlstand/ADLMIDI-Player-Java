@@ -2,7 +2,7 @@
  * libADLMIDI is a free Software MIDI synthesizer library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2015-2019 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2020 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -31,16 +31,18 @@ struct ADL_MIDIPlayer;
 class ADLMIDI_DECLSPEC AdlInstrumentTester
 {
     struct Impl;
-    Impl *P;
+    Impl *p;
 
 public:
     explicit AdlInstrumentTester(ADL_MIDIPlayer *device);
     virtual ~AdlInstrumentTester();
 
+    void start();
+
     // Find list of adlib instruments that supposedly implement this GM
     void FindAdlList();
-    void Touch(unsigned c, unsigned volume);
     void DoNote(int note);
+    void DoNoteOff();
     void NextGM(int offset);
     void NextAdl(int offset);
     bool HandleInputChar(char ch);

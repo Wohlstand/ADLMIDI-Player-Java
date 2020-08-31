@@ -2,7 +2,7 @@
  * libADLMIDI is a free Software MIDI synthesizer library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2015-2019 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2020 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -39,6 +39,7 @@ extern "C" {
         ADLMIDI_TOSTR(ADLMIDI_VERSION_MINOR) "." \
         ADLMIDI_TOSTR(ADLMIDI_VERSION_PATCHLEVEL)
 
+#define ADL_CHIP_SAMPLE_RATE        49716
 
 #include <stddef.h>
 
@@ -112,7 +113,11 @@ enum ADLMIDI_VolumeModels
     /*! Logarithmic volume scale, used in Apogee Sound System. */
     ADLMIDI_VolumeModel_APOGEE = 4,
     /*! Aproximated and shorted volume map table. Similar to general, but has less granularity. */
-    ADLMIDI_VolumeModel_9X = 5
+    ADLMIDI_VolumeModel_9X = 5,
+    /*! DMX model with a fixed bug of AM voices */
+    ADLMIDI_VolumeModel_DMX_Fixed = 6,
+    /*! Apogee model with a fixed bug of AM voices*/
+    ADLMIDI_VolumeModel_APOGEE_Fixed = 7,
 };
 
 /**
@@ -713,6 +718,7 @@ extern ADLMIDI_DECLSPEC const char *adl_errorInfo(struct ADL_MIDIPlayer *device)
  * Tip 1: You can initialize multiple instances and run them in parallel
  * Tip 2: Library is NOT thread-safe, therefore don't use same instance in different threads or use mutexes
  * Tip 3: Changing of sample rate on the fly is not supported. Re-create the instance again.
+ * Top 4: To generate output in OPL chip native sample rate, please initialize it with sample rate value as `ADL_CHIP_SAMPLE_RATE`
  *
  * @param sample_rate Output sample rate
  * @return Instance of the library. If NULL was returned, check the `adl_errorString` message for more info.

@@ -479,12 +479,10 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setBank(JNIEnv *env, jobject /
     return ret;
 }
 
-extern const char* const banknames[];
-
 JNIEXPORT jstring JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1getBankName(JNIEnv *env, jobject /*instance*/, jint bank)
 {
-    return env->NewStringUTF(banknames[(int)bank]);
+    return env->NewStringUTF(adl_getBankNames()[(int)bank]);
 }
 
 JNIEXPORT void JNICALL
