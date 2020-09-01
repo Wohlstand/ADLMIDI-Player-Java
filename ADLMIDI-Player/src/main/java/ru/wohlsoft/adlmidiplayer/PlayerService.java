@@ -153,18 +153,14 @@ public class PlayerService extends Service {
                 switch (action)
                 {
                     case ACTION_START_FOREGROUND_SERVICE:
-                        startForgroundPlayer();
+                        startForegroundPlayer();
                         // Toast.makeText(getApplicationContext(), "Foreground service is started.", Toast.LENGTH_LONG).show();
-                        break;
-                    case ACTION_STOP_FOREGROUND_SERVICE:
-                        playerStop();
-                        stopForegroundPlayer();
-                        // Toast.makeText(getApplicationContext(), "Foreground service is stopped.", Toast.LENGTH_LONG).show();
                         break;
                     case ACTION_PLAY:
                         playerStart();
                         // Toast.makeText(getApplicationContext(), "You click Play button.", Toast.LENGTH_LONG).show();
                         break;
+                    case ACTION_STOP_FOREGROUND_SERVICE:
                     case ACTION_STOP:
                         playerStop();
                         stopForegroundPlayer();
@@ -181,7 +177,7 @@ public class PlayerService extends Service {
     }
 
     /* Used to build and start foreground service. */
-    private void startForgroundPlayer()
+    private void startForegroundPlayer()
     {
         // Log.d(TAG_FOREGROUND_SERVICE, "Start foreground service.");
         // Start foreground service.
@@ -222,6 +218,8 @@ public class PlayerService extends Service {
         bigTextStyle.bigText("Playing " + m_lastFile);
         // Set big text style.
         builder.setStyle(bigTextStyle);
+
+        builder.setNotificationSilent();
 
         builder.setWhen(System.currentTimeMillis());
         builder.setContentTitle(getResources().getString(R.string.app_name));
