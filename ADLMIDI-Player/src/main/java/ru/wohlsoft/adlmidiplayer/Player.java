@@ -682,6 +682,15 @@ public class Player extends AppCompatActivity
 
     private boolean checkFilePermissions(int requestCode)
     {
+        if (Build.VERSION.SDK_INT >= 23)
+        {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                Log.d(LOG_TAG, "File permission is granted");
+            } else {
+                Log.d(LOG_TAG, "File permission is revoked");
+            }
+        }
+
         if( (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) &&
                 (ContextCompat.checkSelfPermission(this,
                         Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) )
@@ -718,10 +727,13 @@ public class Player extends AppCompatActivity
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
-        if (grantResults.length == 1 &&
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (grantResults.length > 0 &&
             permissions[0].equals(Manifest.permission.READ_EXTERNAL_STORAGE) &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         ) {
+
             if (requestCode == READ_PERMISSION_FOR_BANK) {
                 openBankDialog();
             } else if (requestCode == READ_PERMISSION_FOR_MUSIC) {
@@ -730,7 +742,6 @@ public class Player extends AppCompatActivity
                 handleFileIntent();
             }
         }
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     public void OnOpenBankFileClick(View view) {
