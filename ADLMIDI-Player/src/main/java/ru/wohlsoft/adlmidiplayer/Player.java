@@ -263,7 +263,11 @@ public class Player extends AppCompatActivity
              * Volume model combo-box
              */
             Spinner sVolModel = (Spinner) findViewById(R.id.volumeRangesModel);
-            final String[] volumeModelItems = {"[Auto]", "Generic", "CMF", "DMX", "Apogee", "9X" };
+            final String[] volumeModelItems =
+            {
+                "[Auto]", "Generic", "CMF", "DMX", "Apogee",
+                "9X", "DMX (Fixed AM)", "Apogee (Fixed AM)", "AIL"
+            };
 
             ArrayAdapter<String> adapterVM = new ArrayAdapter<String>(
                     this, android.R.layout.simple_spinner_item, volumeModelItems);
