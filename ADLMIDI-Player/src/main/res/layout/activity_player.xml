@@ -239,7 +239,7 @@
             android:max="100"
             android:progress="0" />
 
-        <android.support.constraint.ConstraintLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="368dp"
             android:layout_height="290dp"
             android:layout_below="@+id/musPos"
@@ -392,7 +392,7 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/num4opChansMinus" />
 
-        </android.support.constraint.ConstraintLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
 
 

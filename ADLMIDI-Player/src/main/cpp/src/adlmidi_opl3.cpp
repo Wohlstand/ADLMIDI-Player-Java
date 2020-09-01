@@ -219,11 +219,18 @@ static const uint_fast32_t DMX_volume_mapping_table[128] =
 
 static const uint_fast32_t W9X_volume_mapping_table[32] =
 {
-    63, 63, 40, 36, 32, 28, 23, 21,
+    80, 63, 40, 36, 32, 28, 23, 21,
     19, 17, 15, 14, 13, 12, 11, 10,
     9,  8,  7,  6,  5,  5,  4,  4,
     3,  3,  2,  2,  1,  1,  0,  0
 };
+
+static const uint_fast32_t AIL_vel_graph[16] =
+{
+    82,   85,  88,  91,  94,  97, 100, 103,
+    106, 109, 112, 115, 118, 121, 124, 127
+};
+
 
 enum
 {
@@ -479,6 +486,13 @@ void OPL3::noteOn(size_t c1, size_t c2, double hertz) // Hertz range: 0..131071
     }
 }
 
+static inline uint_fast32_t brightnessToOPL(uint_fast32_t brightness)
+{
+    double b = static_cast<double>(brightness);
+    double ret = ::round(127.0 * ::sqrt(b * (1.0 / 127.0))) / 2.0;
+    return static_cast<uint_fast32_t>(ret);
+}
+
 void OPL3::touchNote(size_t c,
                      uint_fast32_t velocity,
                      uint_fast32_t channelVolume,
@@ -490,13 +504,14 @@ void OPL3::touchNote(size_t c,
     size_t cmf_offset = ((m_musicMode == MODE_CMF) && cc >= OPL3_CHANNELS_RHYTHM_BASE) ? 10 : 0;
     uint16_t o1 = g_operatorsMap[cc * 2 + 0 + cmf_offset];
     uint16_t o2 = g_operatorsMap[cc * 2 + 1 + cmf_offset];
-    uint8_t  x = adli.modulator_40, y = adli.carrier_40;
+    uint8_t  srcMod = adli.modulator_40,
+             srcCar = adli.carrier_40;
     uint32_t mode = 1; // 2-op AM
 
-    uint_fast32_t kslMod = x & 0xC0;
-    uint_fast32_t kslCar = y & 0xC0;
-    uint_fast32_t tlMod = x & 63;
-    uint_fast32_t tlCar = y & 63;
+    uint_fast32_t kslMod = srcMod & 0xC0;
+    uint_fast32_t kslCar = srcCar & 0xC0;
+    uint_fast32_t tlMod = srcMod & 0x3F;
+    uint_fast32_t tlCar = srcCar & 0x3F;
 
     uint_fast32_t modulator;
     uint_fast32_t carrier;
@@ -504,8 +519,8 @@ void OPL3::touchNote(size_t c,
     uint_fast32_t volume = 0;
     uint_fast32_t midiVolume = 0;
 
-    bool do_modulator;
-    bool do_carrier;
+    bool do_modulator = false;
+    bool do_carrier = true;
 
     static const bool do_ops[10][2] =
     {
@@ -542,7 +557,7 @@ void OPL3::touchNote(size_t c,
         //volume = (int)(volume * std::sqrt( (double) ch[c].users.size() ));
         const double c1 = 11.541560327111707;
         const double c2 = 1.601379199767093e+02;
-        uint_fast32_t minVolume = 8725 * 127;
+        const uint_fast32_t minVolume = 1108075; // 8725 * 127
 
         // The formula below: SOLVE(V=127^4 * 2^( (A-63.49999) / 8), A)
         if(volume > minVolume)
@@ -575,15 +590,34 @@ void OPL3::touchNote(size_t c,
     case Synth::VOLUME_APOGEE:
     case Synth::VOLUME_APOGEE_FIXED:
     {
-        volume = 0;
         midiVolume = (channelVolume * channelExpression * m_masterVolume / 16129);
     }
     break;
 
     case Synth::VOLUME_9X:
     {
-        volume = velocity * channelVolume * channelExpression * m_masterVolume;
-        volume = 63 - W9X_volume_mapping_table[(volume / 2048383) >> 2];
+        volume = (channelVolume * channelExpression * m_masterVolume) / 16129;
+        volume = W9X_volume_mapping_table[volume >> 2];
+    }
+    break;
+
+    case Synth::VOLUME_AIL:
+    {
+        midiVolume = (channelVolume * channelExpression) * 2;
+        midiVolume >>= 8;
+        if(midiVolume != 0)
+            midiVolume++;
+
+        velocity = (velocity & 0x7F) >> 3;
+        velocity = AIL_vel_graph[velocity];
+
+        midiVolume = (midiVolume * velocity) * 2;
+        midiVolume >>= 8;
+        if(midiVolume != 0)
+            midiVolume++;
+
+        if(m_masterVolume < 127)
+            midiVolume = (midiVolume * m_masterVolume) / 127;
     }
     break;
     }
@@ -621,7 +655,8 @@ void OPL3::touchNote(size_t c,
         mode += (i0->feedconn & 1) + (i1->feedconn & 1) * 2;
     }
 
-
+    do_modulator = do_ops[mode][0] || m_scaleModulators;
+    do_carrier   = do_ops[mode][1] || m_scaleModulators;
 
     // ------ Compute the total level register output data ------
 
@@ -629,46 +664,39 @@ void OPL3::touchNote(size_t c,
     {
         tlCar -= volume / 2;
     }
-    else if((m_volumeScale == Synth::VOLUME_APOGEE ||
-             m_volumeScale == Synth::VOLUME_APOGEE_FIXED) &&
-            mode <= 1)
+    else if(m_volumeScale == Synth::VOLUME_APOGEE ||
+            m_volumeScale == Synth::VOLUME_APOGEE_FIXED)
     {
         // volume = ((64 * (velocity + 0x80)) * volume) >> 15;
-        do_modulator = do_ops[mode][ 0 ] || m_scaleModulators;
 
-        tlCar = 63 - tlCar;
-
-        tlCar *= velocity + 0x80;
-        tlCar = (midiVolume * tlCar) >> 15;
-        tlCar = tlCar ^ 63;
+        if(do_carrier)
+        {
+            tlCar = 63 - tlCar;
+            tlCar *= velocity + 0x80;
+            tlCar = (midiVolume * tlCar) >> 15;
+            tlCar = tlCar ^ 63;
+        }
 
         if(do_modulator)
         {
+            uint_fast32_t mod = tlCar;
+
+            if(m_volumeScale == Synth::VOLUME_APOGEE_FIXED || mode > 1)
+                mod = tlMod; // Fix the AM voices bug
+
             tlMod = 63 - tlMod;
             tlMod *= velocity + 0x80;
             // NOTE: Here is a bug of Apogee Sound System that makes modulator
-            // to not work properly on AM instruments
-            // The fix of this bug is just replacing of tlCar with tmMod
-            // in this formula
-            if(m_volumeScale == Synth::VOLUME_APOGEE_FIXED)
-                tlMod = (midiVolume * tlMod) >> 15;
-            else
-                tlMod = (midiVolume * tlCar) >> 15;
+            // to not work properly on AM instruments. The fix of this bug, you
+            // need to replace the tlCar with tmMod in this formula.
+            // Don't do the bug on 4-op voices.
+            tlMod = (midiVolume * mod) >> 15;
 
             tlMod ^= 63;
-        }
-
-        if(brightness != 127)
-        {
-            brightness = static_cast<uint8_t>(::round(127.0 * ::sqrt((static_cast<double>(brightness)) * (1.0 / 127.0))) / 2.0);
-            if(!do_modulator)
-                tlMod = 63 - brightness + (brightness * tlMod) / 63;
         }
     }
     else if(m_volumeScale == Synth::VOLUME_DMX && mode <= 1)
     {
-        do_modulator = do_ops[mode][ 0 ] || m_scaleModulators;
-
         tlCar = (63 - volume);
 
         if(do_modulator)
@@ -676,32 +704,47 @@ void OPL3::touchNote(size_t c,
             if(tlMod < tlCar)
                 tlMod = tlCar;
         }
+    }
+    else if(m_volumeScale == Synth::VOLUME_9X)
+    {
+        if(do_carrier)
+            tlCar += volume + W9X_volume_mapping_table[velocity >> 2];
+        if(do_modulator)
+            tlMod += volume + W9X_volume_mapping_table[velocity >> 2];
 
-        if(brightness != 127)
-        {
-            brightness = static_cast<uint8_t>(::round(127.0 * ::sqrt((static_cast<double>(brightness)) * (1.0 / 127.0))) / 2.0);
-            if(!do_modulator)
-                tlMod = 63 - brightness + (brightness * tlMod) / 63;
-        }
+        if(tlCar > 0x3F)
+            tlCar = 0x3F;
+        if(tlMod > 0x3F)
+            tlMod = 0x3F;
+    }
+    else if(m_volumeScale == Synth::VOLUME_AIL)
+    {
+        uint_fast32_t v0_val = (~srcMod) & 0x3f;
+        uint_fast32_t v1_val = (~srcCar) & 0x3f;
+
+        if(do_modulator)
+            v0_val = (v0_val * midiVolume) / 127;
+        if(do_carrier)
+            v1_val = (v1_val * midiVolume) / 127;
+
+        tlMod = (~v0_val) & 0x3F;
+        tlCar = (~v1_val) & 0x3F;
     }
     else
     {
-        do_modulator = do_ops[ mode ][ 0 ] || m_scaleModulators;
-        do_carrier   = do_ops[ mode ][ 1 ] || m_scaleModulators;
-
         if(do_modulator)
             tlMod = 63 - volume + (volume * tlMod) / 63;
         if(do_carrier)
             tlCar = 63 - volume + (volume * tlCar) / 63;
+    }
 
-        if(brightness != 127)
-        {
-            brightness = static_cast<uint8_t>(::round(127.0 * ::sqrt((static_cast<double>(brightness)) * (1.0 / 127.0))) / 2.0);
-            if(!do_modulator)
-                tlMod = 63 - brightness + (brightness * tlMod) / 63;
-            if(!do_carrier)
-                tlCar = 63 - brightness + (brightness * tlCar) / 63;
-        }
+    if(brightness != 127)
+    {
+        brightness = brightnessToOPL(brightness);
+        if(!do_modulator)
+            tlMod = 63 - brightness + (brightness * tlMod) / 63;
+        if(!do_carrier)
+            tlCar = 63 - brightness + (brightness * tlCar) / 63;
     }
 
     modulator = (kslMod & 0xC0) | (tlMod & 63);
@@ -906,6 +949,9 @@ void OPL3::setVolumeScaleModel(ADLMIDI_VolumeModels volumeModel)
     case ADLMIDI_VolumeModel_APOGEE_Fixed:
         m_volumeScale = OPL3::VOLUME_APOGEE_FIXED;
         break;
+    case ADLMIDI_VolumeModel_AIL:
+        m_volumeScale = OPL3::VOLUME_AIL;
+        break;
     }
 }
 
@@ -928,6 +974,8 @@ ADLMIDI_VolumeModels OPL3::getVolumeScaleModel()
         return ADLMIDI_VolumeModel_DMX_Fixed;
     case OPL3::VOLUME_APOGEE_FIXED:
         return ADLMIDI_VolumeModel_APOGEE_Fixed;
+    case OPL3::VOLUME_AIL:
+        return ADLMIDI_VolumeModel_AIL;
     }
 }
 

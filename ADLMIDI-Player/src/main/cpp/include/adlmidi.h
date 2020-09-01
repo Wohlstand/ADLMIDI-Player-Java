@@ -118,6 +118,8 @@ enum ADLMIDI_VolumeModels
     ADLMIDI_VolumeModel_DMX_Fixed = 6,
     /*! Apogee model with a fixed bug of AM voices*/
     ADLMIDI_VolumeModel_APOGEE_Fixed = 7,
+    /*! Audio Interfaces Library volume scaling model */
+    ADLMIDI_VolumeModel_AIL = 8
 };
 
 /**
