@@ -266,7 +266,7 @@ public class Player extends AppCompatActivity
             final String[] volumeModelItems =
             {
                 "[Auto]", "Generic", "CMF", "DMX", "Apogee",
-                "9X", "DMX (Fixed AM)", "Apogee (Fixed AM)", "AIL"
+                "9X (SB16)", "DMX (Fixed AM)", "Apogee (Fixed AM)", "Audio Interfaces Library"
             };
 
             ArrayAdapter<String> adapterVM = new ArrayAdapter<String>(
