@@ -8,16 +8,18 @@
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 
+#include <sys/system_properties.h>
+
 pthread_mutex_t g_lock;
 bool mutex_created = false;
 
-typedef int16_t sample_t;
+typedef int8_t sample_t;
 
 static ADLMIDI_AudioFormat g_audioFormat
 {
     ADLMIDI_SampleType_S16,
-    sizeof(sample_t),
-    sizeof(sample_t) * 2
+    sizeof(int16_t),
+    sizeof(int16_t) * 2
 };
 
 typedef int (*AndroidAudioCallback)(sample_t *buffer, int num_samples);
@@ -59,7 +61,7 @@ static SLVolumeItf                      bqPlayerVolume;
 
 // Double buffering.
 static int      bufferLen[2] = {0, 0};
-static sample_t buffer[2][BUFFER_SIZE_IN_SAMPLES];
+static sample_t buffer[2][BUFFER_SIZE * 4];
 static size_t   curBuffer = 0;
 static AndroidAudioCallback audioCallback;
 
@@ -82,7 +84,7 @@ static void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
     {
         SLresult result;
         result = (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, nextBuffer,
-                                                 static_cast<SLuint32>(nextSize * 2));
+                                                 static_cast<SLuint32>(nextSize * g_audioFormat.containerSize));
         // Comment from sample code:
         // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
         // which for this code example would indicate a programming error
@@ -97,10 +99,24 @@ static void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
 // create the engine and output mix objects
 bool OpenSLWrap_Init(AndroidAudioCallback cb)
 {
+    int sdk_ver = 0;
+    char sdk_ver_str[92] = {'\0'};
+    if(__system_property_get("ro.build.version.sdk", sdk_ver_str))
+    {
+        sdk_ver = atoi(sdk_ver_str);
+    }
+
+    if(sdk_ver >= 21)
+    {
+        g_audioFormat.type = ADLMIDI_SampleType_F32;
+        g_audioFormat.containerSize = sizeof(float);
+        g_audioFormat.sampleOffset = sizeof(float) * 2;
+    }
+
     audioCallback = cb;
     SLresult result;
 
-    memset(buffer, 0, BUFFER_SIZE * sizeof(sample_t));
+    memset(buffer, 0, BUFFER_SIZE * g_audioFormat.sampleOffset);
     bufferLen[0] = BUFFER_SIZE_IN_SAMPLES;
     bufferLen[1] = BUFFER_SIZE_IN_SAMPLES;
 
@@ -118,28 +134,35 @@ bool OpenSLWrap_Init(AndroidAudioCallback cb)
 
     SLDataLocator_AndroidSimpleBufferQueue loc_bufq = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 2};
 
-    /* for Android 21+*/
-//    SLAndroidDataFormat_PCM_EX format_pcm;
-//    format_pcm.formatType = SL_ANDROID_DATAFORMAT_PCM_EX;
-//    format_pcm.numChannels = 2;
-//    format_pcm.sampleRate = SL_SAMPLINGRATE_44_1;
-//    format_pcm.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_32;
-//    format_pcm.containerSize = SL_PCMSAMPLEFORMAT_FIXED_32;
-//    format_pcm.channelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
-//    format_pcm.endianness = SL_BYTEORDER_LITTLEENDIAN;
-//    format_pcm.representation = SL_ANDROID_PCM_REPRESENTATION_FLOAT;
-
-    /* for Android <21 */
     SLDataFormat_PCM format_pcm;
-    format_pcm.formatType = SL_DATAFORMAT_PCM;
-    format_pcm.numChannels = 2;
-    format_pcm.samplesPerSec = SL_SAMPLINGRATE_44_1;
-    format_pcm.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_16;
-    format_pcm.containerSize = SL_PCMSAMPLEFORMAT_FIXED_16;
-    format_pcm.channelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
-    format_pcm.endianness = SL_BYTEORDER_LITTLEENDIAN;
+    SLAndroidDataFormat_PCM_EX format_pcm_ex;
+    SLDataSource audioSrc;
 
-    SLDataSource audioSrc = {&loc_bufq, &format_pcm};
+    if(sdk_ver >= 21)
+    {
+        /* for Android 21+*/
+        format_pcm_ex.formatType = SL_ANDROID_DATAFORMAT_PCM_EX;
+        format_pcm_ex.numChannels = 2;
+        format_pcm_ex.sampleRate = SL_SAMPLINGRATE_44_1;
+        format_pcm_ex.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_32;
+        format_pcm_ex.containerSize = SL_PCMSAMPLEFORMAT_FIXED_32;
+        format_pcm_ex.channelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
+        format_pcm_ex.endianness = SL_BYTEORDER_LITTLEENDIAN;
+        format_pcm_ex.representation = SL_ANDROID_PCM_REPRESENTATION_FLOAT;
+        audioSrc = {&loc_bufq, &format_pcm_ex};
+    }
+    else
+    {
+        /* for Android <21 */
+        format_pcm.formatType = SL_DATAFORMAT_PCM;
+        format_pcm.numChannels = 2;
+        format_pcm.samplesPerSec = SL_SAMPLINGRATE_44_1;
+        format_pcm.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_16;
+        format_pcm.containerSize = SL_PCMSAMPLEFORMAT_FIXED_16;
+        format_pcm.channelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
+        format_pcm.endianness = SL_BYTEORDER_LITTLEENDIAN;
+        audioSrc = {&loc_bufq, &format_pcm};
+    }
 
     // configure audio sink
     SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, outputMixObject};
@@ -183,7 +206,7 @@ void OpenSLWrap_Shutdown()
     result = (*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_STOPPED);
     assert(SL_RESULT_SUCCESS == result);
 
-    memset(buffer, 0, BUFFER_SIZE * sizeof(sample_t));
+    memset(buffer, 0, BUFFER_SIZE * g_audioFormat.sampleOffset);
     bufferLen[0] = BUFFER_SIZE_IN_SAMPLES;
     bufferLen[1] = BUFFER_SIZE_IN_SAMPLES;
 
@@ -220,9 +243,23 @@ int audioCallbackFunction(sample_t *buffer, int num_samples)
 
     if((g_gaining > 0.1) && (g_gaining != 1.0))
     {
-        for(size_t i = 0; i < num_samples; i++)
+        if(g_audioFormat.type == ADLMIDI_SampleType_F32)
         {
-            buffer[i] = static_cast<sample_t>(static_cast<double>(buffer[i]) * g_gaining);
+            float *bu = (float *) buffer;
+            for(size_t i = 0; i < num_samples; i++)
+            {
+                *bu *= (float)g_gaining;
+                bu++;
+            }
+        }
+        else
+        {
+            int16_t *bu = (int16_t *) buffer;
+            for(size_t i = 0; i < num_samples; i++)
+            {
+                *bu = static_cast<int16_t>(static_cast<double>(*bu) * g_gaining);
+                bu++;
+            }
         }
     }
 
@@ -231,7 +268,8 @@ int audioCallbackFunction(sample_t *buffer, int num_samples)
 
 void infiniteLoopStream(ADL_MIDIPlayer* device)
 {
-    if(mutex_created) {
+    if(mutex_created)
+    {
         assert(pthread_mutex_init(&g_lock, nullptr) == 0);
         mutex_created=true;
     }
