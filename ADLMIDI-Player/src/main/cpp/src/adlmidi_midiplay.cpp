@@ -187,6 +187,7 @@ void MIDIplay::partialReset()
     synth.reset(m_setup.emulator, m_setup.PCM_RATE, this);
     m_chipChannels.clear();
     m_chipChannels.resize((size_t)synth.m_numChannels);
+    resetMIDIDefaults();
 }
 
 void MIDIplay::resetMIDI()
@@ -200,9 +201,30 @@ void MIDIplay::resetMIDI()
     m_midiChannels.clear();
     m_midiChannels.resize(16, MIDIchannel());
 
+    resetMIDIDefaults();
+
     caugh_missing_instruments.clear();
     caugh_missing_banks_melodic.clear();
     caugh_missing_banks_percussion.clear();
+}
+
+void MIDIplay::resetMIDIDefaults(int offset)
+{
+    Synth &synth = *m_synth;
+
+    for(size_t c = offset, n = m_midiChannels.size(); c < n; ++c)
+    {
+        MIDIchannel &ch = m_midiChannels[c];
+        if(synth.m_musicMode == Synth::MODE_XMIDI)
+        {
+            ch.def_volume = 127;
+            ch.def_bendsense_lsb = 0;
+            ch.def_bendsense_msb = 12;
+        }
+        else
+        if(synth.m_musicMode == Synth::MODE_RSXX)
+            ch.def_volume = 127;
+    }
 }
 
 void MIDIplay::TickIterators(double s)
@@ -257,7 +279,6 @@ void MIDIplay::realTime_ResetState()
     {
         MIDIchannel &chan = m_midiChannels[ch];
         chan.resetAllControllers();
-        chan.volume = (synth.m_musicMode == Synth::MODE_RSXX) ? 127 : 100;
         chan.vibpos = 0.0;
         chan.lastlrpn = 0;
         chan.lastmrpn = 0;
@@ -413,13 +434,10 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 
     if(ains->tone)
     {
-        /*if(ains->tone < 20)
-            tone += ains->tone;
-        else*/
-        if(ains->tone < 128)
-            tone = ains->tone;
+        if(ains->tone >= 128)
+            tone = ains->tone - 128;
         else
-            tone -= ains->tone - 128;
+            tone = ains->tone;
     }
 
     //uint16_t i[2] = { ains->adlno1, ains->adlno2 };
@@ -757,7 +775,7 @@ void MIDIplay::realTime_Controller(uint8_t channel, uint8_t type, uint8_t value)
         break;
 
     case 121: // Reset all controllers
-        m_midiChannels[channel].resetAllControllers();
+        m_midiChannels[channel].resetAllControllers121();
         noteUpdateAll(channel, Upd_Pan + Upd_Volume + Upd_Pitch);
         // Kill all sustained notes
         killSustainingNotes(channel, -1, AdlChannel::LocationData::Sustain_ANY);
@@ -1701,6 +1719,7 @@ size_t MIDIplay::chooseDevice(const std::string &name)
     size_t n = m_midiDevices.size() * 16;
     m_midiDevices.insert(std::make_pair(name, n));
     m_midiChannels.resize(n + 16);
+    resetMIDIDefaults(n);
     return n;
 }
 

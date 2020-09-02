@@ -733,7 +733,6 @@ public class Player extends AppCompatActivity
             permissions[0].equals(Manifest.permission.READ_EXTERNAL_STORAGE) &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         ) {
-
             if (requestCode == READ_PERMISSION_FOR_BANK) {
                 openBankDialog();
             } else if (requestCode == READ_PERMISSION_FOR_MUSIC) {
