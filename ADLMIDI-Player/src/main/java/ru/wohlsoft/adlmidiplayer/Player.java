@@ -267,7 +267,7 @@ public class Player extends AppCompatActivity
             {
                 "[Auto]", "Generic", "CMF", "DMX", "Apogee",
                 "9X (SB16)", "DMX (Fixed AM)", "Apogee (Fixed AM)", "Audio Interfaces Library",
-                "9X (Generic FM)"
+                "9X (Generic FM)", "HMI Sound Operating System"
             };
 
             ArrayAdapter<String> adapterVM = new ArrayAdapter<String>(
