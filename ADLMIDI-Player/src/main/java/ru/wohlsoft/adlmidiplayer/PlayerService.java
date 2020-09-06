@@ -87,8 +87,9 @@ public class PlayerService extends Service {
 
     private SeekSyncThread m_seekSyncThread = null;
 
-    public PlayerService() {
-        Log.d(LOG_TAG, "constrUKT");
+    public PlayerService()
+    {
+        Log.d(LOG_TAG, "Construct");
     }
 
     // This is the object that receives interactions from clients.
@@ -118,7 +119,8 @@ public class PlayerService extends Service {
     }
 
     @Override
-    public void onCreate() {
+    public void onCreate()
+    {
         super.onCreate();
         Log.d(LOG_TAG, "onCreate");
 
@@ -131,6 +133,8 @@ public class PlayerService extends Service {
 
             NotificationChannel mChannel = new NotificationChannel(channel_id, getResources().getString(R.string.app_name), importance);
             mNotificationManager.createNotificationChannel(mChannel);
+
+            startForeground(FOREGROUND_ID, getNotify());
         }
     }
 
