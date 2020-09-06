@@ -23,7 +23,7 @@ static struct ADLMIDI_AudioFormat g_audioFormat =
 };
 
 typedef int (*AndroidAudioCallback)(sample_t *buffer, int num_samples);
-static bool OpenSLWrap_Init(AndroidAudioCallback cb);
+static jboolean OpenSLWrap_Init(AndroidAudioCallback cb);
 static void OpenSLWrap_Shutdown();
 
 
@@ -94,7 +94,7 @@ static void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
 }
 
 // create the engine and output mix objects
-bool OpenSLWrap_Init(AndroidAudioCallback cb)
+jboolean OpenSLWrap_Init(AndroidAudioCallback cb)
 {
     long sdk_ver = 0;
     char sdk_ver_str[92] = {'\0'};
@@ -201,10 +201,10 @@ bool OpenSLWrap_Init(AndroidAudioCallback cb)
     result = (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, buffer[curBuffer], sizeof(buffer[curBuffer]));
 
     if(SL_RESULT_SUCCESS != result)
-        return false;
+        return JNI_FALSE;
 
     curBuffer ^= 1u;
-    return true;
+    return JNI_TRUE;
 }
 
 //shut down the native audio system
@@ -300,7 +300,7 @@ void infiniteLoopStream(struct ADL_MIDIPlayer* device)
 
 
 
-#define ADLDEV (struct ADL_MIDIPlayer*)device
+#define ADL_DEV (struct ADL_MIDIPlayer*)device
 
 JNIEXPORT void JNICALL Java_ru_wohlsoft_adlmidiplayer_PlayerService_startPlaying(
     JNIEnv *env,
@@ -309,7 +309,7 @@ JNIEXPORT void JNICALL Java_ru_wohlsoft_adlmidiplayer_PlayerService_startPlaying
 )
 {
     (void)env; (void)instance;
-    infiniteLoopStream(ADLDEV);
+    infiniteLoopStream(ADL_DEV);
 }
 
 JNIEXPORT void JNICALL
@@ -329,15 +329,14 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1errorString(
     jclass instance
 )
 {
-    const char* adlMidiErr;
     jstring ret;
 
     (void)instance;
 
     pthread_mutex_lock(&g_lock);
-    adlMidiErr = adl_errorString();
-    ret = (*env)->NewStringUTF(env, adlMidiErr);
+    ret = (*env)->NewStringUTF(env, adl_errorString());
     pthread_mutex_unlock(&g_lock);
+
     return ret;
 }
 
@@ -361,39 +360,40 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1errorInfo(
     jlong device
 )
 {
-    const char* adlMidiErr;
     jstring ret;
 
     (void)instance;
 
     pthread_mutex_lock(&g_lock);
-    adlMidiErr = adl_errorInfo(ADLDEV);
-    ret = (*env)->NewStringUTF(env, adlMidiErr);
+    ret = (*env)->NewStringUTF(env, adl_errorInfo(ADL_DEV));
     pthread_mutex_unlock(&g_lock);
 
     return ret;
 }
 
 JNIEXPORT jstring JNICALL
-Java_ru_wohlsoft_adlmidiplayer_PlayerService_stringFromJNI(JNIEnv *env, jclass clazz)
+Java_ru_wohlsoft_adlmidiplayer_PlayerService_stringFromJNI(
+    JNIEnv *env,
+    jclass instance
+)
 {
-    (void)clazz;
+    (void)instance;
     return (*env)->NewStringUTF(env, "OPL3 Emulator is ready");
 }
 
 JNIEXPORT jint JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setEmulator(
     JNIEnv *env,
-    jclass type,
+    jclass instance,
     jlong device,
     jint emulator
 )
 {
     jint ret;
-    (void)type; (void)env;
+    (void)instance; (void)env;
 
     pthread_mutex_lock(&g_lock);
-    ret = (jint)adl_switchEmulator(ADLDEV, (int)emulator);
+    ret = (jint)adl_switchEmulator(ADL_DEV, (int)emulator);
     pthread_mutex_unlock(&g_lock);
 
     return ret;
@@ -402,17 +402,17 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setEmulator(
 JNIEXPORT jint JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setNumChips(
     JNIEnv *env,
-    jclass clazz,
+    jclass instance,
     jlong device,
     jint numCards
 )
 {
     jint ret;
 
-    (void)env; (void)clazz;
+    (void)env; (void)instance;
 
     pthread_mutex_lock(&g_lock);
-    ret = (jint)adl_setNumChips(ADLDEV, (int)numCards);
+    ret = (jint)adl_setNumChips(ADL_DEV, (int)numCards);
     pthread_mutex_unlock(&g_lock);
 
     return ret;
@@ -442,7 +442,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setNumFourOpsChn(
     (void)env; (void)instance;
 
     pthread_mutex_lock(&g_lock);
-    ret = (jint)adl_setNumFourOpsChn(ADLDEV, (int)ops4);
+    ret = (jint)adl_setNumFourOpsChn(ADL_DEV, (int)ops4);
     pthread_mutex_unlock(&g_lock);
 
     return ret;
@@ -481,7 +481,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setHVibrato(JNIEnv *env,
 {
     (void)env;(void)instance;
     pthread_mutex_lock(&g_lock);
-    adl_setHVibrato(ADLDEV, (int)hvibrato);
+    adl_setHVibrato(ADL_DEV, (int)hvibrato);
     pthread_mutex_unlock(&g_lock);
 }
 
@@ -494,7 +494,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setHTremolo(
 {
     (void)env;(void)instance;
     pthread_mutex_lock(&g_lock);
-    adl_setHTremolo(ADLDEV, (int)htremo);
+    adl_setHTremolo(ADL_DEV, (int)htremo);
     pthread_mutex_unlock(&g_lock);
 }
 
@@ -508,7 +508,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setScaleModulators(
 {
     (void)env;(void)instance;
     pthread_mutex_lock(&g_lock);
-    adl_setScaleModulators(ADLDEV, (int)smod);
+    adl_setScaleModulators(ADL_DEV, (int)smod);
     pthread_mutex_unlock(&g_lock);
 }
 
@@ -522,7 +522,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setLoopEnabled(
 {
     (void)env; (void)instance;
     pthread_mutex_lock(&g_lock);
-    adl_setLoopEnabled(ADLDEV, (int)loopEn);
+    adl_setLoopEnabled(ADL_DEV, (int)loopEn);
     pthread_mutex_unlock(&g_lock);
 }
 
@@ -541,7 +541,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1openBankFile(
 
     pthread_mutex_lock(&g_lock);
     file = (*env)->GetStringUTFChars(env, file_, NULL);
-    ret = adl_openBankFile(ADLDEV, (char*)file);
+    ret = adl_openBankFile(ADL_DEV, (char*)file);
     (*env)->ReleaseStringUTFChars(env, file_, file);
     pthread_mutex_unlock(&g_lock);
 
@@ -563,7 +563,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1openFile(
 
     pthread_mutex_lock(&g_lock);
     file = (*env)->GetStringUTFChars(env, file_, NULL);
-    ret = adl_openFile(ADLDEV, (char*)file);
+    ret = adl_openFile(ADL_DEV, (char*)file);
     (*env)->ReleaseStringUTFChars(env, file_, file);
     pthread_mutex_unlock(&g_lock);
 
@@ -587,7 +587,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1openData(
     pthread_mutex_lock(&g_lock);
     array = (*env)->GetByteArrayElements(env, array_, NULL);
     length =  (*env)->GetArrayLength(env, array_);
-    ret = adl_openData(ADLDEV, array, (unsigned long)(length));
+    ret = adl_openData(ADL_DEV, array, (unsigned long)(length));
     (*env)->ReleaseByteArrayElements(env, array_, array, 0);
     pthread_mutex_unlock(&g_lock);
 
@@ -603,7 +603,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1reset(
 {
     (void)env; (void)instance;
     pthread_mutex_lock(&g_lock);
-    adl_reset(ADLDEV);
+    adl_reset(ADL_DEV);
     pthread_mutex_unlock(&g_lock);
 }
 
@@ -616,7 +616,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1close(
 {
     (void)env; (void)instance;
     pthread_mutex_lock(&g_lock);
-    adl_close(ADLDEV);
+    adl_close(ADL_DEV);
     pthread_mutex_unlock(&g_lock);
 }
 
@@ -640,7 +640,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1play(
     buff = (*env)->GetShortArrayElements(env, buffer_, NULL);
     length = (*env)->GetArrayLength(env, buffer_);
     outBuff = (short*)(buff);
-    gotSamples = adl_play(ADLDEV, length, outBuff);
+    gotSamples = adl_play(ADL_DEV, length, outBuff);
     (*env)->ReleaseShortArrayElements(env, buffer_, buff, 0);
 
     pthread_mutex_unlock(&g_lock);
@@ -661,7 +661,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1positionTell(
     (void)env; (void)instance;
 
     pthread_mutex_lock(&g_lock);
-    ret = (jdouble)(adl_positionTell(ADLDEV));
+    ret = (jdouble)(adl_positionTell(ADL_DEV));
     pthread_mutex_unlock(&g_lock);
 
     return ret;
@@ -679,7 +679,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1totalTimeLength(
     (void)env; (void)instance;
 
     pthread_mutex_lock(&g_lock);
-    ret = (jdouble)(adl_totalTimeLength(ADLDEV));
+    ret = (jdouble)(adl_totalTimeLength(ADL_DEV));
     pthread_mutex_unlock(&g_lock);
 
     return ret;
@@ -695,7 +695,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1positionSeek(
 {
     (void)env; (void)instance;
     pthread_mutex_lock(&g_lock);
-    adl_positionSeek(ADLDEV, (double)seconds);
+    adl_positionSeek(ADL_DEV, (double)seconds);
     pthread_mutex_unlock(&g_lock);
 }
 
@@ -711,7 +711,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setBank(
 {
     (void)env; (void)instance;
     pthread_mutex_lock(&g_lock);
-    jint ret = (jint)(adl_setBank(ADLDEV, bank));
+    jint ret = (jint)(adl_setBank(ADL_DEV, bank));
     pthread_mutex_unlock(&g_lock);
     return ret;
 }
@@ -738,7 +738,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setVolumeRangeModel(
     (void)env; (void)instance;
 
     pthread_mutex_lock(&g_lock);
-    adl_setVolumeRangeModel(ADLDEV, (int)volumeModel);
+    adl_setVolumeRangeModel(ADL_DEV, (int)volumeModel);
     pthread_mutex_unlock(&g_lock);
 }
 
@@ -755,7 +755,7 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setRunAtPcmRate(
     (void)env; (void)instance;
 
     pthread_mutex_lock(&g_lock);
-    ret = (jint)adl_setRunAtPcmRate(ADLDEV, (int)enabled);
+    ret = (jint)adl_setRunAtPcmRate(ADL_DEV, (int)enabled);
     pthread_mutex_unlock(&g_lock);
 
     return ret;
@@ -771,6 +771,6 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setSoftPanEnabled(
 {
     (void)env; (void)instance;
     pthread_mutex_lock(&g_lock);
-    adl_setSoftPanEnabled(ADLDEV, (int)enabled);
+    adl_setSoftPanEnabled(ADL_DEV, (int)enabled);
     pthread_mutex_unlock(&g_lock);
 }
