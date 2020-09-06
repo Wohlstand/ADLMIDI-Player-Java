@@ -48,7 +48,6 @@ static SLObjectItf  outputMixObject;
 static SLObjectItf  bqPlayerObject = NULL;
 static SLPlayItf    bqPlayerPlay;
 static SLAndroidSimpleBufferQueueItf    bqPlayerBufferQueue;
-/*static SLMuteSoloItf                    bqPlayerMuteSolo;*/
 static SLVolumeItf                      bqPlayerVolume;
 #define BUFFER_SIZE 20480
 #define BUFFER_SIZE_IN_SAMPLES (BUFFER_SIZE / 2)
@@ -226,7 +225,6 @@ void OpenSLWrap_Shutdown()
         bqPlayerObject = NULL;
         bqPlayerPlay = NULL;
         bqPlayerBufferQueue = NULL;
-//        bqPlayerMuteSolo = NULL;
         bqPlayerVolume = NULL;
     }
 
