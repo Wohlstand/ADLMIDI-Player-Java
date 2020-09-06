@@ -34,7 +34,7 @@ target_link_libraries(ADLMIDI_IF INTERFACE ADLMIDI_static)
 
 add_library(
     # Sets the name of the library.
-    native-lib
+    adlmidi-jni
 
     # Sets the library as a shared library.
     SHARED
@@ -42,12 +42,12 @@ add_library(
     # Provides a relative path to your source file(s).
     # Associated headers in the same location as their source
     # file are automatically included.
-    src/main/cpp/native-lib.c
+    src/main/cpp/adlmidi-jni.c
 )
 
-target_link_libraries(native-lib ADLMIDI_IF)
-target_include_directories(native-lib PUBLIC src/main/cpp/include)
-add_dependencies(native-lib ADLMIDI_static)
+target_link_libraries(adlmidi-jni ADLMIDI_IF)
+target_include_directories(adlmidi-jni PUBLIC src/main/cpp/include)
+add_dependencies(adlmidi-jni ADLMIDI_static)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because system libraries are included in the search path by
@@ -69,7 +69,7 @@ find_library(
 
 target_link_libraries(
     # Specifies the target library.
-    native-lib
+    adlmidi-jni
     # Links the target library to the log library
     # included in the NDK.
     ${log-lib}
