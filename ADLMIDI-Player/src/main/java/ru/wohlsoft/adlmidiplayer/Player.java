@@ -263,7 +263,7 @@ public class Player extends AppCompatActivity
              * Volume model combo-box
              */
             Spinner sVolModel = (Spinner) findViewById(R.id.volumeRangesModel);
-            final String[] volumeModelItems =
+            final String[]vlumeModelItems =
             {
                 "[Auto]", "Generic", "CMF", "DMX", "Apogee",
                 "9X (SB16)", "DMX (Fixed AM)", "Apogee (Fixed AM)", "Audio Interfaces Library",
