@@ -26,4 +26,5 @@
     <string name="gain_factor">Фактор усиления</string>
     <string name="run_at_pcm_rate">Работа на PCM-частоте (Легче для ЦПУ)</string>
     <string name="emulatorType">Эмулятор OPL3</string>
+    <string name="noCustomBankLabel"><![CDATA[<Нет внешнего банка>]]></string>
 </resources>

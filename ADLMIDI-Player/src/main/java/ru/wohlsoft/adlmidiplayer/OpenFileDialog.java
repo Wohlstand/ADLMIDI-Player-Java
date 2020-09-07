@@ -9,7 +9,7 @@ import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
+//import android.os.Build;
 import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
@@ -21,6 +21,8 @@ import java.io.FilenameFilter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.*;
+
+import androidx.core.content.res.ResourcesCompat;
 
 
 /**
@@ -56,20 +58,19 @@ public class OpenFileDialog extends AlertDialog.Builder {
         public View getView(int position, View convertView, ViewGroup parent) {
             TextView view = (TextView) super.getView(position, convertView, parent);
             File file = getItem(position);
-            if (view != null) {
-                view.setText(file.getName());
-                if (file.isDirectory()) {
-                    setDrawable(view, folderIcon);
-                    view.setTextColor(Color.DKGRAY);
+            assert file != null;
+            view.setText(file.getName());
+            if (file.isDirectory()) {
+                setDrawable(view, folderIcon);
+                view.setTextColor(Color.DKGRAY);
+                view.setBackgroundColor(Color.LTGRAY);
+            } else {
+                setDrawable(view, fileIcon);
+                view.setTextColor(Color.BLACK);
+                if (selectedIndex == position)
                     view.setBackgroundColor(Color.LTGRAY);
-                } else {
-                    setDrawable(view, fileIcon);
-                    view.setTextColor(Color.BLACK);
-                    if (selectedIndex == position)
-                        view.setBackgroundColor(Color.LTGRAY);
-                    else
-                        view.setBackgroundColor(Color.WHITE);
-                }
+                else
+                    view.setBackgroundColor(Color.WHITE);
             }
             return view;
         }
@@ -163,11 +164,11 @@ public class OpenFileDialog extends AlertDialog.Builder {
 
     private static Point getScreenSize(Context context) {
         Point screeSize = new Point();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
-            getDefaultDisplay(context).getSize(screeSize);
-        } else {
-            screeSize.set( getDefaultDisplay(context).getWidth(), getDefaultDisplay(context).getHeight() );
-        }
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
+        getDefaultDisplay(context).getSize(screeSize);
+//        } else {
+//            screeSize.set( getDefaultDisplay(context).getWidth(), getDefaultDisplay(context).getHeight() );
+//        }
         return screeSize;
     }
 
@@ -202,18 +203,18 @@ public class OpenFileDialog extends AlertDialog.Builder {
     }
 
     private TextView createTitle(Context context) {
-        TextView textView = createTextView(context, android.R.style.TextAppearance_DeviceDefault_DialogWindowTitle);
-        return textView;
+        return createTextView(context, android.R.style.TextAppearance_DeviceDefault_DialogWindowTitle);
     }
 
     private TextView createBackItem(Context context) {
         TextView textView = createTextView(context, android.R.style.TextAppearance_DeviceDefault_Small);
-        Drawable drawable = null;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            drawable = getContext().getResources().getDrawable(android.R.drawable.ic_menu_directions, context.getTheme());
-        } else {
-            drawable = getContext().getResources().getDrawable(android.R.drawable.ic_menu_directions);
-        }
+        Drawable drawable = ResourcesCompat.getDrawable(getContext().getResources(), android.R.drawable.ic_menu_directions, context.getTheme());
+//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+//            drawable = getContext().getResources().getDrawable(android.R.drawable.ic_menu_directions, context.getTheme());
+//        } else {
+//            drawable = getContext().getResources().getDrawable(android.R.drawable.ic_menu_directions);
+//        }
+        assert drawable != null;
         drawable.setBounds(0, 0, 60, 60);
         textView.setCompoundDrawables(drawable, null, null, null);
         textView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -264,12 +265,12 @@ public class OpenFileDialog extends AlertDialog.Builder {
         Collections.sort(fileList, new Comparator<File>() {
             @Override
             public int compare(File file, File file2) {
-                if (file.isDirectory() && file2.isFile())
-                    return -1;
-                else if (file.isFile() && file2.isDirectory())
-                    return 1;
-                else
-                    return file.getPath().compareToIgnoreCase(file2.getPath());
+            if (file.isDirectory() && file2.isFile())
+                return -1;
+            else if (file.isFile() && file2.isDirectory())
+                return 1;
+            else
+                return file.getPath().compareToIgnoreCase(file2.getPath());
             }
         });
         return fileList;
@@ -297,18 +298,19 @@ public class OpenFileDialog extends AlertDialog.Builder {
 
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int index, long l) {
-                final ArrayAdapter<File> adapter = (FileAdapter) adapterView.getAdapter();
-                File file = adapter.getItem(index);
-                if (file.isDirectory()) {
-                    currentPath = file.getPath();
-                    RebuildFiles(adapter);
-                } else {
-                    if (index != selectedIndex)
-                        selectedIndex = index;
-                    else
-                        selectedIndex = -1;
-                    adapter.notifyDataSetChanged();
-                }
+            final ArrayAdapter<File> adapter = (FileAdapter) adapterView.getAdapter();
+            File file = adapter.getItem(index);
+            assert file != null;
+            if (file.isDirectory()) {
+                currentPath = file.getPath();
+                RebuildFiles(adapter);
+            } else {
+                if (index != selectedIndex)
+                    selectedIndex = index;
+                else
+                    selectedIndex = -1;
+                adapter.notifyDataSetChanged();
+            }
             }
         });
         return listView;
