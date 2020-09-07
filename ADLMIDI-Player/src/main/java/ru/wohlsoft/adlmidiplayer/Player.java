@@ -66,11 +66,12 @@ public class Player extends AppCompatActivity
     private int                 m_chipsCount = 2;
     private int                 m_fourOpsCount = -1;
 
-    private BroadcastReceiver mBroadcastReceiver= new BroadcastReceiver() {
+    private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String intentType = intent.getStringExtra("INTENT_TYPE");
-            if(intentType.equalsIgnoreCase("SEEKBAR_RESULT")){
+            assert intentType != null;
+            if(intentType.equalsIgnoreCase("SEEKBAR_RESULT")) {
                 int percentage = intent.getIntExtra("PERCENTAGE", -1);
                 SeekBar musPos = findViewById(R.id.musPos);
                 if(percentage >= 0)
