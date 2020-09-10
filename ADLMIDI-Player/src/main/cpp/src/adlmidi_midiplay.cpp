@@ -27,7 +27,7 @@
 #include "midi_sequencer.hpp"
 
 // Minimum life time of percussion notes
-static const double drum_note_min_time = 0.03;
+static const double s_drum_note_min_time = 0.03;
 
 
 // Standard frequency formula
@@ -37,7 +37,7 @@ static inline double s_commonFreq(double note, double bend)
 }
 
 // DMX volumes table
-static const uint_fast32_t dmx_freq_table[] =
+static const int_fast32_t s_dmx_freq_table[] =
 {
     0x0133, 0x0133, 0x0134, 0x0134, 0x0135, 0x0136, 0x0136, 0x0137,
     0x0137, 0x0138, 0x0138, 0x0139, 0x0139, 0x013A, 0x013B, 0x013B,
@@ -171,7 +171,7 @@ static inline double s_dmxFreq(double note, double bend)
         freqIndex = (freqIndex % 384) + 284;
     }
 
-    outHz = (int_fast32_t)(dmx_freq_table[freqIndex]);
+    outHz = s_dmx_freq_table[freqIndex];
 
     while(oct > 1)
     {
@@ -183,7 +183,7 @@ static inline double s_dmxFreq(double note, double bend)
 }
 
 
-static const unsigned apogee_freq_table[31 + 1][12] =
+static const int_fast32_t s_apogee_freq_table[31 + 1][12] =
 {
     { 0x157, 0x16b, 0x181, 0x198, 0x1b0, 0x1ca, 0x1e5, 0x202, 0x220, 0x241, 0x263, 0x287 },
     { 0x157, 0x16b, 0x181, 0x198, 0x1b0, 0x1ca, 0x1e5, 0x202, 0x220, 0x242, 0x264, 0x288 },
@@ -237,7 +237,7 @@ static inline double s_apogeeFreq(double note, double bend)
     scaleNote = noteI % 12;
     octave = noteI / 12;
 
-    outHz = apogee_freq_table[bendI % 32][scaleNote];
+    outHz = s_apogee_freq_table[bendI % 32][scaleNote];
 
     while(octave > 1)
     {
@@ -248,24 +248,193 @@ static inline double s_apogeeFreq(double note, double bend)
     return (double)outHz;
 }
 
+//static const double s_9x_opl_samplerate = 50000.0;
+//static const double s_9x_opl_tune = 440.0;
+static const uint_fast8_t s_9x_opl_pitchfrac = 8;
 
-//static const char MIDIsymbols[256+1] =
-//"PPPPPPhcckmvmxbd"  // Ins  0-15
-//"oooooahoGGGGGGGG"  // Ins 16-31
-//"BBBBBBBBVVVVVHHM"  // Ins 32-47
-//"SSSSOOOcTTTTTTTT"  // Ins 48-63
-//"XXXXTTTFFFFFFFFF"  // Ins 64-79
-//"LLLLLLLLpppppppp"  // Ins 80-95
-//"XXXXXXXXGGGGGTSS"  // Ins 96-111
-//"bbbbMMMcGXXXXXXX"  // Ins 112-127
-//"????????????????"  // Prc 0-15
-//"????????????????"  // Prc 16-31
-//"???DDshMhhhCCCbM"  // Prc 32-47
-//"CBDMMDDDMMDDDDDD"  // Prc 48-63
-//"DDDDDDDDDDDDDDDD"  // Prc 64-79
-//"DD??????????????"  // Prc 80-95
-//"????????????????"  // Prc 96-111
-//"????????????????"; // Prc 112-127
+static const uint_fast32_t s_9x_opl_freq[12] =
+{
+    0xAB7, 0xB5A, 0xC07, 0xCBE, 0xD80, 0xE4D, 0xF27, 0x100E, 0x1102, 0x1205, 0x1318, 0x143A
+};
+
+static const int32_t s_9x_opl_uppitch = 31;
+static const int32_t s_9x_opl_downpitch = 27;
+
+static uint_fast32_t s_9x_opl_applypitch(uint_fast32_t freq, int_fast32_t pitch)
+{
+    int32_t diff;
+
+    if(pitch > 0)
+    {
+        diff = (pitch * s_9x_opl_uppitch) >> s_9x_opl_pitchfrac;
+        freq += (diff * freq) >> 15;
+    }
+    else if (pitch < 0)
+    {
+        diff = (-pitch * s_9x_opl_downpitch) >> s_9x_opl_pitchfrac;
+        freq -= (diff * freq) >> 15;
+    }
+
+    return freq;
+}
+
+static inline double s_9xFreq(double noteD, double bendD)
+{
+    uint_fast32_t note = (uint_fast32_t)(noteD + 0.5);
+    int_fast32_t bend;
+    double bendDec = bendD - (int)bendD; // 0.0 ± 1.0 - one halftone
+
+    uint_fast32_t freq;
+    uint_fast32_t freqpitched;
+    uint_fast32_t octave;
+
+    uint_fast32_t bendMsb;
+    uint_fast32_t bendLsb;
+
+    note += (int)bendD;
+    bend = (int_fast32_t)(bendDec * 4096) + 8192; // convert to MIDI standard value
+
+    bendMsb = (bend >> 7) & 0x7F;
+    bendLsb = (bend & 0x7F);
+
+    bend = (bendMsb << 9) | (bendLsb << 2);
+    bend = (int16_t)(uint16_t)(bend + 0x8000);
+
+    octave = note / 12;
+    freq = s_9x_opl_freq[note % 12];
+    if(octave < 5)
+        freq >>= (5 - octave);
+    else if (octave > 5)
+        freq <<= (octave - 5);
+
+    freqpitched = s_9x_opl_applypitch(freq, bend);
+    freqpitched *= 2;
+
+    return (double)freqpitched;
+}
+
+const size_t s_hmi_freqtable_size = 103;
+static uint_fast32_t s_hmi_freqtable[s_hmi_freqtable_size] =
+{
+    0x0157, 0x016B, 0x0181, 0x0198, 0x01B0, 0x01CA, 0x01E5, 0x0202, 0x0220, 0x0241, 0x0263, 0x0287,
+    0x0557, 0x056B, 0x0581, 0x0598, 0x05B0, 0x05CA, 0x05E5, 0x0602, 0x0620, 0x0641, 0x0663, 0x0687,
+    0x0957, 0x096B, 0x0981, 0x0998, 0x09B0, 0x09CA, 0x09E5, 0x0A02, 0x0A20, 0x0A41, 0x0A63, 0x0A87,
+    0x0D57, 0x0D6B, 0x0D81, 0x0D98, 0x0DB0, 0x0DCA, 0x0DE5, 0x0E02, 0x0E20, 0x0E41, 0x0E63, 0x0E87,
+    0x1157, 0x116B, 0x1181, 0x1198, 0x11B0, 0x11CA, 0x11E5, 0x1202, 0x1220, 0x1241, 0x1263, 0x1287,
+    0x1557, 0x156B, 0x1581, 0x1598, 0x15B0, 0x15CA, 0x15E5, 0x1602, 0x1620, 0x1641, 0x1663, 0x1687,
+    0x1957, 0x196B, 0x1981, 0x1998, 0x19B0, 0x19CA, 0x19E5, 0x1A02, 0x1A20, 0x1A41, 0x1A63, 0x1A87,
+    0x1D57, 0x1D6B, 0x1D81, 0x1D98, 0x1DB0, 0x1DCA, 0x1DE5, 0x1E02, 0x1E20, 0x1E41, 0x1E63, 0x1E87,
+    0x1EAE, 0x1EB7, 0x1F02, 0x1F30, 0x1F60, 0x1F94, 0x1FCA
+};
+
+const size_t s_hmi_bendtable_size = 12;
+static uint32_t s_hmi_bendtable[s_hmi_bendtable_size] =
+{
+    0x144, 0x132, 0x121, 0x110, 0x101, 0xf8, 0xe5, 0xd8, 0xcc, 0xc1, 0xb6, 0xac
+};
+
+#define hmi_range_assert(formula, maxVal) assert((formula) >= 0 && (formula) < maxVal)
+
+static uint32_t s_hmi_bend_calc(uint32_t bend, uint32_t note)
+{
+    const uint32_t midi_bend_range = 1;
+    uint32_t noteMod12, bendFactor, outFreq, fmOctave, fmFreq, newFreq;
+
+    note -= 12;
+//    while(doNote >= 12) // ugly way to MOD 12
+//        doNote -= 12;
+    noteMod12 = (note % 12);
+
+    outFreq = s_hmi_freqtable[note];
+
+    fmOctave = outFreq & 0x1c00;
+    fmFreq = outFreq & 0x3ff;
+
+    if(bend < 64)
+    {
+        bendFactor = ((63 - bend) * 1000) >> 6;
+
+        hmi_range_assert(note - midi_bend_range, s_hmi_freqtable_size);
+        hmi_range_assert(midi_bend_range - 1, s_hmi_bendtable_size);
+
+        newFreq = outFreq - s_hmi_freqtable[note - midi_bend_range];
+        if(newFreq > 719)
+        {
+            newFreq = fmFreq - s_hmi_bendtable[midi_bend_range - 1];
+            newFreq &= 0x3ff;
+        }
+        newFreq = (newFreq * bendFactor) / 1000;
+        outFreq -= newFreq;
+    }
+    else
+    {
+        bendFactor = ((bend - 64) * 1000) >> 6;
+
+        hmi_range_assert(note + midi_bend_range, s_hmi_freqtable_size);
+        hmi_range_assert(11 - noteMod12, s_hmi_bendtable_size);
+
+        newFreq = s_hmi_freqtable[note + midi_bend_range] - outFreq;
+        if(newFreq > 719)
+        {
+            fmFreq = s_hmi_bendtable[11 - noteMod12];
+            outFreq = (fmOctave + 1024) | fmFreq;
+            newFreq = s_hmi_freqtable[note + midi_bend_range] - outFreq;
+        }
+        newFreq = (newFreq * bendFactor) / 1000;
+        outFreq += newFreq;
+    }
+
+    return outFreq;
+}
+
+#undef hmi_range_assert
+
+static inline double s_hmiFreq(double noteD, double bendD)
+{
+    int_fast32_t note = (int_fast32_t)(noteD + 0.5);
+    double bendDec = bendD - (int)bendD; // 0.0 ± 1.0 - one halftone
+    int_fast32_t bend;
+    uint_fast32_t inFreq;
+    uint_fast32_t freq;
+    int_fast32_t octave;
+    int_fast32_t octaveOffset = 0;
+
+    note += (int)bendD;
+
+    bend = (int_fast32_t)(bendDec * 64.0) + 64;
+
+    while(note < 12)
+    {
+        octaveOffset--;
+        note += 12;
+    }
+    while(note > 114)
+    {
+        octaveOffset++;
+        note -= 12;
+    }
+
+    if(bend == 64)
+        inFreq = s_hmi_freqtable[note - 12];
+    else
+        inFreq = s_hmi_bend_calc(bend, note);
+
+    freq = inFreq & 0x3FF;
+    octave = (inFreq >> 10) & 0x07;
+
+    octave += octaveOffset;
+
+    while(octave > 0)
+    {
+        freq *= 2;
+        octave -= 1;
+    }
+
+    return freq;
+}
+
+
+
 
 enum { MasterVolumeDefault = 127 };
 
@@ -849,7 +1018,7 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     // Enable life time extension on percussion note
     if (isPercussion)
     {
-        ni.ttl = drum_note_min_time;
+        ni.ttl = s_drum_note_min_time;
         ++midiChan.extended_note_count;
     }
 
@@ -1539,20 +1708,32 @@ void MIDIplay::noteUpdate(size_t midCh,
                 if(vibrato && (d.is_end() || d->value.vibdelay_us >= chan.vibdelay_us))
                     bend += static_cast<double>(vibrato) * chan.vibdepth * std::sin(chan.vibpos);
 
+                bend += phase;
+
+                // Use different frequency formulas in depend on a volume model
                 switch(synth.m_volumeScale)
                 {
                 case Synth::VOLUME_DMX:
                 case Synth::VOLUME_DMX_FIXED:
-                    finalFreq = s_dmxFreq(currentTone, bend + phase);
+                    finalFreq = s_dmxFreq(currentTone, bend);
                     break;
 
                 case Synth::VOLUME_APOGEE:
                 case Synth::VOLUME_APOGEE_FIXED:
-                    finalFreq = s_apogeeFreq(currentTone, bend + phase);
+                    finalFreq = s_apogeeFreq(currentTone, bend);
+                    break;
+
+                case Synth::VOLUME_9X:
+                case Synth::VOLUME_9X_GENERIC_FM:
+                    finalFreq = s_9xFreq(currentTone, bend);
+                    break;
+
+                case Synth::VOLUME_HMI:
+                    finalFreq = s_hmiFreq(currentTone, bend);
                     break;
 
                 default:
-                    finalFreq = s_commonFreq(currentTone, bend + phase);
+                    finalFreq = s_commonFreq(currentTone, bend);
                 }
 
                 synth.noteOn(c, c_slave, finalFreq);
@@ -1600,14 +1781,25 @@ int64_t MIDIplay::calculateChipChannelGoodness(size_t c, const MIDIchannel::Note
     // Rate channel with a releasing note
     if(s < 0 && chan.users.empty())
     {
+        bool isSame = (chan.recent_ins == ins);
         s -= 40000;
+
         // If it's same instrument, better chance to get it when no free channels
-        if(chan.recent_ins == ins && synth.m_musicMode == Synth::MODE_CMF)
-            s = 0; // Re-use releasing channel with the same instrument
+        if(synth.m_musicMode == Synth::MODE_CMF)
+        {
+            if(isSame)
+                s = 0; // Re-use releasing channel with the same instrument
+        }
         else if(synth.m_volumeScale == Synth::VOLUME_HMI)
+        {
             s = 0; // HMI doesn't care about the same instrument
-        else if(chan.recent_ins == ins)
-            s =  -koff_ms; // Wait until releasing sound will complete
+        }
+        else
+        {
+            if(isSame)
+                s =  -koff_ms; // Wait until releasing sound will complete
+        }
+
         return s;
     }
 
