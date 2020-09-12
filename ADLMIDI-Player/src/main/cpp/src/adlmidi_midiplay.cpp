@@ -30,11 +30,23 @@
 static const double s_drum_note_min_time = 0.03;
 
 
-// Standard frequency formula
+
+
+/***************************************************************
+ *               Standard frequency formula                    *
+ * *************************************************************/
+
 static inline double s_commonFreq(double note, double bend)
 {
     return BEND_COEFFICIENT * std::exp(0.057762265 * (note + bend));
 }
+
+
+
+
+/***************************************************************
+ *                   DMX frequency model                       *
+ * *************************************************************/
 
 // DMX volumes table
 static const int_fast32_t s_dmx_freq_table[] =
@@ -183,6 +195,12 @@ static inline double s_dmxFreq(double note, double bend)
 }
 
 
+
+
+/***************************************************************
+ *             Apogee Sound System frequency model             *
+ ***************************************************************/
+
 static const int_fast32_t s_apogee_freq_table[31 + 1][12] =
 {
     { 0x157, 0x16b, 0x181, 0x198, 0x1b0, 0x1ca, 0x1e5, 0x202, 0x220, 0x241, 0x263, 0x287 },
@@ -247,6 +265,13 @@ static inline double s_apogeeFreq(double note, double bend)
 
     return (double)outHz;
 }
+
+
+
+
+/***************************************************************
+ *            Windows 9x FM drivers frequency model            *
+ ***************************************************************/
 
 //static const double s_9x_opl_samplerate = 50000.0;
 //static const double s_9x_opl_tune = 440.0;
@@ -313,6 +338,13 @@ static inline double s_9xFreq(double noteD, double bendD)
     return (double)freqpitched;
 }
 
+
+
+
+/***************************************************************
+ *         HMI Sound Operating System frequency model          *
+ ***************************************************************/
+
 const size_t s_hmi_freqtable_size = 103;
 static uint_fast32_t s_hmi_freqtable[s_hmi_freqtable_size] =
 {
@@ -328,17 +360,27 @@ static uint_fast32_t s_hmi_freqtable[s_hmi_freqtable_size] =
 };
 
 const size_t s_hmi_bendtable_size = 12;
-static uint32_t s_hmi_bendtable[s_hmi_bendtable_size] =
+static uint_fast32_t s_hmi_bendtable[s_hmi_bendtable_size] =
 {
     0x144, 0x132, 0x121, 0x110, 0x101, 0xf8, 0xe5, 0xd8, 0xcc, 0xc1, 0xb6, 0xac
 };
 
-#define hmi_range_assert(formula, maxVal) assert((formula) >= 0 && (formula) < maxVal)
+#define hmi_range_fix(formula, maxVal) \
+    ( \
+        (formula) < 0 ? \
+        0 : \
+        ( \
+            (formula) >= (int32_t)maxVal ? \
+            (int32_t)maxVal : \
+            (formula) \
+        )\
+    )
 
-static uint32_t s_hmi_bend_calc(uint32_t bend, uint32_t note)
+static uint_fast32_t s_hmi_bend_calc(uint_fast32_t bend, int_fast32_t note)
 {
-    const uint32_t midi_bend_range = 1;
-    uint32_t noteMod12, bendFactor, outFreq, fmOctave, fmFreq, newFreq;
+    const int_fast32_t midi_bend_range = 1;
+    uint_fast32_t bendFactor, outFreq, fmOctave, fmFreq, newFreq, idx;
+    int_fast32_t noteMod12;
 
     note -= 12;
 //    while(doNote >= 12) // ugly way to MOD 12
@@ -354,15 +396,15 @@ static uint32_t s_hmi_bend_calc(uint32_t bend, uint32_t note)
     {
         bendFactor = ((63 - bend) * 1000) >> 6;
 
-        hmi_range_assert(note - midi_bend_range, s_hmi_freqtable_size);
-        hmi_range_assert(midi_bend_range - 1, s_hmi_bendtable_size);
+        idx = hmi_range_fix(note - midi_bend_range, s_hmi_freqtable_size);
+        newFreq = outFreq - s_hmi_freqtable[idx];
 
-        newFreq = outFreq - s_hmi_freqtable[note - midi_bend_range];
         if(newFreq > 719)
         {
             newFreq = fmFreq - s_hmi_bendtable[midi_bend_range - 1];
             newFreq &= 0x3ff;
         }
+
         newFreq = (newFreq * bendFactor) / 1000;
         outFreq -= newFreq;
     }
@@ -370,24 +412,26 @@ static uint32_t s_hmi_bend_calc(uint32_t bend, uint32_t note)
     {
         bendFactor = ((bend - 64) * 1000) >> 6;
 
-        hmi_range_assert(note + midi_bend_range, s_hmi_freqtable_size);
-        hmi_range_assert(11 - noteMod12, s_hmi_bendtable_size);
+        idx = hmi_range_fix(note + midi_bend_range, s_hmi_freqtable_size);
+        newFreq = s_hmi_freqtable[idx] - outFreq;
 
-        newFreq = s_hmi_freqtable[note + midi_bend_range] - outFreq;
         if(newFreq > 719)
         {
-            fmFreq = s_hmi_bendtable[11 - noteMod12];
+            idx = hmi_range_fix(11 - noteMod12, s_hmi_bendtable_size);
+            fmFreq = s_hmi_bendtable[idx];
             outFreq = (fmOctave + 1024) | fmFreq;
-            newFreq = s_hmi_freqtable[note + midi_bend_range] - outFreq;
+
+            idx = hmi_range_fix(note + midi_bend_range, s_hmi_freqtable_size);
+            newFreq = s_hmi_freqtable[idx] - outFreq;
         }
+
         newFreq = (newFreq * bendFactor) / 1000;
         outFreq += newFreq;
     }
 
     return outFreq;
 }
-
-#undef hmi_range_assert
+#undef hmi_range_fix
 
 static inline double s_hmiFreq(double noteD, double bendD)
 {
@@ -421,6 +465,132 @@ static inline double s_hmiFreq(double noteD, double bendD)
 
     freq = inFreq & 0x3FF;
     octave = (inFreq >> 10) & 0x07;
+
+    octave += octaveOffset;
+
+    while(octave > 0)
+    {
+        freq *= 2;
+        octave -= 1;
+    }
+
+    return freq;
+}
+
+
+
+
+/***************************************************************
+ *          Audio Interface Library frequency model            *
+ ***************************************************************/
+
+static const uint_fast16_t mo_freqtable[] = {
+    0x02b2, 0x02b4, 0x02b7, 0x02b9, 0x02bc, 0x02be, 0x02c1, 0x02c3,
+    0x02c6, 0x02c9, 0x02cb, 0x02ce, 0x02d0, 0x02d3, 0x02d6, 0x02d8,
+    0x02db, 0x02dd, 0x02e0, 0x02e3, 0x02e5, 0x02e8, 0x02eb, 0x02ed,
+    0x02f0, 0x02f3, 0x02f6, 0x02f8, 0x02fb, 0x02fe, 0x0301, 0x0303,
+    0x0306, 0x0309, 0x030c, 0x030f, 0x0311, 0x0314, 0x0317, 0x031a,
+    0x031d, 0x0320, 0x0323, 0x0326, 0x0329, 0x032b, 0x032e, 0x0331,
+    0x0334, 0x0337, 0x033a, 0x033d, 0x0340, 0x0343, 0x0346, 0x0349,
+    0x034c, 0x034f, 0x0352, 0x0356, 0x0359, 0x035c, 0x035f, 0x0362,
+    0x0365, 0x0368, 0x036b, 0x036f, 0x0372, 0x0375, 0x0378, 0x037b,
+    0x037f, 0x0382, 0x0385, 0x0388, 0x038c, 0x038f, 0x0392, 0x0395,
+    0x0399, 0x039c, 0x039f, 0x03a3, 0x03a6, 0x03a9, 0x03ad, 0x03b0,
+    0x03b4, 0x03b7, 0x03bb, 0x03be, 0x03c1, 0x03c5, 0x03c8, 0x03cc,
+    0x03cf, 0x03d3, 0x03d7, 0x03da, 0x03de, 0x03e1, 0x03e5, 0x03e8,
+    0x03ec, 0x03f0, 0x03f3, 0x03f7, 0x03fb, 0x03fe, 0xfe01, 0xfe03,
+    0xfe05, 0xfe07, 0xfe08, 0xfe0a, 0xfe0c, 0xfe0e, 0xfe10, 0xfe12,
+    0xfe14, 0xfe16, 0xfe18, 0xfe1a, 0xfe1c, 0xfe1e, 0xfe20, 0xfe21,
+    0xfe23, 0xfe25, 0xfe27, 0xfe29, 0xfe2b, 0xfe2d, 0xfe2f, 0xfe31,
+    0xfe34, 0xfe36, 0xfe38, 0xfe3a, 0xfe3c, 0xfe3e, 0xfe40, 0xfe42,
+    0xfe44, 0xfe46, 0xfe48, 0xfe4a, 0xfe4c, 0xfe4f, 0xfe51, 0xfe53,
+    0xfe55, 0xfe57, 0xfe59, 0xfe5c, 0xfe5e, 0xfe60, 0xfe62, 0xfe64,
+    0xfe67, 0xfe69, 0xfe6b, 0xfe6d, 0xfe6f, 0xfe72, 0xfe74, 0xfe76,
+    0xfe79, 0xfe7b, 0xfe7d, 0xfe7f, 0xfe82, 0xfe84, 0xfe86, 0xfe89,
+    0xfe8b, 0xfe8d, 0xfe90, 0xfe92, 0xfe95, 0xfe97, 0xfe99, 0xfe9c,
+    0xfe9e, 0xfea1, 0xfea3, 0xfea5, 0xfea8, 0xfeaa, 0xfead, 0xfeaf
+};
+
+static const uint_fast8_t mo_note_octave[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01,
+    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+    0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+    0x02, 0x02, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03,
+    0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,
+    0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
+    0x04, 0x04, 0x04, 0x04, 0x05, 0x05, 0x05, 0x05,
+    0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+    0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
+    0x06, 0x06, 0x06, 0x06, 0x07, 0x07, 0x07, 0x07,
+    0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07
+};
+
+static const uint_fast8_t mo_note_halftone[] = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x00, 0x01, 0x02, 0x03,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x00, 0x01, 0x02, 0x03,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x00, 0x01, 0x02, 0x03,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x00, 0x01, 0x02, 0x03,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b
+};
+
+static inline double s_ailFreq(double noteD, double bendD)
+{
+    int_fast32_t note = (int_fast32_t)(noteD + 0.5);
+    double bendDec = bendD - (int)bendD; // 0.0 ± 1.0 - one halftone
+    int_fast32_t pitch;
+    uint_fast16_t freq;
+    int_fast32_t octave;
+    int_fast32_t octaveOffset = 0;
+    uint_fast8_t halftones;
+
+    note += (int)bendD;
+    pitch = (int_fast32_t)(bendDec * 4096) + 8192; // convert to MIDI standard value
+    pitch = ((pitch - 0x2000) / 0x20) * 2;
+
+    note -= 12;
+
+    while(note < 0)
+    {
+        octaveOffset--;
+        note += 12;
+    }
+    while(note > 95)
+    {
+        octaveOffset++;
+        note -= 12;
+    }
+
+    pitch += (((uint_fast8_t)note) << 8) + 8;
+    pitch /= 16;
+    while (pitch < 12 * 16) {
+        pitch += 12 * 16;
+    }
+    while (pitch > 96 * 16 - 1) {
+        pitch -= 12 * 16;
+    }
+
+    halftones = (mo_note_halftone[pitch >> 4] << 4) + (pitch & 0x0f);
+    freq = mo_freqtable[halftones];
+    octave = mo_note_octave[pitch >> 4];
+
+    if((freq & 0x8000) == 0)
+    {
+        if (octave > 0) {
+            octave--;
+        } else {
+            freq /= 2;
+        }
+    }
+
+    freq &= 0x3FF;
 
     octave += octaveOffset;
 
@@ -1730,6 +1900,10 @@ void MIDIplay::noteUpdate(size_t midCh,
 
                 case Synth::VOLUME_HMI:
                     finalFreq = s_hmiFreq(currentTone, bend);
+                    break;
+
+                case Synth::VOLUME_AIL:
+                    finalFreq = s_ailFreq(currentTone, bend);
                     break;
 
                 default:
