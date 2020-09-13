@@ -258,12 +258,12 @@ public class PlayerService extends Service {
         // Make head-up notification.
         builder.setFullScreenIntent(pendingIntent, m_isRunning);
 
-        if(m_isRunning) {
-            Intent openUI = new Intent(getApplicationContext(), Player.class);
-            openUI.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            PendingIntent pendingOpenUiIntent = PendingIntent.getActivity(getApplicationContext(), 0, openUI, 0);
-            builder.setContentIntent(pendingOpenUiIntent);
+        Intent openUI = new Intent(getApplicationContext(), Player.class);
+        openUI.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent pendingOpenUiIntent = PendingIntent.getActivity(getApplicationContext(), 0, openUI, 0);
+        builder.setContentIntent(pendingOpenUiIntent);
 
+        if(m_isRunning) {
             // Add Play button intent in notification.
             Intent playIntent = new Intent(this, PlayerService.class);
             playIntent.setAction(ACTION_PLAY);
