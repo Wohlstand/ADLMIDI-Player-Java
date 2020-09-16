@@ -27,7 +27,7 @@ public class PlayerService extends Service {
     private static final String NOTIFICATION_ID = "ADLMIDI-Player";
     final String LOG_TAG = "PlayerService";
 
-    private SharedPreferences   m_setup = null;
+    private PlayerSetup m_setup = new PlayerSetup();
 
 //    private static final String TAG_FOREGROUND_SERVICE = "FOREGROUND_SERVICE";
 
@@ -51,22 +51,22 @@ public class PlayerService extends Service {
     private String              m_lastErrorString = "";
 
     private String              m_lastFile = "";
-    private boolean             m_useCustomBank = false;
-    private String              m_lastBankPath = "";
-    private int                 m_ADL_bank = 58;
-    private int                 m_ADL_tremolo = -1;
-    private int                 m_ADL_vibrato = -1;
-    private int                 m_ADL_scalable = -1;
-    private int                 m_ADL_softPanEnabled = 0;
+//    private boolean             m_useCustomBank = false;
+//    private String              m_lastBankPath = "";
+//    private int                 m_ADL_bank = 58;
+//    private int                 m_ADL_tremolo = -1;
+//    private int                 m_ADL_vibrato = -1;
+//    private int                 m_ADL_scalable = -1;
+//    private int                 m_ADL_softPanEnabled = 0;
     // Default 1 for performance reasons
-    private int                 m_ADL_runAtPcmRate = 1;
+//    private int                 m_ADL_runAtPcmRate = 1;
 
-    private int                 m_ADL_emulator = 2; // 2 is DosBox
-    private int                 m_adl_numChips = 2;
-    private int                 m_ADL_num4opChannels = -1;
-    private int                 m_ADL_volumeModel = 0;
+//    private int                 m_ADL_emulator = 2; // 2 is DosBox
+//    private int                 m_adl_numChips = 2;
+//    private int                 m_ADL_num4opChannels = -1;
+//    private int                 m_ADL_volumeModel = 0;
 
-    private double              m_gainingLevel = 2.0;
+//    private double              m_gainingLevel = 2.0;
 
     //! Cache of previously sent seek position
     private int                 m_lastSeekPosition = -1;
@@ -297,24 +297,9 @@ public class PlayerService extends Service {
 
     public void loadSetup(SharedPreferences setup)
     {
-        m_setup = setup;
+        m_setup.setSetup(setup);
         if(!m_isInit) {
             m_isInit = true;
-            m_useCustomBank = setup.getBoolean("useCustomBank", m_useCustomBank);
-            m_lastBankPath = setup.getString("lastBankPath", m_lastBankPath);
-            m_ADL_bank = setup.getInt("adlBank", m_ADL_bank);
-            m_ADL_tremolo = setup.getBoolean("flagTremolo", m_ADL_tremolo > 0) ? 1 : -1;
-            m_ADL_vibrato = setup.getBoolean("flagVibrato", m_ADL_vibrato > 0) ? 1 : -1;
-            m_ADL_scalable = setup.getBoolean("flagScalable", m_ADL_scalable > 0) ? 1 : -1;
-            m_ADL_softPanEnabled = setup.getBoolean("flagSoftPan", m_ADL_softPanEnabled > 0) ? 1 : 0;
-            m_ADL_runAtPcmRate = setup.getBoolean("flagRunAtPcmRate", m_ADL_runAtPcmRate > 0) ? 1 : 0;
-
-            m_ADL_emulator = setup.getInt("emulator", m_ADL_emulator);
-            m_adl_numChips = setup.getInt("numChips", m_adl_numChips);
-            m_ADL_num4opChannels = setup.getInt("num4opChannels", m_ADL_num4opChannels);
-            m_ADL_volumeModel = setup.getInt("volumeModel", m_ADL_volumeModel);
-
-            m_gainingLevel = (double)setup.getFloat("gaining", (float)m_gainingLevel);
         }
     }
 
@@ -335,7 +320,7 @@ public class PlayerService extends Service {
     public boolean initPlayer()
     {
         if(MIDIDevice == 0) { //Create context when it wasn't created
-            setGaining(m_gainingLevel);
+            setGaining(m_setup.m_gainingLevel);
             MIDIDevice = adl_init(44100);
         }
         if(MIDIDevice == 0) {
@@ -352,10 +337,10 @@ public class PlayerService extends Service {
             return false;
         }
 
-        if(m_lastBankPath.isEmpty() || !m_useCustomBank) {
-            adl_setBank(MIDIDevice, m_ADL_bank);
+        if(m_setup.m_lastBankPath.isEmpty() || !m_setup.m_useCustomBank) {
+            adl_setBank(MIDIDevice, m_setup.m_ADL_bank);
         } else {
-            if(adl_openBankFile(MIDIDevice, m_lastBankPath) < 0) {
+            if(adl_openBankFile(MIDIDevice, m_setup.m_lastBankPath) < 0) {
                 m_lastErrorString = adl_errorInfo(MIDIDevice);
                 return false;
             }
@@ -369,15 +354,17 @@ public class PlayerService extends Service {
             return;
         }
 
-        adl_setEmulator(MIDIDevice, m_ADL_emulator);
-        adl_setNumChips(MIDIDevice, m_adl_numChips);
-        adl_setRunAtPcmRate(MIDIDevice, m_ADL_runAtPcmRate); // Reduces CPU usage, BUT, also reduces sounding accuracy
-        adl_setNumFourOpsChn(MIDIDevice, (m_ADL_num4opChannels >= 0) ? m_ADL_num4opChannels : -1); // -1 is "Auto"
-        adl_setHTremolo(MIDIDevice, m_ADL_tremolo);
-        adl_setHVibrato(MIDIDevice, m_ADL_vibrato);
-        adl_setScaleModulators(MIDIDevice, m_ADL_scalable);
-        adl_setSoftPanEnabled(MIDIDevice, m_ADL_softPanEnabled);
-        adl_setVolumeRangeModel(MIDIDevice, m_ADL_volumeModel);
+        m_setup.loadSetup();
+
+        adl_setEmulator(MIDIDevice, m_setup.m_ADL_emulator);
+        adl_setNumChips(MIDIDevice, m_setup.m_adl_numChips);
+        adl_setRunAtPcmRate(MIDIDevice, m_setup.m_ADL_runAtPcmRate); // Reduces CPU usage, BUT, also reduces sounding accuracy
+        adl_setNumFourOpsChn(MIDIDevice, (m_setup.m_ADL_num4opChannels >= 0) ? m_setup.m_ADL_num4opChannels : -1); // -1 is "Auto"
+        adl_setHTremolo(MIDIDevice, m_setup.m_ADL_tremolo);
+        adl_setHVibrato(MIDIDevice, m_setup.m_ADL_vibrato);
+        adl_setScaleModulators(MIDIDevice, m_setup.m_ADL_scalable);
+        adl_setSoftPanEnabled(MIDIDevice, m_setup.m_ADL_softPanEnabled);
+        adl_setVolumeRangeModel(MIDIDevice, m_setup.m_ADL_volumeModel);
         adl_setLoopEnabled(MIDIDevice, 1);
     }
 
@@ -388,8 +375,8 @@ public class PlayerService extends Service {
 
     public void openBank(String bankFile)
     {
-        m_lastBankPath = bankFile;
-        m_setup.edit().putString("lastBankPath", m_lastBankPath).apply();
+        m_setup.m_lastBankPath = bankFile;
+        m_setup.syncSetup();
         if(MIDIDevice == 0) {
             return;
         }
@@ -397,13 +384,13 @@ public class PlayerService extends Service {
     }
     public String getBankPath()
     {
-        return m_lastBankPath;
+        return m_setup.m_lastBankPath;
     }
 
     public void setUseCustomBank(boolean use)
     {
-        m_useCustomBank = use;
-        m_setup.edit().putBoolean("useCustomBank", m_useCustomBank).apply();
+        m_setup.m_useCustomBank = use;
+        m_setup.syncSetup();
         if(MIDIDevice == 0) {
             return;
         }
@@ -411,13 +398,13 @@ public class PlayerService extends Service {
     }
     public boolean getUseCustomBank()
     {
-        return m_useCustomBank;
+        return m_setup.m_useCustomBank;
     }
 
     public void setEmbeddedBank(int bankId)
     {
-        m_ADL_bank = bankId;
-        m_setup.edit().putInt("adlBank", m_ADL_bank).apply();
+        m_setup.m_ADL_bank = bankId;
+        m_setup.syncSetup();
         if(MIDIDevice == 0) {
             return;
         }
@@ -425,14 +412,14 @@ public class PlayerService extends Service {
     }
     public int getEmbeddedBank()
     {
-        return m_ADL_bank;
+        return m_setup.m_ADL_bank;
     }
 
 
     public void setVolumeModel(int volumeModel)
     {
-        m_ADL_volumeModel = volumeModel;
-        m_setup.edit().putInt("volumeModel", m_ADL_volumeModel).apply();
+        m_setup.m_ADL_volumeModel = volumeModel;
+        m_setup.syncSetup();
         if(MIDIDevice == 0) {
             return;
         }
@@ -440,122 +427,121 @@ public class PlayerService extends Service {
     }
     public int getVolumeModel()
     {
-        return m_ADL_volumeModel;
+        return m_setup.m_ADL_volumeModel;
     }
 
     public void setDeepTremolo(boolean flag)
     {
-        m_ADL_tremolo = flag ? 1 : -1;
-        m_setup.edit().putBoolean("flagTremolo", flag).apply();
+        m_setup.m_ADL_tremolo = flag ? 1 : -1;
+        m_setup.syncSetup();
         if(MIDIDevice == 0) {
             return;
         }
-        adl_setHTremolo(MIDIDevice, m_ADL_tremolo);
+        adl_setHTremolo(MIDIDevice, m_setup.m_ADL_tremolo);
     }
     public boolean getDeepTremolo()
     {
-        return m_ADL_tremolo > 0;
+        return m_setup.m_ADL_tremolo > 0;
     }
 
     public void setDeepVibrato(boolean flag)
     {
-        m_ADL_vibrato = flag ? 1 : -1;
-        m_setup.edit().putBoolean("flagVibrato", flag).apply();
+        m_setup.m_ADL_vibrato = flag ? 1 : -1;
+        m_setup.syncSetup();
         if(MIDIDevice == 0) {
             return;
         }
-        adl_setHVibrato(MIDIDevice, m_ADL_vibrato);
+        adl_setHVibrato(MIDIDevice, m_setup.m_ADL_vibrato);
     }
     public boolean getDeepVibrato()
     {
-        return m_ADL_vibrato > 0;
+        return m_setup.m_ADL_vibrato > 0;
     }
 
     public void setScalableModulators(boolean flag)
     {
-        m_ADL_scalable = flag ? 1 : -1;
-        m_setup.edit().putBoolean("flagScalable", flag).apply();
+        m_setup.m_ADL_scalable = flag ? 1 : -1;
+        m_setup.syncSetup();
         if(MIDIDevice == 0) {
             return;
         }
-        adl_setScaleModulators(MIDIDevice, m_ADL_scalable);
+        adl_setScaleModulators(MIDIDevice, m_setup.m_ADL_scalable);
     }
     public boolean getScalableModulation()
     {
-        return m_ADL_scalable > 0;
+        return m_setup.m_ADL_scalable > 0;
     }
 
     public void setRunAtPcmRate(boolean flag)
     {
-        m_ADL_runAtPcmRate = flag ? 1 : 0;
-        m_setup.edit().putBoolean("flagRunAtPcmRate", flag).apply();
+        m_setup.m_ADL_runAtPcmRate = flag ? 1 : 0;
+        m_setup.syncSetup();
         if(MIDIDevice == 0) {
             return;
         }
-        adl_setRunAtPcmRate(MIDIDevice, m_ADL_runAtPcmRate);
+        adl_setRunAtPcmRate(MIDIDevice, m_setup.m_ADL_runAtPcmRate);
     }
     public boolean getRunAtPcmRate()
     {
-        return m_ADL_runAtPcmRate > 0;
+        return m_setup.m_ADL_runAtPcmRate > 0;
     }
 
     public void setFullPanningStereo(boolean flag)
     {
-        m_ADL_softPanEnabled = flag ? 1 : 0;
-        m_setup.edit().putBoolean("flagSoftPan", flag).apply();
+        m_setup.m_ADL_softPanEnabled = flag ? 1 : 0;
+        m_setup.syncSetup();
         if(MIDIDevice == 0) {
             return;
         }
-        adl_setSoftPanEnabled(MIDIDevice, m_ADL_softPanEnabled);
+        adl_setSoftPanEnabled(MIDIDevice, m_setup.m_ADL_softPanEnabled);
     }
     public boolean getFullPanningStereo()
     {
-        return m_ADL_softPanEnabled > 0;
+        return m_setup.m_ADL_softPanEnabled > 0;
     }
 
     public void setEmulator(int emul)
     {
-        if(m_ADL_emulator != emul)
+        if(m_setup.m_ADL_emulator != emul)
             adl_setEmulator(MIDIDevice, emul);
-        m_ADL_emulator = emul;
-        m_setup.edit().putInt("emulator", m_ADL_emulator).apply();
+        m_setup.m_ADL_emulator = emul;
+        m_setup.syncSetup();
 
     }
     public int getEmulator()
     {
-        return m_ADL_emulator;
+        return m_setup.m_ADL_emulator;
     }
 
     public void setChipsCount(int chips)
     {
-        m_adl_numChips = chips;
-        m_setup.edit().putInt("numChips", m_adl_numChips).apply();
-        if(m_ADL_num4opChannels > getFourOpMax()) {
-            m_ADL_num4opChannels = getFourOpMax();
-            m_setup.edit().putInt("num4opChannels", m_ADL_num4opChannels).apply();
+        m_setup.m_adl_numChips = chips;
+        if(m_setup.m_ADL_num4opChannels > getFourOpMax()) {
+            m_setup.m_ADL_num4opChannels = getFourOpMax();
         }
+        m_setup.syncSetup();
     }
     public int getChipsCount()
     {
-        return m_adl_numChips;
+        return m_setup.m_adl_numChips;
     }
 
     public int getFourOpMax()
     {
-        return 6 * m_adl_numChips;
+        return 6 * m_setup.m_adl_numChips;
     }
 
     public void setFourOpChanCount(int fourOps)
     {
-        m_ADL_num4opChannels = fourOps;
-        if(m_ADL_num4opChannels > getFourOpMax()) {
-            m_ADL_num4opChannels = getFourOpMax();
+        m_setup.m_ADL_num4opChannels = fourOps;
+        if(m_setup.m_ADL_num4opChannels > getFourOpMax()) {
+            m_setup.m_ADL_num4opChannels = getFourOpMax();
         }
-        m_setup.edit().putInt("num4opChannels", m_ADL_num4opChannels).apply();
+        m_setup.syncSetup();
     }
     public int getFourOpChanCount()
     {
-        return m_ADL_num4opChannels;
+        return m_setup.m_ADL_num4opChannels;
     }
 
     List<String> getEmbeddedBanksList()
@@ -595,13 +581,13 @@ public class PlayerService extends Service {
 
     public void gainingSet(double gaining)
     {
-        m_gainingLevel = gaining;
+        m_setup.m_gainingLevel = gaining;
         setGaining(gaining);
-        m_setup.edit().putFloat("gaining", (float)m_gainingLevel).apply();
+        m_setup.syncSetup();
     }
     public double gainingGet()
     {
-        return m_gainingLevel;
+        return m_setup.m_gainingLevel;
     }
 
     public boolean openMusic(String musicFile) {

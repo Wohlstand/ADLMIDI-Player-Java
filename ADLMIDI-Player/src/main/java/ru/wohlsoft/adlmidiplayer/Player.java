@@ -59,9 +59,10 @@ public class Player extends AppCompatActivity
     private volatile boolean m_uiLoaded = false;
 
     private SharedPreferences   m_setup = null;
+    private PlayerSetup         m_playerSetup = new PlayerSetup();
 
     private String              m_lastPath = Environment.getExternalStorageDirectory().getPath();
-    private String              m_lastBankPath = "";
+//    private String              m_lastBankPath = "";
 
     private int                 m_chipsCount = 2;
     private int                 m_fourOpsCount = -1;
@@ -110,7 +111,18 @@ public class Player extends AppCompatActivity
             PlayerService.LocalBinder binder = (PlayerService.LocalBinder) service;
             m_service = binder.getService();
             m_bound = true;
-            initUiSetup();
+            m_service.loadSetup(m_setup);
+
+            boolean isPlaying = m_service.isPlaying();
+            if (isPlaying) {
+                seekerStart();
+
+                TextView tv = (TextView) findViewById(R.id.currentFileName);
+                tv.setText(PlayerService.stringFromJNI());
+                if(isPlaying) {
+                    tv.setText(m_service.getCurrentMusicPath());
+                }
+            }
         }
 
         @Override
@@ -121,383 +133,368 @@ public class Player extends AppCompatActivity
 
     private void initUiSetup()
     {
-        if (m_bound) {
-            m_service.loadSetup(m_setup);
-            boolean isPlaying = m_service.isPlaying();
+        if(m_uiLoaded)
+            return;
 
-            if(isPlaying) {
-                seekerStart();
+        /*
+         * Music position seeker
+         */
+        SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
+        musPos.setMax(m_service.getSongLength());
+        musPos.setProgress(m_service.getPosition());
+        musPos.setProgress(0);
+        musPos.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            //private double dstPos = 0;
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if(fromUser && m_bound)
+                    m_service.setPosition(progress);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
+        });
+
+        /*
+         * Filename title
+         */
+        // Example of a call to a native method
+        TextView tv = (TextView) findViewById(R.id.currentFileName);
+        if(tv.getText().length() == 0)
+            tv.setText(PlayerService.stringFromJNI());
+
+        /*
+         * Bank name title
+         */
+        TextView cbl = (TextView) findViewById(R.id.bankFileName);
+        if(!m_playerSetup.m_lastBankPath.isEmpty()) {
+            File f = new File(m_playerSetup.m_lastBankPath);
+            cbl.setText(f.getName());
+        } else {
+            cbl.setText(R.string.noCustomBankLabel);
+        }
+
+
+        /*
+         * Embedded banks list combo-box
+         */
+        //Fill bank number box
+        List<String> spinnerArray = m_service.getEmbeddedBanksList();
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_item, spinnerArray);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        Spinner sItems = (Spinner) findViewById(R.id.bankNo);
+        sItems.setAdapter(adapter);
+        sItems.setSelection(m_service.getEmbeddedBank());
+
+        m_banksListLoaded = false;
+        sItems.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(AdapterView<?> parent,
+                                       View itemSelected, int selectedItemPosition, long selectedId) {
+                if(!m_banksListLoaded)
+                {
+                    m_banksListLoaded = true;
+                    return;
+                }
+
+                if(m_bound)
+                    m_service.setEmbeddedBank(selectedItemPosition);
+
                 Toast toast = Toast.makeText(getApplicationContext(),
-                        "Already playing", Toast.LENGTH_SHORT);
+                        "Bank changed to: " + selectedItemPosition, Toast.LENGTH_SHORT);
                 toast.show();
             }
 
-            if(m_uiLoaded)
-                return;
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
 
-            /*
-             * Music position seeker
-             */
-            SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
-            musPos.setMax(m_service.getSongLength());
-            musPos.setProgress(m_service.getPosition());
-            musPos.setProgress(0);
-            musPos.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                //private double dstPos = 0;
-                @Override
-                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                    if(fromUser && m_bound)
-                        m_service.setPosition(progress);
-                }
+        /*
+         * Use custom bank checkbox
+         */
+        CheckBox useCustomBank = (CheckBox)findViewById(R.id.useCustom);
+        useCustomBank.setChecked(m_service.getUseCustomBank());
+        useCustomBank.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(m_bound)
+                    m_service.setUseCustomBank(isChecked);
+            }
+        });
 
-                @Override
-                public void onStartTrackingTouch(SeekBar seekBar) {
-                }
 
-                @Override
-                public void onStopTrackingTouch(SeekBar seekBar) {
-                }
-            });
+        /*
+         * Emulator model combo-box
+         */
+        Spinner sEmulator = (Spinner) findViewById(R.id.emulatorType);
+        final String[] emulatorItems =
+        {
+            "Nuked OPL3 v1.8 (very accurate)",
+            "Nuked OPL3 v1.7 (very accurate)",
+            "DosBox OPL3 (accurate and fast)",
+            "Opal OPL3 (no rhythm-mode)",
+            "Java OPL3 (broken rhythm-mode)"
+        };
 
-            /*
-             * Filename title
-             */
-            // Example of a call to a native method
-            TextView tv = (TextView) findViewById(R.id.currentFileName);
-            tv.setText(PlayerService.stringFromJNI());
-            if(isPlaying) {
-                tv.setText(m_service.getCurrentMusicPath());
+        ArrayAdapter<String> adapterEMU = new ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_item, emulatorItems);
+        adapterEMU.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sEmulator.setAdapter(adapterEMU);
+        sEmulator.setSelection(m_service.getEmulator());
+
+        sEmulator.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(AdapterView<?> parent,
+                                       View itemSelected, int selectedItemPosition, long selectedId) {
+                if(m_bound)
+                    m_service.setEmulator(selectedItemPosition);
             }
 
-            /*
-             * Bank name title
-             */
-            TextView cbl = (TextView) findViewById(R.id.bankFileName);
-            m_lastBankPath = m_service.getBankPath();
-            if(!m_lastBankPath.isEmpty()) {
-                File f = new File(m_lastBankPath);
-                cbl.setText(f.getName());
-            } else {
-                cbl.setText(R.string.noCustomBankLabel);
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+        /*
+         * Volume model combo-box
+         */
+        Spinner sVolModel = (Spinner) findViewById(R.id.volumeRangesModel);
+        final String[] volumeModelItems =
+        {
+            "[Auto]", "Generic", "CMF", "DMX", "Apogee",
+            "9X (SB16)", "DMX (Fixed AM)", "Apogee (Fixed AM)", "Audio Interface Library",
+            "9X (Generic FM)", "HMI Sound Operating System", "HMI Sound Operating System (Old)"
+        };
+
+        ArrayAdapter<String> adapterVM = new ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_item, volumeModelItems);
+        adapterVM.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sVolModel.setAdapter(adapterVM);
+        sVolModel.setSelection(m_service.getVolumeModel());
+
+        sVolModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(AdapterView<?> parent,
+                                       View itemSelected, int selectedItemPosition, long selectedId) {
+                if(m_bound)
+                    m_service.setVolumeModel(selectedItemPosition);
             }
 
-
-            /*
-             * Embedded banks list combo-box
-             */
-            //Fill bank number box
-            List<String> spinnerArray = m_service.getEmbeddedBanksList();
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                    this, android.R.layout.simple_spinner_item, spinnerArray);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            Spinner sItems = (Spinner) findViewById(R.id.bankNo);
-            sItems.setAdapter(adapter);
-            sItems.setSelection(m_service.getEmbeddedBank());
-
-            m_banksListLoaded = false;
-            sItems.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                public void onItemSelected(AdapterView<?> parent,
-                                           View itemSelected, int selectedItemPosition, long selectedId) {
-                    if(!m_banksListLoaded)
-                    {
-                        m_banksListLoaded = true;
-                        return;
-                    }
-
-                    if(m_bound)
-                        m_service.setEmbeddedBank(selectedItemPosition);
-
-                    Toast toast = Toast.makeText(getApplicationContext(),
-                            "Bank changed to: " + selectedItemPosition, Toast.LENGTH_SHORT);
-                    toast.show();
-                }
-
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
-
-            /*
-             * Use custom bank checkbox
-             */
-            CheckBox useCustomBank = (CheckBox)findViewById(R.id.useCustom);
-            useCustomBank.setChecked(m_service.getUseCustomBank());
-            useCustomBank.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    if(m_bound)
-                        m_service.setUseCustomBank(isChecked);
-                }
-            });
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
 
 
-            /*
-             * Emulator model combo-box
-             */
-            Spinner sEmulator = (Spinner) findViewById(R.id.emulatorType);
-            final String[] emulatorItems =
-            {
-                "Nuked OPL3 v1.8 (very accurate)",
-                "Nuked OPL3 v1.7 (very accurate)",
-                "DosBox OPL3 (accurate and fast)",
-                "Opal OPL3 (no rhythm-mode)",
-                "Java OPL3 (broken rhythm-mode)"
-            };
-
-            ArrayAdapter<String> adapterEMU = new ArrayAdapter<>(
-                    this, android.R.layout.simple_spinner_item, emulatorItems);
-            adapterEMU.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            sEmulator.setAdapter(adapterEMU);
-            sEmulator.setSelection(m_service.getEmulator());
-
-            sEmulator.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                public void onItemSelected(AdapterView<?> parent,
-                                           View itemSelected, int selectedItemPosition, long selectedId) {
-                    if(m_bound)
-                        m_service.setEmulator(selectedItemPosition);
-                }
-
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
-
-            /*
-             * Volume model combo-box
-             */
-            Spinner sVolModel = (Spinner) findViewById(R.id.volumeRangesModel);
-            final String[] volumeModelItems =
-            {
-                "[Auto]", "Generic", "CMF", "DMX", "Apogee",
-                "9X (SB16)", "DMX (Fixed AM)", "Apogee (Fixed AM)", "Audio Interface Library",
-                "9X (Generic FM)", "HMI Sound Operating System", "HMI Sound Operating System (Old)"
-            };
-
-            ArrayAdapter<String> adapterVM = new ArrayAdapter<>(
-                    this, android.R.layout.simple_spinner_item, volumeModelItems);
-            adapterVM.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            sVolModel.setAdapter(adapterVM);
-            sVolModel.setSelection(m_service.getVolumeModel());
-
-            sVolModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                public void onItemSelected(AdapterView<?> parent,
-                                           View itemSelected, int selectedItemPosition, long selectedId) {
-                    if(m_bound)
-                        m_service.setVolumeModel(selectedItemPosition);
-                }
-
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
-
-
-            /*
-             * Deep Tremolo checkbox
-             */
-            CheckBox deepTremolo = (CheckBox)findViewById(R.id.deepTremolo);
-            deepTremolo.setChecked(m_service.getDeepTremolo());
-            deepTremolo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    if(m_bound)
-                        m_service.setDeepTremolo(isChecked);
-                    Toast toast = Toast.makeText(getApplicationContext(),
-                            "Deep tremolo toggled!", Toast.LENGTH_SHORT);
-                    toast.show();
-                }
-            });
-
-            /*
-             * Deep Vibrato checkbox
-             */
-            CheckBox deepVibrato = (CheckBox)findViewById(R.id.deepVibrato);
-            deepVibrato.setChecked(m_service.getDeepVibrato());
-            deepVibrato.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
+        /*
+         * Deep Tremolo checkbox
+         */
+        CheckBox deepTremolo = (CheckBox)findViewById(R.id.deepTremolo);
+        deepTremolo.setChecked(m_service.getDeepTremolo());
+        deepTremolo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if(m_bound)
-                    m_service.setDeepVibrato(isChecked);
+                    m_service.setDeepTremolo(isChecked);
                 Toast toast = Toast.makeText(getApplicationContext(),
-                        "Deep vibrato toggled!", Toast.LENGTH_SHORT);
+                        "Deep tremolo toggled!", Toast.LENGTH_SHORT);
                 toast.show();
+            }
+        });
+
+        /*
+         * Deep Vibrato checkbox
+         */
+        CheckBox deepVibrato = (CheckBox)findViewById(R.id.deepVibrato);
+        deepVibrato.setChecked(m_service.getDeepVibrato());
+        deepVibrato.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+            if(m_bound)
+                m_service.setDeepVibrato(isChecked);
+            Toast toast = Toast.makeText(getApplicationContext(),
+                    "Deep vibrato toggled!", Toast.LENGTH_SHORT);
+            toast.show();
+            }
+        });
+
+        /*
+         * Scalable Modulators checkbox
+         */
+        CheckBox scalableMod = (CheckBox)findViewById(R.id.scalableModulation);
+        scalableMod.setChecked(m_service.getScalableModulation());
+        scalableMod.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(m_bound)
+                    m_service.setScalableModulators(isChecked);
+                Toast toast = Toast.makeText(getApplicationContext(),
+                          "Scalable modulation toggled!", Toast.LENGTH_SHORT);
+                toast.show();
+            }
+        });
+
+        /*
+         * Run at PCM Rate checkbox
+         */
+        CheckBox runAtPcmRate = (CheckBox)findViewById(R.id.runAtPcmRate);
+        runAtPcmRate.setChecked(m_service.getRunAtPcmRate());
+        runAtPcmRate.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(m_bound)
+                    m_service.setRunAtPcmRate(isChecked);
+                Toast toast = Toast.makeText(getApplicationContext(),
+                        "Run at PCM Rate has toggled!", Toast.LENGTH_SHORT);
+                toast.show();
+            }
+        });
+
+        /*
+         * Full-Panning Stereo checkbox
+         */
+        CheckBox fullPanningStereo = (CheckBox)findViewById(R.id.fullPanningStereo);
+        fullPanningStereo.setChecked(m_service.getFullPanningStereo());
+        fullPanningStereo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(m_bound)
+                    m_service.setFullPanningStereo(isChecked);
+                Toast toast = Toast.makeText(getApplicationContext(),
+                        "Full-Panning toggled!", Toast.LENGTH_SHORT);
+                toast.show();
+            }
+        });
+
+        /*
+         * Chips count
+         */
+        Button numChipsMinus = (Button) findViewById(R.id.numChipsMinus);
+        numChipsMinus.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                int g = m_chipsCount;
+                g--;
+                if(g < 1) {
+                    return;
                 }
-            });
+                onChipsCountUpdate(g, false);
+            }
+        });
 
-            /*
-             * Scalable Modulators checkbox
-             */
-            CheckBox scalableMod = (CheckBox)findViewById(R.id.scalableModulation);
-            scalableMod.setChecked(m_service.getScalableModulation());
-            scalableMod.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    if(m_bound)
-                        m_service.setScalableModulators(isChecked);
-                    Toast toast = Toast.makeText(getApplicationContext(),
-                              "Scalable modulation toggled!", Toast.LENGTH_SHORT);
-                    toast.show();
+        Button numChipsPlus = (Button) findViewById(R.id.numChipsPlus);
+        numChipsPlus.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                int g = m_chipsCount;
+                g++;
+                if(g > 100) {
+                    return;
                 }
-            });
+                onChipsCountUpdate(g, false);
+            }
+        });
 
-            /*
-             * Run at PCM Rate checkbox
-             */
-            CheckBox runAtPcmRate = (CheckBox)findViewById(R.id.runAtPcmRate);
-            runAtPcmRate.setChecked(m_service.getRunAtPcmRate());
-            runAtPcmRate.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    if(m_bound)
-                        m_service.setRunAtPcmRate(isChecked);
-                    Toast toast = Toast.makeText(getApplicationContext(),
-                            "Run at PCM Rate has toggled!", Toast.LENGTH_SHORT);
-                    toast.show();
+        onChipsCountUpdate(m_service.getChipsCount(), true);
+
+
+        /*
+         * Number of four-operator channels
+         */
+        Button num4opChansMinus = (Button) findViewById(R.id.num4opChansMinus);
+        num4opChansMinus.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                int g = m_fourOpsCount;
+                g--;
+                if(g < -1) {
+                    return;
                 }
-            });
+                onFourOpsCountUpdate(g, false);
+            }
+        });
 
-            /*
-             * Full-Panning Stereo checkbox
-             */
-            CheckBox fullPanningStereo = (CheckBox)findViewById(R.id.fullPanningStereo);
-            fullPanningStereo.setChecked(m_service.getFullPanningStereo());
-            fullPanningStereo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    if(m_bound)
-                        m_service.setFullPanningStereo(isChecked);
-                    Toast toast = Toast.makeText(getApplicationContext(),
-                            "Full-Panning toggled!", Toast.LENGTH_SHORT);
-                    toast.show();
+        Button num4opChansPlus = (Button) findViewById(R.id.num4opChansPlus);
+        num4opChansPlus.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                int curFourOpMax = m_chipsCount * 6;
+                int g = m_fourOpsCount;
+                g++;
+                if(g > curFourOpMax) {
+                    return;
                 }
-            });
+                onFourOpsCountUpdate(g, false);
+            }
+        });
 
-            /*
-             * Chips count
-             */
-            Button numChipsMinus = (Button) findViewById(R.id.numChipsMinus);
-            numChipsMinus.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    int g = m_chipsCount;
-                    g--;
-                    if(g < 1) {
-                        return;
-                    }
-                    onChipsCountUpdate(g, false);
-                }
-            });
+        onFourOpsCountUpdate(m_playerSetup.m_ADL_num4opChannels, true);
 
-            Button numChipsPlus = (Button) findViewById(R.id.numChipsPlus);
-            numChipsPlus.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    int g = m_chipsCount;
-                    g++;
-                    if(g > 100) {
-                        return;
-                    }
-                    onChipsCountUpdate(g, false);
-                }
-            });
-
-            onChipsCountUpdate(m_service.getChipsCount(), true);
-
-
-            /*
-             * Number of four-operator channels
-             */
-            Button num4opChansMinus = (Button) findViewById(R.id.num4opChansMinus);
-            num4opChansMinus.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    int g = m_fourOpsCount;
-                    g--;
-                    if(g < -1) {
-                        return;
-                    }
-                    onFourOpsCountUpdate(g, false);
-                }
-            });
-
-            Button num4opChansPlus = (Button) findViewById(R.id.num4opChansPlus);
-            num4opChansPlus.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    int curFourOpMax = m_chipsCount * 6;
-                    int g = m_fourOpsCount;
-                    g++;
-                    if(g > curFourOpMax) {
-                        return;
-                    }
-                    onFourOpsCountUpdate(g, false);
-                }
-            });
-
-            onFourOpsCountUpdate(m_service.getFourOpChanCount(), true);
-
-            /*
-             * Gain level
-             */
-            Button gainMinusMinus = (Button) findViewById(R.id.gainFactorMinusMinus);
-            gainMinusMinus.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    if(m_bound) {
-                        double gain = m_service.gainingGet();
-                        gain -= 1.0;
-                        if(gain < 0.1)
-                            gain += 1.0;
-                        onGainUpdate(gain, false);
-                    }
-                }
-            });
-
-            Button gainMinus = (Button) findViewById(R.id.gainFactorMinus);
-            gainMinus.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    if(m_bound) {
-                        double gain = m_service.gainingGet();
-                        gain -= 0.1;
-                        if(gain < 0.1)
-                            gain += 0.1;
-                        onGainUpdate(gain, false);
-                    }
-                }
-            });
-
-            Button gainPlus = (Button) findViewById(R.id.gainFactorPlus);
-            gainPlus.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    if(m_bound) {
-                        double gain = m_service.gainingGet();
-                        gain += 0.1;
-                        onGainUpdate(gain, false);
-                    }
-                }
-            });
-
-            Button gainPlusPlus = (Button) findViewById(R.id.gainFactorPlusPlus);
-            gainPlusPlus.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    if(m_bound) {
-                        double gain = m_service.gainingGet();
+        /*
+         * Gain level
+         */
+        Button gainMinusMinus = (Button) findViewById(R.id.gainFactorMinusMinus);
+        gainMinusMinus.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(m_bound) {
+                    double gain = m_playerSetup.m_gainingLevel;
+                    gain -= 1.0;
+                    if(gain < 0.1)
                         gain += 1.0;
-                        onGainUpdate(gain, false);
-                    }
+                    onGainUpdate(gain, false);
                 }
-            });
+            }
+        });
 
-            onGainUpdate(m_service.gainingGet(), true);
+        Button gainMinus = (Button) findViewById(R.id.gainFactorMinus);
+        gainMinus.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(m_bound) {
+                    double gain = m_playerSetup.m_gainingLevel;
+                    gain -= 0.1;
+                    if(gain < 0.1)
+                        gain += 0.1;
+                    onGainUpdate(gain, false);
+                }
+            }
+        });
+
+        Button gainPlus = (Button) findViewById(R.id.gainFactorPlus);
+        gainPlus.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(m_bound) {
+                    double gain = m_playerSetup.m_gainingLevel;
+                    gain += 0.1;
+                    onGainUpdate(gain, false);
+                }
+            }
+        });
+
+        Button gainPlusPlus = (Button) findViewById(R.id.gainFactorPlusPlus);
+        gainPlusPlus.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(m_bound) {
+                    double gain = m_playerSetup.m_gainingLevel;
+                    gain += 1.0;
+                    onGainUpdate(gain, false);
+                }
+            }
+        });
+
+        onGainUpdate(m_playerSetup.m_gainingLevel, true);
 
 
 
-            /* *******Everything UI related has been initialized!****** */
-            m_uiLoaded = true;
+        /* *******Everything UI related has been initialized!****** */
+        m_uiLoaded = true;
 
-            // Try to load external file if requested
-            handleFileIntent();
-        }
+        // Try to load external file if requested
+        handleFileIntent();
     }
 
     private void playerServiceStart()
@@ -528,6 +525,7 @@ public class Player extends AppCompatActivity
         setContentView(R.layout.activity_player);
 
         m_setup = getPreferences(Context.MODE_PRIVATE);
+        m_playerSetup.setSetup(m_setup);
 
         m_lastPath              = m_setup.getString("lastPath", m_lastPath);
 
@@ -589,6 +587,8 @@ public class Player extends AppCompatActivity
                 OnOpenBankFileClick(view);
             }
         });
+
+        initUiSetup();
     }
 
 
@@ -759,27 +759,28 @@ public class Player extends AppCompatActivity
 
     public void openBankDialog()
     {
-        File file = new File(m_lastBankPath);
+        File file = new File(m_playerSetup.m_lastBankPath);
         OpenFileDialog fileDialog = new OpenFileDialog(this)
                 .setFilter(".*\\.wopl")
-                .setCurrentDirectory(m_lastBankPath.isEmpty() ?
+                .setCurrentDirectory(m_playerSetup.m_lastBankPath.isEmpty() ?
                         Environment.getExternalStorageDirectory().getPath() :
                         file.getParent())
                 .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
                 {
                     @Override
                     public void OnSelectedFile(String fileName, String lastPath) {
-                        m_lastBankPath = fileName;
+                        m_playerSetup.m_lastBankPath = fileName;
+                        m_playerSetup.syncSetup();
 
                         TextView cbl = (TextView) findViewById(R.id.bankFileName);
-                        if(!m_lastBankPath.isEmpty()) {
-                            File f = new File(m_lastBankPath);
+                        if(!m_playerSetup.m_lastBankPath.isEmpty()) {
+                            File f = new File(m_playerSetup.m_lastBankPath);
                             cbl.setText(f.getName());
                         } else {
                             cbl.setText(R.string.noCustomBankLabel);
                         }
                         if(m_bound)
-                            m_service.openBank(m_lastBankPath);
+                            m_service.openBank(m_playerSetup.m_lastBankPath);
                     }
                 });
         fileDialog.show();
@@ -926,9 +927,10 @@ public class Player extends AppCompatActivity
         }
 
         m_fourOpsCount = fourOpsCount;
+        m_playerSetup.m_ADL_num4opChannels = fourOpsCount;
+        m_playerSetup.syncSetup();
 
         if(m_bound && !silent) {
-            m_service.setFourOpChanCount(fourOpsCount);
             Log.d(LOG_TAG, String.format(Locale.getDefault(), "4ops: Written=%d", fourOpsCount));
             m_service.applySetup();
         }
@@ -943,6 +945,9 @@ public class Player extends AppCompatActivity
     void onGainUpdate(double gainLevel, boolean silent)
     {
         gainLevel = round(gainLevel, 1);
+        m_playerSetup.m_gainingLevel = gainLevel;
+        m_playerSetup.syncSetup();
+
         if(m_bound && !silent) {
             m_service.gainingSet(gainLevel);
         }
