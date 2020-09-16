@@ -277,14 +277,14 @@ public class PlayerService extends Service {
             PendingIntent pendingPrevIntent = PendingIntent.getService(this, 0, pauseIntent, 0);
             NotificationCompat.Action prevAction = new NotificationCompat.Action(android.R.drawable.ic_media_pause, "Pause", pendingPrevIntent);
             builder.addAction(prevAction);
-
-            // Add Stop button intent in notification.
-            Intent stopIntent = new Intent(this, PlayerService.class);
-            stopIntent.setAction(ACTION_STOP);
-            PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, 0);
-            NotificationCompat.Action stopAction = new NotificationCompat.Action(android.R.drawable.ic_menu_close_clear_cancel, "Stop", pendingStopIntent);
-            builder.addAction(stopAction);
         }
+
+        // Add Stop button intent in notification.
+        Intent stopIntent = new Intent(this, PlayerService.class);
+        stopIntent.setAction(ACTION_STOP);
+        PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, 0);
+        NotificationCompat.Action stopAction = new NotificationCompat.Action(android.R.drawable.ic_menu_close_clear_cancel, "Stop", pendingStopIntent);
+        builder.addAction(stopAction);
 
         // Build the notification.
         return builder.build();
