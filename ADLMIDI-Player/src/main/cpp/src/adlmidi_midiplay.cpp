@@ -2,7 +2,7 @@
  * libADLMIDI is a free Software MIDI synthesizer library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2015-2020 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2021 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -24,7 +24,9 @@
 #include "adlmidi_midiplay.hpp"
 #include "adlmidi_opl3.hpp"
 #include "adlmidi_private.hpp"
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
 #include "midi_sequencer.hpp"
+#endif
 
 // Minimum life time of percussion notes
 static const double s_drum_note_min_time = 0.03;
@@ -34,7 +36,8 @@ enum { MasterVolumeDefault = 127 };
 
 inline bool isXgPercChannel(uint8_t msb, uint8_t lsb)
 {
-    return (msb == 0x7E || msb == 0x7F) && (lsb == 0);
+    ADL_UNUSED(lsb);
+    return (msb == 0x7E || msb == 0x7F);
 }
 
 void MIDIplay::AdlChannel::addAge(int64_t us)
@@ -88,6 +91,7 @@ MIDIplay::MIDIplay(unsigned long sampleRate):
     //m_setup.SkipForward = 0;
     m_setup.scaleModulators     = -1;
     m_setup.fullRangeBrightnessCC74 = false;
+    m_setup.enableAutoArpeggio = true;
     m_setup.delay = 0.0;
     m_setup.carry = 0.0;
     m_setup.tick_skip_samples_delay = 0;
@@ -327,7 +331,7 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
             // Let XG Percussion bank will use (0...127 LSB range in WOPN file)
 
             // Choose: SFX or Drum Kits
-            bank = midiins + ((bank == 0x7E00) ? 128 : 0);
+            bank = midiins + ((midiChan.bank_msb == 0x7E) ? 128 : 0);
         }
         else
         {
@@ -355,8 +359,8 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
             caughtMissingBank = true;
     }
 
-    //Or fall back to bank ignoring LSB (GS)
-    if((ains->flags & OplInstMeta::Flag_NoSound) && ((m_synthMode & Mode_GS) != 0))
+    //Or fall back to bank ignoring LSB (GS/XG)
+    if(ains->flags & OplInstMeta::Flag_NoSound)
     {
         size_t fallback = bank & ~(size_t)0x7F;
         if(fallback != bank)
@@ -1500,6 +1504,9 @@ void MIDIplay::killOrEvacuate(size_t from_channel,
     {
         uint16_t cs = static_cast<uint16_t>(c);
 
+        if(!m_setup.enableAutoArpeggio)
+            break; // Arpeggio disabled completely
+
         if(c >= maxChannels)
             break;
         if(c == from_channel)
@@ -1712,7 +1719,7 @@ size_t MIDIplay::chooseDevice(const std::string &name)
     size_t n = m_midiDevices.size() * 16;
     m_midiDevices.insert(std::make_pair(name, n));
     m_midiChannels.resize(n + 16);
-    resetMIDIDefaults(n);
+    resetMIDIDefaults(static_cast<int>(n));
     return n;
 }
 
@@ -1722,6 +1729,13 @@ void MIDIplay::updateArpeggio(double) // amount = amount of time passed
     // simulated on the same channel, arpeggio them.
 
     Synth &synth = *m_synth;
+
+    if(!m_setup.enableAutoArpeggio) // Arpeggio was disabled
+    {
+        if(m_arpeggioCounter != 0)
+            m_arpeggioCounter = 0;
+        return;
+    }
 
 #if 0
     const unsigned desired_arpeggio_rate = 40; // Hz (upper limit)
@@ -1841,7 +1855,7 @@ void MIDIplay::describeChannels(char *str, char *attr, size_t size)
         AdlChannel::const_users_iterator locnext(loc);
         if(!loc.is_end()) ++locnext;
 
-	    if(loc.is_end())  // off
+        if(loc.is_end())  // off
         {
             str[index] = '-';
         }

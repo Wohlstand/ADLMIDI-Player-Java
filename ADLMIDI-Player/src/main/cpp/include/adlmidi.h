@@ -2,7 +2,7 @@
  * libADLMIDI is a free Software MIDI synthesizer library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2015-2020 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2021 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -30,7 +30,7 @@ extern "C" {
 
 #define ADLMIDI_VERSION_MAJOR       1
 #define ADLMIDI_VERSION_MINOR       5
-#define ADLMIDI_VERSION_PATCHLEVEL  0
+#define ADLMIDI_VERSION_PATCHLEVEL  1
 
 #define ADLMIDI_TOSTR_I(s) #s
 #define ADLMIDI_TOSTR(s) ADLMIDI_TOSTR_I(s)
@@ -547,6 +547,14 @@ extern ADLMIDI_DECLSPEC void adl_setScaleModulators(struct ADL_MIDIPlayer *devic
  * @param fr_brightness 0 - disabled, 1 - enabled
  */
 extern ADLMIDI_DECLSPEC void adl_setFullRangeBrightness(struct ADL_MIDIPlayer *device, int fr_brightness);
+
+/**
+ * @brief Enable(1) or Disable(0) the automatical arpeggio system
+  *
+ * @param device Instance of the library
+ * @param aaEn 0 - disabled, 1 - enabled
+ */
+extern ADLMIDI_DECLSPEC void adl_setAutoArpeggio(struct ADL_MIDIPlayer *device, int aaEn);
 
 /**
  * @brief Enable or disable built-in loop (built-in loop supports 'loopStart' and 'loopEnd' tags to loop specific part)

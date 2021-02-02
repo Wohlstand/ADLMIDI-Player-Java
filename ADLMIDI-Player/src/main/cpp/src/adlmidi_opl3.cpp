@@ -2,7 +2,7 @@
  * libADLMIDI is a free Software MIDI synthesizer library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2015-2020 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2021 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -394,7 +394,7 @@ static inline double s_dmxFreq(double tone)
 {
     uint_fast32_t noteI = (uint_fast32_t)(tone);
     int_fast32_t bendI = 0;
-    int_fast32_t outHz = 0.0;
+    int_fast32_t outHz = 0;
     double bendDec = tone - (int)tone;
 
     bendI = (int_fast32_t)((bendDec * 128.0) / 2.0) + 128;
@@ -403,14 +403,16 @@ static inline double s_dmxFreq(double tone)
     int_fast32_t oct = 0;
     int_fast32_t freqIndex = (noteI << 5) + bendI;
 
+#define MAX_FREQ_IDX 283 // 284 - with the DMX side bug
     if(freqIndex < 0)
         freqIndex = 0;
-    else if(freqIndex >= 284)
+    else if(freqIndex >= MAX_FREQ_IDX)
     {
-        freqIndex -= 284;
+        freqIndex -= MAX_FREQ_IDX;
         oct = freqIndex / 384;
-        freqIndex = (freqIndex % 384) + 284;
+        freqIndex = (freqIndex % 384) + MAX_FREQ_IDX;
     }
+#undef MAX_FREQ_IDX
 
     outHz = s_dmx_freq_table[freqIndex];
 
@@ -470,7 +472,7 @@ static inline double s_apogeeFreq(double tone)
 {
     uint_fast32_t noteI = (uint_fast32_t)(tone);
     int_fast32_t bendI = 0;
-    int_fast32_t outHz = 0.0;
+    int_fast32_t outHz = 0;
     double bendDec = tone - (int)tone;
     int_fast32_t octave;
     int_fast32_t scaleNote;
