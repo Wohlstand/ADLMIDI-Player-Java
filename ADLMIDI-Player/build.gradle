@@ -1,12 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 29
+    compileSdkVersion 30
     buildToolsVersion '29.0.3'
     defaultConfig {
         applicationId "ru.wohlsoft.adlmidiplayer"
         minSdkVersion 14
-        targetSdkVersion 29
+        targetSdkVersion 30
         versionCode 1050005
         versionName '1.5.0.5'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
@@ -60,5 +60,5 @@ dependencies {
     })
     implementation 'androidx.appcompat:appcompat:1.2.0'
     compileOnly 'junit:junit:4.13'
-    implementation 'androidx.constraintlayout:constraintlayout:2.0.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
 }

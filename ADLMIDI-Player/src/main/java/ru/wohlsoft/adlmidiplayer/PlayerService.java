@@ -252,7 +252,7 @@ public class PlayerService extends Service {
             builder.setPriority(NotificationManager.IMPORTANCE_LOW);
         }
         else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-            builder.setPriority(Notification.PRIORITY_MAX);
+            builder.setPriority(NotificationManager.IMPORTANCE_HIGH);
         }
 
         // Make head-up notification.

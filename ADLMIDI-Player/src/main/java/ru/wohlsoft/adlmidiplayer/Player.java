@@ -60,13 +60,14 @@ public class Player extends AppCompatActivity
 
     private SharedPreferences   m_setup = null;
 
-    private String              m_lastPath = Environment.getExternalStorageDirectory().getPath();
+    private String              m_lastPath = "";
     private String              m_lastBankPath = "";
 
     private int                 m_chipsCount = 2;
     private int                 m_fourOpsCount = -1;
 
-    private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+    private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver()
+    {
         @Override
         public void onReceive(Context context, Intent intent) {
             String intentType = intent.getStringExtra("INTENT_TYPE");
@@ -80,7 +81,8 @@ public class Player extends AppCompatActivity
         }
     };
 
-    public static double round(double value, int places) {
+    public static double round(double value, int places)
+    {
         if (places < 0) throw new IllegalArgumentException();
 
         BigDecimal bd = new BigDecimal(value);
@@ -523,18 +525,26 @@ public class Player extends AppCompatActivity
     }
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState)
+    {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_player);
 
+        if(android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.P)
+            m_lastPath = Environment.getExternalStorageDirectory().getPath();
+        else
+            m_lastPath = "/storage/emulated/0";
+
         m_setup = getPreferences(Context.MODE_PRIVATE);
 
-        m_lastPath              = m_setup.getString("lastPath", m_lastPath);
+        m_lastPath = m_setup.getString("lastPath", m_lastPath);
 
         Button quitBut = (Button) findViewById(R.id.quitapp);
-        quitBut.setOnClickListener(new View.OnClickListener() {
+        quitBut.setOnClickListener(new View.OnClickListener()
+        {
             @Override
-            public void onClick(View view) {
+            public void onClick(View view)
+            {
                 Log.d(LOG_TAG, "Quit: Trying to stop seeker");
                 seekerStop();
                 if(m_bound) {
@@ -559,7 +569,8 @@ public class Player extends AppCompatActivity
         });
 
         Button openfb = (Button) findViewById(R.id.openFile);
-        openfb.setOnClickListener(new View.OnClickListener() {
+        openfb.setOnClickListener(new View.OnClickListener()
+        {
             @Override
             public void onClick(View view) {
                 OnOpenFileClick(view);
@@ -567,7 +578,8 @@ public class Player extends AppCompatActivity
         });
 
         Button playPause = (Button) findViewById(R.id.playPause);
-        playPause.setOnClickListener(new View.OnClickListener() {
+        playPause.setOnClickListener(new View.OnClickListener()
+        {
             @Override
             public void onClick(View view) {
                 OnPlayClick(view);
@@ -575,7 +587,8 @@ public class Player extends AppCompatActivity
         });
 
         Button restartBtn = (Button) findViewById(R.id.restart);
-        restartBtn.setOnClickListener(new View.OnClickListener() {
+        restartBtn.setOnClickListener(new View.OnClickListener()
+        {
             @Override
             public void onClick(View view) {
                 OnRestartClick(view);
@@ -583,7 +596,8 @@ public class Player extends AppCompatActivity
         });
 
         Button openBankFileButton = (Button) findViewById(R.id.customBank);
-        openBankFileButton.setOnClickListener(new View.OnClickListener() {
+        openBankFileButton.setOnClickListener(new View.OnClickListener()
+        {
             @Override
             public void onClick(View view) {
                 OnOpenBankFileClick(view);
@@ -593,7 +607,8 @@ public class Player extends AppCompatActivity
 
 
     @Override
-    protected void onStart() {
+    protected void onStart()
+    {
         super.onStart();
         // Bind to LocalService
         Intent intent = new Intent(this, PlayerService.class);

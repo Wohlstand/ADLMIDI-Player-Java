@@ -10,7 +10,7 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 //import android.os.Build;
-import android.os.Environment;
+//import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.*;
@@ -31,9 +31,9 @@ import androidx.core.content.res.ResourcesCompat;
  * Date: 27.11.13
  * Time: 10:47
  */
-public class OpenFileDialog extends AlertDialog.Builder {
-
-    private String currentPath = Environment.getExternalStorageDirectory().getPath();
+public class OpenFileDialog extends AlertDialog.Builder
+{
+    private String currentPath = "/";
     private List<File> files = new ArrayList<File>();
     private TextView title;
     private ListView listView;
