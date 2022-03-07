@@ -5,7 +5,6 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -36,10 +35,12 @@ public class PlayerService extends Service {
 
     public static final String ACTION_START_FOREGROUND_SERVICE = "ACTION_START_FOREGROUND_SERVICE";
     public static final String ACTION_STOP_FOREGROUND_SERVICE = "ACTION_STOP_FOREGROUND_SERVICE";
+    public static final String ACTION_CLOSE_FOREGROUND_SERVICE = "ACTION_CLOSE_FOREGROUND_SERVICE";
 
     public static final String ACTION_PAUSE = "ACTION_PAUSE";
     public static final String ACTION_PLAY  = "ACTION_PLAY";
     public static final String ACTION_STOP  = "ACTION_STOP";
+    public static final String ACTION_CLOSE = "ACTION_CLOSE";
 
 //    public final int            BUF_SIZE = 10240;
     private long                MIDIDevice = 0;
@@ -60,6 +61,8 @@ public class PlayerService extends Service {
     private int                 m_ADL_softPanEnabled = 0;
     // Default 1 for performance reasons
     private int                 m_ADL_runAtPcmRate = 1;
+
+    private int                 m_ADL_autoArpeggio = 0;
 
     private int                 m_ADL_emulator = 2; // 2 is DosBox
     private int                 m_adl_numChips = 2;
@@ -183,6 +186,11 @@ public class PlayerService extends Service {
                         playerStop();
                         stopForegroundPlayer();
                         break;
+                    case ACTION_CLOSE_FOREGROUND_SERVICE:
+                    case ACTION_CLOSE:
+                        playerStop();
+                        closeForegroundPlayer();
+                        break;
                     case ACTION_PAUSE:
                         playerStop();
                         // Toast.makeText(getApplicationContext(), "You click Pause button.", Toast.LENGTH_LONG).show();
@@ -214,6 +222,13 @@ public class PlayerService extends Service {
         // Stop the foreground service.
         stopSelf();
 
+        m_isRunning = false;
+    }
+
+    private void closeForegroundPlayer()
+    {
+        stopForeground(true);
+        stopSelf();
         m_isRunning = false;
     }
 
@@ -277,14 +292,23 @@ public class PlayerService extends Service {
             PendingIntent pendingPrevIntent = PendingIntent.getService(this, 0, pauseIntent, 0);
             NotificationCompat.Action prevAction = new NotificationCompat.Action(android.R.drawable.ic_media_pause, "Pause", pendingPrevIntent);
             builder.addAction(prevAction);
-        }
 
-        // Add Stop button intent in notification.
-        Intent stopIntent = new Intent(this, PlayerService.class);
-        stopIntent.setAction(ACTION_STOP);
-        PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, 0);
-        NotificationCompat.Action stopAction = new NotificationCompat.Action(android.R.drawable.ic_menu_close_clear_cancel, "Stop", pendingStopIntent);
-        builder.addAction(stopAction);
+            // Add Stop button intent in notification.
+            Intent stopIntent = new Intent(this, PlayerService.class);
+            stopIntent.setAction(ACTION_STOP);
+            PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, 0);
+            NotificationCompat.Action stopAction = new NotificationCompat.Action(android.R.drawable.ic_menu_close_clear_cancel, "Stop", pendingStopIntent);
+            builder.addAction(stopAction);
+        }
+        else
+        {
+            // Add close button intent in notification.
+            Intent stopIntent = new Intent(this, PlayerService.class);
+            stopIntent.setAction(ACTION_CLOSE);
+            PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, 0);
+            NotificationCompat.Action stopAction = new NotificationCompat.Action(android.R.drawable.ic_menu_close_clear_cancel, "Close", pendingStopIntent);
+            builder.addAction(stopAction);
+        }
 
         // Build the notification.
         return builder.build();
@@ -308,6 +332,7 @@ public class PlayerService extends Service {
             m_ADL_scalable = setup.getBoolean("flagScalable", m_ADL_scalable > 0) ? 1 : -1;
             m_ADL_softPanEnabled = setup.getBoolean("flagSoftPan", m_ADL_softPanEnabled > 0) ? 1 : 0;
             m_ADL_runAtPcmRate = setup.getBoolean("flagRunAtPcmRate", m_ADL_runAtPcmRate > 0) ? 1 : 0;
+            m_ADL_autoArpeggio = setup.getBoolean("flagAutoArpeggio", m_ADL_autoArpeggio > 0) ? 1 : 0;
 
             m_ADL_emulator = setup.getInt("emulator", m_ADL_emulator);
             m_adl_numChips = setup.getInt("numChips", m_adl_numChips);
@@ -372,6 +397,7 @@ public class PlayerService extends Service {
         adl_setEmulator(MIDIDevice, m_ADL_emulator);
         adl_setNumChips(MIDIDevice, m_adl_numChips);
         adl_setRunAtPcmRate(MIDIDevice, m_ADL_runAtPcmRate); // Reduces CPU usage, BUT, also reduces sounding accuracy
+        adl_setAutoArpeggio(MIDIDevice, m_ADL_autoArpeggio);
         adl_setNumFourOpsChn(MIDIDevice, (m_ADL_num4opChannels >= 0) ? m_ADL_num4opChannels : -1); // -1 is "Auto"
         adl_setHTremolo(MIDIDevice, m_ADL_tremolo);
         adl_setHVibrato(MIDIDevice, m_ADL_vibrato);
@@ -509,6 +535,20 @@ public class PlayerService extends Service {
         adl_setSoftPanEnabled(MIDIDevice, m_ADL_softPanEnabled);
     }
     public boolean getFullPanningStereo()
+    {
+        return m_ADL_softPanEnabled > 0;
+    }
+
+    public void setAutoArpeggio(boolean flag)
+    {
+        m_ADL_autoArpeggio = flag ? 1 : 0;
+        m_setup.edit().putBoolean("flagAutoArpeggio", flag).apply();
+        if(MIDIDevice == 0) {
+            return;
+        }
+        adl_setAutoArpeggio(MIDIDevice, m_ADL_autoArpeggio);
+    }
+    public boolean getAutoArpeggio()
     {
         return m_ADL_softPanEnabled > 0;
     }
@@ -801,6 +841,8 @@ public class PlayerService extends Service {
     public static native void adl_setVolumeRangeModel(long device, int volumeModel);
 
     public static native int adl_setRunAtPcmRate(long device, int enabled);
+
+    public static native int adl_setAutoArpeggio(long device, int enabled);
 
     public static native void adl_setSoftPanEnabled(long device, int enabled);
 

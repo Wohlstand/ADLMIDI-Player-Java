@@ -130,11 +130,26 @@
             android:text="@string/full_panning_stereo"
             tools:text="@string/full_panning_stereo" />
 
+        <CheckBox
+            android:id="@+id/autoArpeggio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/fullPanningStereo"
+            android:layout_alignEnd="@+id/fullPanningStereo"
+            android:layout_alignRight="@+id/fullPanningStereo"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:text="@string/autoArpeggio"
+            tools:text="@string/autoArpeggio" />
+
+
         <TextView
             android:id="@+id/emulatorTypeLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/fullPanningStereo"
+            android:layout_below="@+id/autoArpeggio"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="true"
             android:layout_alignParentEnd="true"

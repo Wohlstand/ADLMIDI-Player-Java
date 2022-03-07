@@ -372,6 +372,22 @@ public class Player extends AppCompatActivity
             });
 
             /*
+             * Automatic arpeggio
+             */
+            CheckBox autoArpeggio = (CheckBox)findViewById(R.id.autoArpeggio);
+            autoArpeggio.setChecked(m_service.getAutoArpeggio());
+            autoArpeggio.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    if(m_bound)
+                        m_service.setAutoArpeggio(isChecked);
+                    Toast toast = Toast.makeText(getApplicationContext(),
+                            "Auto Arpeggio toggled!", Toast.LENGTH_SHORT);
+                    toast.show();
+                }
+            });
+
+            /*
              * Chips count
              */
             Button numChipsMinus = (Button) findViewById(R.id.numChipsMinus);
@@ -499,6 +515,10 @@ public class Player extends AppCompatActivity
 
             // Try to load external file if requested
             handleFileIntent();
+
+            // TODO: Make the PROPER settings loading without service bootstrapping and remove this mess as fast as possible!!!!
+            // WORKAROUND: stop the service
+            playerServiceStop();
         }
     }
 
@@ -516,7 +536,7 @@ public class Player extends AppCompatActivity
     private void playerServiceStop()
     {
         Intent intent = new Intent(this, PlayerService.class);
-        intent.setAction(PlayerService.ACTION_STOP_FOREGROUND_SERVICE);
+        intent.setAction(PlayerService.ACTION_CLOSE_FOREGROUND_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent);
         } else {
