@@ -803,7 +803,7 @@ public class Player extends AppCompatActivity
                 .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
                 {
                     @Override
-                    public void OnSelectedFile(String fileName, String lastPath) {
+                    public void OnSelectedFile(Context ctx, String fileName, String lastPath) {
                         m_lastBankPath = fileName;
 
                         TextView cbl = (TextView) findViewById(R.id.bankFileName);
@@ -816,6 +816,9 @@ public class Player extends AppCompatActivity
                         if(m_bound)
                             m_service.openBank(m_lastBankPath);
                     }
+
+                    @Override
+                    public void OnSelectedDirectory(Context ctx, String lastPath) {}
                 });
         fileDialog.show();
     }
@@ -835,7 +838,10 @@ public class Player extends AppCompatActivity
                 .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
                 {
                     @Override
-                    public void OnSelectedFile(String fileName, String lastPath) {
+                    public void OnSelectedDirectory(Context ctx, String lastPath) {}
+
+                    @Override
+                    public void OnSelectedFile(Context ctx, String fileName, String lastPath) {
                         processMusicFile(fileName, lastPath);
                     }
                 });

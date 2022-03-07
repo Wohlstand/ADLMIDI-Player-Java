@@ -10,7 +10,7 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 //import android.os.Build;
-//import android.os.Environment;
+import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.*;
@@ -31,9 +31,10 @@ import androidx.core.content.res.ResourcesCompat;
  * Date: 27.11.13
  * Time: 10:47
  */
-public class OpenFileDialog extends AlertDialog.Builder
-{
-    private String currentPath = "/";
+public class OpenFileDialog extends AlertDialog.Builder {
+
+    private String currentPath = Environment.getExternalStorageDirectory().getPath();
+    private String initialPath = currentPath;
     private List<File> files = new ArrayList<File>();
     private TextView title;
     private ListView listView;
@@ -43,9 +44,12 @@ public class OpenFileDialog extends AlertDialog.Builder
     private Drawable folderIcon;
     private Drawable fileIcon;
     private String accessDeniedMessage;
+    private Boolean m_directoryMode = false;
 
-    public interface OpenDialogListener {
-        public void OnSelectedFile(String fileName, String lastPath);
+    public interface OpenDialogListener
+    {
+        public void OnSelectedFile(Context ctx, String fileName, String lastPath);
+        public void OnSelectedDirectory(Context ctx, String lastPath);
     }
 
     private class FileAdapter extends ArrayAdapter<File> {
@@ -91,21 +95,36 @@ public class OpenFileDialog extends AlertDialog.Builder
         super(context);
         title = createTitle(context);
         changeTitle();
+
         LinearLayout linearLayout = createMainLayout(context);
-        linearLayout.addView(createBackItem(context));
+
+        LinearLayout menuBar = createMenuLayout(linearLayout.getContext());
+        menuBar.addView(createBackItem(context));
+        menuBar.addView(createGoHomeItem(context));
+        menuBar.addView(createGoInitPathItem(context));
+        linearLayout.addView(menuBar);
+
         listView = createListView(context);
         linearLayout.addView(listView);
+
         setCustomTitle(title)
-                .setView(linearLayout)
-                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        if (selectedIndex > -1 && listener != null) {
-                            listener.OnSelectedFile(listView.getItemAtPosition(selectedIndex).toString(), currentPath);
-                        }
+            .setView(linearLayout)
+            .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener()
+            {
+                @Override
+                public void onClick(DialogInterface dialog, int which)
+                {
+                    if(m_directoryMode)
+                    {
+                        listener.OnSelectedDirectory(getContext(), currentPath);
                     }
-                })
-                .setNegativeButton(android.R.string.cancel, null);
+                    else if (selectedIndex > -1 && listener != null)
+                    {
+                        listener.OnSelectedFile(getContext(), listView.getItemAtPosition(selectedIndex).toString(), currentPath);
+                    }
+                }
+            })
+            .setNegativeButton(android.R.string.cancel, null);
     }
 
     @Override
@@ -132,9 +151,17 @@ public class OpenFileDialog extends AlertDialog.Builder
         return this;
     }
 
+    public OpenFileDialog setDirectoryMode()
+    {
+        m_directoryMode = true;
+        return this;
+    }
+
     public OpenFileDialog setCurrentDirectory(String path)
     {
         currentPath = path;
+        initialPath = path;
+        changeTitle();
         return this;
     }
 
@@ -183,6 +210,12 @@ public class OpenFileDialog extends AlertDialog.Builder
         return linearLayout;
     }
 
+    private LinearLayout createMenuLayout(Context context) {
+        LinearLayout linearLayout = new LinearLayout(context);
+        linearLayout.setOrientation(LinearLayout.HORIZONTAL);
+        return linearLayout;
+    }
+
     private int getItemHeight(Context context) {
         TypedValue value = new TypedValue();
         DisplayMetrics metrics = new DisplayMetrics();
@@ -208,16 +241,11 @@ public class OpenFileDialog extends AlertDialog.Builder
 
     private TextView createBackItem(Context context) {
         TextView textView = createTextView(context, android.R.style.TextAppearance_DeviceDefault_Small);
-        Drawable drawable = ResourcesCompat.getDrawable(getContext().getResources(), android.R.drawable.ic_menu_directions, context.getTheme());
-//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-//            drawable = getContext().getResources().getDrawable(android.R.drawable.ic_menu_directions, context.getTheme());
-//        } else {
-//            drawable = getContext().getResources().getDrawable(android.R.drawable.ic_menu_directions);
-//        }
+        Drawable drawable = ResourcesCompat.getDrawable(getContext().getResources(), R.drawable.ic_menu_back, context.getTheme());
         assert drawable != null;
         drawable.setBounds(0, 0, 60, 60);
         textView.setCompoundDrawables(drawable, null, null, null);
-        textView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        textView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         textView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -227,6 +255,40 @@ public class OpenFileDialog extends AlertDialog.Builder
                     currentPath = parentDirectory.getPath();
                     RebuildFiles(((FileAdapter) listView.getAdapter()));
                 }
+            }
+        });
+        return textView;
+    }
+
+    private TextView createGoHomeItem(Context context) {
+        TextView textView = createTextView(context, android.R.style.TextAppearance_DeviceDefault_Small);
+        Drawable drawable = ResourcesCompat.getDrawable(getContext().getResources(), R.drawable.ic_menu_home, context.getTheme());
+        assert drawable != null;
+        drawable.setBounds(0, 0, 60, 60);
+        textView.setCompoundDrawables(drawable, null, null, null);
+        textView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        textView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                currentPath = Environment.getExternalStorageDirectory().getPath();
+                RebuildFiles(((FileAdapter) listView.getAdapter()));
+            }
+        });
+        return textView;
+    }
+
+    private TextView createGoInitPathItem(Context context) {
+        TextView textView = createTextView(context, android.R.style.TextAppearance_DeviceDefault_Small);
+        Drawable drawable = ResourcesCompat.getDrawable(getContext().getResources(), android.R.drawable.ic_menu_directions, context.getTheme());
+        assert drawable != null;
+        drawable.setBounds(0, 0, 60, 60);
+        textView.setCompoundDrawables(drawable, null, null, null);
+        textView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        textView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                currentPath = initialPath;
+                RebuildFiles(((FileAdapter) listView.getAdapter()));
             }
         });
         return textView;
@@ -265,12 +327,12 @@ public class OpenFileDialog extends AlertDialog.Builder
         Collections.sort(fileList, new Comparator<File>() {
             @Override
             public int compare(File file, File file2) {
-            if (file.isDirectory() && file2.isFile())
-                return -1;
-            else if (file.isFile() && file2.isDirectory())
-                return 1;
-            else
-                return file.getPath().compareToIgnoreCase(file2.getPath());
+                if (file.isDirectory() && file2.isFile())
+                    return -1;
+                else if (file.isFile() && file2.isDirectory())
+                    return 1;
+                else
+                    return file.getPath().compareToIgnoreCase(file2.getPath());
             }
         });
         return fileList;
@@ -298,19 +360,19 @@ public class OpenFileDialog extends AlertDialog.Builder
 
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int index, long l) {
-            final ArrayAdapter<File> adapter = (FileAdapter) adapterView.getAdapter();
-            File file = adapter.getItem(index);
-            assert file != null;
-            if (file.isDirectory()) {
-                currentPath = file.getPath();
-                RebuildFiles(adapter);
-            } else {
-                if (index != selectedIndex)
-                    selectedIndex = index;
-                else
-                    selectedIndex = -1;
-                adapter.notifyDataSetChanged();
-            }
+                final ArrayAdapter<File> adapter = (FileAdapter) adapterView.getAdapter();
+                File file = adapter.getItem(index);
+                assert file != null;
+                if (file.isDirectory()) {
+                    currentPath = file.getPath();
+                    RebuildFiles(adapter);
+                } else {
+                    if (index != selectedIndex)
+                        selectedIndex = index;
+                    else
+                        selectedIndex = -1;
+                    adapter.notifyDataSetChanged();
+                }
             }
         });
         return listView;
