@@ -2,7 +2,7 @@
  * libADLMIDI is a free Software MIDI synthesizer library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2015-2021 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2022 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -564,6 +564,16 @@ extern ADLMIDI_DECLSPEC void adl_setAutoArpeggio(struct ADL_MIDIPlayer *device, 
 extern ADLMIDI_DECLSPEC void adl_setLoopEnabled(struct ADL_MIDIPlayer *device, int loopEn);
 
 /**
+ * @brief Set how many times loop will be played
+ *
+ * Note: The song will be played once if loop has been disabled with no matter which value of loop count was set
+ *
+ * @param device Instance of the library
+ * @param loopCount Number of loops or -1 to loop infinitely
+ */
+extern ADLMIDI_DECLSPEC void adl_setLoopCount(struct ADL_MIDIPlayer *device, int loopCount);
+
+/**
  * @brief Enable or disable soft panning with chip emulators
  * @param device Instance of the library
  * @param softPanEn 0 - disabled, 1 - enabled
@@ -883,6 +893,15 @@ enum ADLMIDI_TrackOptions
  * @return 0 on success, <0 when any error has occurred
  */
 extern ADLMIDI_DECLSPEC int adl_setTrackOptions(struct ADL_MIDIPlayer *device, size_t trackNumber, unsigned trackOptions);
+
+/**
+ * @brief Sets the channel of the current sequence enable state
+ * @param device Instance of the library
+ * @param channelNumber Number of the channel (from 0 to 15)
+ * @param enabled 1 to enable and 0 to disable
+ * @return 0 on success, <0 when any error has occurred
+ */
+extern ADLMIDI_DECLSPEC int adl_setChannelEnabled(struct ADL_MIDIPlayer *device, size_t channelNumber, int enabled);
 
 /**
  * @brief Handler of callback trigger events
