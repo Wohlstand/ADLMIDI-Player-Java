@@ -20,7 +20,7 @@
 -repackageclasses ''
 -allowaccessmodification
 -optimizations !code/simplification/arithmetic
--keepattributes *Annotation*
+-keepattributes LineNumberTable,SourceFile,*Annotation*
 
 -verbose
 
