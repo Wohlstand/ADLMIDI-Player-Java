@@ -77,6 +77,12 @@
             </intent-filter>
         </activity>
 
+        <receiver android:name=".HardButtonReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".PlayerService"
             android:enabled="true"

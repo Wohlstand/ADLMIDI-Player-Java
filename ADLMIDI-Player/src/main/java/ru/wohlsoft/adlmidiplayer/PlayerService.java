@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -70,6 +71,9 @@ public class PlayerService extends Service {
 //    private int                 m_ADL_volumeModel = 0;
 
 //    private double              m_gainingLevel = 2.0;
+
+    private HardButtonReceiver mButtonReceiver = null;
+    private boolean            mButtonReceiverRegistered = false;
 
     //! Cache of previously sent seek position
     private int                 m_lastSeekPosition = -1;
@@ -140,6 +144,8 @@ public class PlayerService extends Service {
         super.onCreate();
         Log.d(LOG_TAG, "onCreate");
 
+        mButtonReceiver = new HardButtonReceiver(this);
+
         // Create notification channel for Android Oreo and higher
         if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
         {
@@ -158,8 +164,34 @@ public class PlayerService extends Service {
     public void onDestroy() {
         super.onDestroy();
         Log.d(LOG_TAG, "onDestroy");
+        if(mButtonReceiverRegistered)
+        {
+            unregisterReceiver(mButtonReceiver);
+            mButtonReceiverRegistered = false;
+        }
         stopSeekerTimer();
         stopForeground(true);
+    }
+
+    /**
+     * HardButtonListener methods
+     */
+    public void onPrevButtonPress()
+    {}
+
+    public void onNextButtonPress()
+    {}
+
+    public void onPlayPauseButtonPress()
+    {
+        if(m_isPlaying)
+        {
+            playerStop();
+        }
+        else
+        {
+            playerStart();
+        }
     }
 
     @Override
@@ -209,12 +241,26 @@ public class PlayerService extends Service {
         // Start foreground service.
         m_isRunning = true;
         startForeground(FOREGROUND_ID, getNotify());
+
+        if(!mButtonReceiverRegistered)
+        {
+            IntentFilter iF = new IntentFilter(Intent.ACTION_MEDIA_BUTTON);
+            iF.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY + 42);
+            registerReceiver(mButtonReceiver, iF);
+            mButtonReceiverRegistered = true;
+        }
     }
 
     private void stopForegroundPlayer()
     {
         if(!m_isRunning)
             return;
+
+        if(mButtonReceiverRegistered)
+        {
+            unregisterReceiver(mButtonReceiver);
+            mButtonReceiverRegistered = false;
+        }
         // Log.d(TAG_FOREGROUND_SERVICE, "Stop foreground service.");
         // Stop foreground service and remove the notification.
         stopForeground(true);
@@ -227,6 +273,11 @@ public class PlayerService extends Service {
 
     private void closeForegroundPlayer()
     {
+        if(mButtonReceiverRegistered)
+        {
+            unregisterReceiver(mButtonReceiver);
+            mButtonReceiverRegistered = false;
+        }
         stopForeground(true);
         stopSelf();
         m_isRunning = false;
