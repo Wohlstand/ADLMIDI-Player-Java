@@ -114,36 +114,54 @@ public class Player extends AppCompatActivity
             PlayerService.LocalBinder binder = (PlayerService.LocalBinder) service;
             m_service = binder.getService();
             m_bound = true;
+            Log.d(LOG_TAG, "mConnection: Connected");
+            initUiSetup(true);
         }
 
         @Override
-        public void onServiceDisconnected(ComponentName arg0) {
+        public void onServiceDisconnected(ComponentName arg0)
+        {
             m_bound = false;
+            Log.d(LOG_TAG, "mConnection: Disconnected");
         }
     };
 
-    private void initUiSetup()
+    private void initUiSetup(boolean fromConnect)
     {
-        AppSettings.loadSetup(m_setup);
         boolean isPlaying = false;
 
-        reconnectPlayerService();
+        if(!fromConnect)
+        {
+            AppSettings.loadSetup(m_setup);
+            if(reconnectPlayerService())
+                return;
+        }
 
         if (m_bound)
         {
+            Log.d(LOG_TAG, "\"bound\" set to true");
             isPlaying = m_service.isPlaying();
 
             if (isPlaying)
             {
+                Log.d(LOG_TAG, "Player works, make a toast");
                 seekerStart();
-                Toast toast = Toast.makeText(getApplicationContext(),
-                        "Already playing", Toast.LENGTH_SHORT);
+                Toast toast = Toast.makeText(getApplicationContext(), "Already playing", Toast.LENGTH_SHORT);
                 toast.show();
             }
+            else
+                Log.d(LOG_TAG, "Player doesn NOT works");
         }
+        else
+            Log.d(LOG_TAG, "\"bound\" set to false");
 
         if(m_uiLoaded)
+        {
+            Log.d(LOG_TAG, "UI already loaded, do nothing");
             return;
+        }
+
+        Log.d(LOG_TAG, "UI is not loaded, do load");
 
         /*
          * Music position seeker
@@ -693,7 +711,7 @@ public class Player extends AppCompatActivity
     protected void onStart()
     {
         super.onStart();
-        initUiSetup();
+        initUiSetup(false);
     }
 
     private boolean isPlayerRunning()
@@ -710,16 +728,25 @@ public class Player extends AppCompatActivity
     /**!
      * Reconnect running player
      */
-    private void reconnectPlayerService()
+    private boolean reconnectPlayerService()
     {
         if(isPlayerRunning())
+        {
+            Log.d(LOG_TAG, "Player is running, reconnect");
             bindPlayerService();
+            return true;
+        }
+        else
+            Log.d(LOG_TAG, "Player is NOT running, do nothing");
+
+        return false;
     }
 
     private void bindPlayerService()
     {
         if(!m_bound)
         {
+            Log.d(LOG_TAG, "bind is not exist, making a bind");
             // Bind to LocalService
             Intent intent = new Intent(this, PlayerService.class);
             bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
@@ -886,7 +913,8 @@ public class Player extends AppCompatActivity
         }
     }
 
-    public void OnOpenBankFileClick(View view) {
+    public void OnOpenBankFileClick(View view)
+    {
         // Here, thisActivity is the current activity
         if(checkFilePermissions(READ_PERMISSION_FOR_BANK))
             return;
