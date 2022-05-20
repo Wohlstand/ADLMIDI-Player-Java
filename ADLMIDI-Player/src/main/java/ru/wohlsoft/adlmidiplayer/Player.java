@@ -1,6 +1,7 @@
 package ru.wohlsoft.adlmidiplayer;
 
 import android.annotation.SuppressLint;
+import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.ContentResolver;
@@ -125,6 +126,8 @@ public class Player extends AppCompatActivity
     {
         AppSettings.loadSetup(m_setup);
         boolean isPlaying = false;
+
+        reconnectPlayerService();
 
         if (m_bound)
         {
@@ -693,6 +696,26 @@ public class Player extends AppCompatActivity
         initUiSetup();
     }
 
+    private boolean isPlayerRunning()
+    {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (PlayerService.class.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**!
+     * Reconnect running player
+     */
+    private void reconnectPlayerService()
+    {
+        if(isPlayerRunning())
+            bindPlayerService();
+    }
+
     private void bindPlayerService()
     {
         if(!m_bound)
@@ -883,6 +906,7 @@ public class Player extends AppCompatActivity
                     @Override
                     public void OnSelectedFile(Context ctx, String fileName, String lastPath) {
                         m_lastBankPath = fileName;
+                        AppSettings.setBankPath(m_lastBankPath);
 
                         TextView cbl = (TextView) findViewById(R.id.bankFileName);
                         if(!m_lastBankPath.isEmpty()) {
