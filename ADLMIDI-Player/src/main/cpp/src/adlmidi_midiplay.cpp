@@ -91,7 +91,7 @@ MIDIplay::MIDIplay(unsigned long sampleRate):
     //m_setup.SkipForward = 0;
     m_setup.scaleModulators     = -1;
     m_setup.fullRangeBrightnessCC74 = false;
-    m_setup.enableAutoArpeggio = true;
+    m_setup.enableAutoArpeggio = false;
     m_setup.delay = 0.0;
     m_setup.carry = 0.0;
     m_setup.tick_skip_samples_delay = 0;
@@ -293,10 +293,11 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         if(!i.is_end())
         {
             MIDIchannel::NoteInfo &ni = i->value;
-            const int veloffset = ni.ains->midiVelocityOffset;
+            const int veloffset = ni.ains ? ni.ains->midiVelocityOffset : 0;
             velocity = (uint8_t)std::min(127, std::max(1, (int)velocity + veloffset));
             ni.vol = velocity;
-            noteUpdate(channel, i, Upd_Volume);
+            if(ni.ains)
+                noteUpdate(channel, i, Upd_Volume);
             return false;
         }
     }
@@ -1348,6 +1349,17 @@ int64_t MIDIplay::calculateChipChannelGoodness(size_t c, const MIDIchannel::Note
     const AdlChannel &chan = m_chipChannels[c];
     int64_t koff_ms = chan.koff_time_until_neglible_us / 1000;
     int64_t s = -koff_ms;
+    ADLMIDI_ChannelAlloc allocType = synth.m_channelAlloc;
+
+    if(allocType == ADLMIDI_ChanAlloc_AUTO)
+    {
+        if(synth.m_musicMode == Synth::MODE_CMF)
+            allocType = ADLMIDI_ChanAlloc_SameInst;
+        else if(synth.m_volumeScale == Synth::VOLUME_HMI)
+            allocType = ADLMIDI_ChanAlloc_AnyReleased; // HMI doesn't care about the same instrument
+        else
+            allocType = ADLMIDI_ChanAlloc_OffDelay;
+    }
 
     // Rate channel with a releasing note
     if(s < 0 && chan.users.empty())
@@ -1356,19 +1368,22 @@ int64_t MIDIplay::calculateChipChannelGoodness(size_t c, const MIDIchannel::Note
         s -= 40000;
 
         // If it's same instrument, better chance to get it when no free channels
-        if(synth.m_musicMode == Synth::MODE_CMF)
+        switch(allocType)
         {
+        case ADLMIDI_ChanAlloc_SameInst:
             if(isSame)
                 s = 0; // Re-use releasing channel with the same instrument
-        }
-        else if(synth.m_volumeScale == Synth::VOLUME_HMI)
-        {
-            s = 0; // HMI doesn't care about the same instrument
-        }
-        else
-        {
+            break;
+
+        case ADLMIDI_ChanAlloc_AnyReleased:
+            s = 0; // Re-use any releasing channel
+            break;
+
+        default:
+        case ADLMIDI_ChanAlloc_OffDelay:
             if(isSame)
                 s =  -koff_ms; // Wait until releasing sound will complete
+            break;
         }
 
         return s;

@@ -26,19 +26,24 @@ if(DJGPP OR MSDOS)
     add_definitions(-DADLMIDI_HW_OPL)
 endif()
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Nintendo3DS")
+if(NINTENDO_3DS)
     set(ADLMIDI_3DS 1)
     add_definitions(-DDOSBOX_NO_MUTEX)
 endif()
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "NintendoDS")
+if(NINTENDO_DS)
     set(ADLMIDI_DS 1)
     add_definitions(-DDOSBOX_NO_MUTEX)
 endif()
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "NintendoWii")
+if(NINTENDO_WII)
     set(ADLMIDI_WII 1)
     add_definitions(-DUSE_LIBOGC_MUTEX)
+endif()
+
+if(NINTENDO_WIIU)
+    set(ADLMIDI_WIIU 1)
+    add_definitions(-DUSE_WUT_MUTEX)
 endif()
 
 #===========================================================================================
@@ -130,7 +135,7 @@ function(set_visibility_hidden destTarget)
 endfunction()
 #===========================================================================================
 
-if(VITA OR 3DS)
+if(VITA OR NINTENDO_3DS OR NINTENDO_WII OR NINTENDO_WIIU)
     set(DEFAULT_HEAVY_EMULATORS OFF)
 else()
     set(DEFAULT_HEAVY_EMULATORS ON)
@@ -138,7 +143,9 @@ endif()
 
 if(NOT EMSCRIPTEN
    AND NOT VITA
-   AND NOT 3DS
+   AND NOT NINTENDO_3DS
+   AND NOT NINTENDO_WII
+   AND NOT NINTENDO_WIIU
    AND NOT ADLMIDI_DOS)
     option(libADLMIDI_STATIC   "Build static library of libADLMIDI" ON)
     option(libADLMIDI_SHARED   "Build shared library of libADLMIDI" OFF)
@@ -176,7 +183,10 @@ endif()
 
 if(NOT WIN32
    AND NOT VITA
-   AND NOT 3DS
+   AND NOT NINTENDO_3DS
+   AND NOT NINTENDO_WII
+   AND NOT NINTENDO_WIIU
+   AND NOT NINTENDO_SWITCH
    AND NOT EMSCRIPTEN
    AND NOT ADLMIDI_DOS)
     option(ENABLE_FPIC "Build static libraries as position independent code" ON)
@@ -278,6 +288,22 @@ set(libADLMIDI_SOURCES
     ${libADLMIDI_SOURCE_DIR}/src/adlmidi_private.cpp
     ${libADLMIDI_SOURCE_DIR}/src/wopl/wopl_file.c
 )
+
+# Make headers being properly visible at IDEs
+file(GLOB libADLMIDI_HEADERS
+    ${libADLMIDI_SOURCE_DIR}/include/*.h
+    ${libADLMIDI_SOURCE_DIR}/src/*.h
+    ${libADLMIDI_SOURCE_DIR}/src/*.hpp
+    ${libADLMIDI_SOURCE_DIR}/src/wopl/*.h
+    ${libADLMIDI_SOURCE_DIR}/src/structures/*.hpp
+    ${libADLMIDI_SOURCE_DIR}/src/chips/*.h
+    ${libADLMIDI_SOURCE_DIR}/src/chips/common/*.hpp
+    ${libADLMIDI_SOURCE_DIR}/src/chips/dosbox/*.h
+    ${libADLMIDI_SOURCE_DIR}/src/chips/java/*.hpp
+    ${libADLMIDI_SOURCE_DIR}/src/chips/nuked/*.h
+    ${libADLMIDI_SOURCE_DIR}/src/chips/opal/*.hpp
+)
+list(APPEND libADLMIDI_SOURCES ${libADLMIDI_HEADERS})
 
 # === Static library ====
 if(libADLMIDI_STATIC OR WITH_VLC_PLUGIN)
