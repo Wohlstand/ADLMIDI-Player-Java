@@ -31,4 +31,5 @@
     <string name="emulatorType">OPL3 Emulator</string>
     <string name="noCustomBankLabel"><![CDATA[<No custom bank>]]></string>
     <string name="autoArpeggio">Auto Arpeggio</string>
+    <string name="chanAllocationMode">Channel allocation mode</string>
 </resources>

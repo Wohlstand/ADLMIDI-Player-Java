@@ -28,4 +28,5 @@
     <string name="emulatorType">Эмулятор OPL3</string>
     <string name="noCustomBankLabel"><![CDATA[<Нет внешнего банка>]]></string>
     <string name="autoArpeggio">Авто-арпеджио</string>
+    <string name="chanAllocationMode">Режим выборки каналов</string>
 </resources>

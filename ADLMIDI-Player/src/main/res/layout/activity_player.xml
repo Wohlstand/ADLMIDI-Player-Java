@@ -195,10 +195,34 @@
             android:minHeight="30dp" />
 
         <TextView
-            android:id="@+id/musicBankLabel"
+            android:id="@+id/channelAllocationModeLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@+id/volumeRangesModel"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:text="@string/chanAllocationMode"
+            tools:text="@string/chanAllocationMode" />
+
+        <Spinner
+            android:id="@+id/channelAllocationMode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/channelAllocationModeLabel"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:layout_marginBottom="15dp"
+            android:minHeight="30dp" />
+
+        <TextView
+            android:id="@+id/musicBankLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/channelAllocationMode"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="true"
             android:layout_alignParentEnd="true"

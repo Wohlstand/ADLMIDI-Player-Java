@@ -742,6 +742,20 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setVolumeRangeModel(
     pthread_mutex_unlock(&g_lock);
 }
 
+JNIEXPORT void JNICALL
+Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setChannelAllocMode(
+    JNIEnv *env,
+    jclass instance,
+    jlong device,
+    jint chanAlloc
+)
+{
+    (void)env; (void)instance;
+    pthread_mutex_lock(&g_lock);
+    adl_setChannelAllocMode(ADL_DEV, (int)chanAlloc);
+    pthread_mutex_unlock(&g_lock);
+}
+
 JNIEXPORT jint JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setRunAtPcmRate(
     JNIEnv *env,

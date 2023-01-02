@@ -14,7 +14,7 @@ public class AppSettings
     static private int                 m_ADL_bank = 58;
     static private int                 m_ADL_tremolo = -1;
     static private int                 m_ADL_vibrato = -1;
-    static private int                 m_ADL_scalable = -1;
+    static private int                 m_ADL_scalable = 0;
     static private int                 m_ADL_softPanEnabled = 0;
     // Default 1 for performance reasons
     static private int                 m_ADL_runAtPcmRate = 1;
@@ -25,6 +25,7 @@ public class AppSettings
     static private int                 m_adl_numChips = 2;
     static private int                 m_ADL_num4opChannels = -1;
     static private int                 m_ADL_volumeModel = 0;
+    static private int                 m_ADL_chanAllocMode = 0;
 
     static private double              m_gainingLevel = 2.0;
 
@@ -41,7 +42,7 @@ public class AppSettings
             m_ADL_bank = setup.getInt("adlBank", m_ADL_bank);
             m_ADL_tremolo = setup.getBoolean("flagTremolo", m_ADL_tremolo > 0) ? 1 : -1;
             m_ADL_vibrato = setup.getBoolean("flagVibrato", m_ADL_vibrato > 0) ? 1 : -1;
-            m_ADL_scalable = setup.getBoolean("flagScalable", m_ADL_scalable > 0) ? 1 : -1;
+            m_ADL_scalable = setup.getBoolean("flagScalable", m_ADL_scalable > 0) ? 1 : 0;
             m_ADL_softPanEnabled = setup.getBoolean("flagSoftPan", m_ADL_softPanEnabled > 0) ? 1 : 0;
             m_ADL_runAtPcmRate = setup.getBoolean("flagRunAtPcmRate", m_ADL_runAtPcmRate > 0) ? 1 : 0;
             m_ADL_autoArpeggio = setup.getBoolean("flagAutoArpeggio", m_ADL_autoArpeggio > 0) ? 1 : 0;
@@ -50,6 +51,7 @@ public class AppSettings
             m_adl_numChips = setup.getInt("numChips", m_adl_numChips);
             m_ADL_num4opChannels = setup.getInt("num4opChannels", m_ADL_num4opChannels);
             m_ADL_volumeModel = setup.getInt("volumeModel", m_ADL_volumeModel);
+            m_ADL_chanAllocMode = setup.getInt("chanAllocMode", m_ADL_chanAllocMode);
 
             m_gainingLevel = (double)setup.getFloat("gaining", (float)m_gainingLevel);
         }
@@ -104,6 +106,18 @@ public class AppSettings
     }
 
 
+    static public void setChanAllocMode(int chanAllocMode)
+    {
+        m_ADL_chanAllocMode = chanAllocMode;
+        m_setup.edit().putInt("chanAllocMode", m_ADL_chanAllocMode).apply();
+    }
+
+    static public int getChanAlocMode()
+    {
+        return m_ADL_chanAllocMode;
+    }
+
+
     static public void setDeepTremolo(boolean flag)
     {
         m_ADL_tremolo = flag ? 1 : -1;
@@ -136,7 +150,7 @@ public class AppSettings
 
     static public void setScalableModulators(boolean flag)
     {
-        m_ADL_scalable = flag ? 1 : -1;
+        m_ADL_scalable = flag ? 1 : 0;
         m_setup.edit().putBoolean("flagScalable", flag).apply();
     }
 

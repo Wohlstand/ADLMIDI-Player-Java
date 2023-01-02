@@ -126,6 +126,7 @@ public class Player extends AppCompatActivity
         }
     };
 
+    @SuppressLint("SetTextI18n")
     private void initUiSetup(boolean fromConnect)
     {
         boolean isPlaying = false;
@@ -142,7 +143,7 @@ public class Player extends AppCompatActivity
             Log.d(LOG_TAG, "\"bound\" set to true");
             isPlaying = m_service.isPlaying();
 
-            if (isPlaying)
+            if(isPlaying)
             {
                 Log.d(LOG_TAG, "Player works, make a toast");
                 seekerStart();
@@ -324,6 +325,31 @@ public class Player extends AppCompatActivity
                 AppSettings.setVolumeModel(selectedItemPosition);
                 if(m_bound)
                     m_service.setVolumeModel(selectedItemPosition);
+            }
+
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+        /*
+         * Channel allocation mode combo-box
+         */
+        Spinner sChanMode = (Spinner) findViewById(R.id.channelAllocationMode);
+        final String[] chanAllocModeItems = {"[Auto]", "Releasing delay", "Released with same instrument", "Any released" };
+
+        ArrayAdapter<String> adapterCA = new ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_item, chanAllocModeItems);
+        adapterCA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sChanMode.setAdapter(adapterCA);
+        sChanMode.setSelection(AppSettings.getChanAlocMode());
+
+        sChanMode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(AdapterView<?> parent,
+                                       View itemSelected, int selectedItemPosition, long selectedId)
+            {
+                AppSettings.setChanAllocMode(selectedItemPosition - 1);
+                if(m_bound)
+                    m_service.setChanAllocMode(selectedItemPosition - 1);
             }
 
             public void onNothingSelected(AdapterView<?> parent) {
@@ -766,7 +792,7 @@ public class Player extends AppCompatActivity
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_MENU) {
 
-            /* **
+            /***
              * TODO: Rpleace this crap with properly made settings box
              * (this one can't receive changed value for "input" EditText field)
              */
@@ -913,6 +939,7 @@ public class Player extends AppCompatActivity
         }
     }
 
+
     public void OnOpenBankFileClick(View view)
     {
         // Here, thisActivity is the current activity
@@ -932,15 +959,19 @@ public class Player extends AppCompatActivity
                 .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
                 {
                     @Override
-                    public void OnSelectedFile(Context ctx, String fileName, String lastPath) {
+                    public void OnSelectedFile(Context ctx, String fileName, String lastPath)
+                    {
                         m_lastBankPath = fileName;
                         AppSettings.setBankPath(m_lastBankPath);
 
                         TextView cbl = (TextView) findViewById(R.id.bankFileName);
-                        if(!m_lastBankPath.isEmpty()) {
+                        if(!m_lastBankPath.isEmpty())
+                        {
                             File f = new File(m_lastBankPath);
                             cbl.setText(f.getName());
-                        } else {
+                        }
+                        else
+                        {
                             cbl.setText(R.string.noCustomBankLabel);
                         }
                         if(m_bound)
@@ -968,12 +999,12 @@ public class Player extends AppCompatActivity
                 .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
                 {
                     @Override
-                    public void OnSelectedDirectory(Context ctx, String lastPath) {}
-
-                    @Override
                     public void OnSelectedFile(Context ctx, String fileName, String lastPath) {
                         processMusicFile(fileName, lastPath);
                     }
+
+                    @Override
+                    public void OnSelectedDirectory(Context ctx, String lastPath) {}
                 });
         fileDialog.show();
     }
@@ -1133,3 +1164,4 @@ public class Player extends AppCompatActivity
         gainFactor.setText(String.format(Locale.getDefault(), "%.1f", gainLevel));
     }
 }
+

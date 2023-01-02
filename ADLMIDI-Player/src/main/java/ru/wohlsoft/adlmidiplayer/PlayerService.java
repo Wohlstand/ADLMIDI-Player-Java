@@ -455,6 +455,7 @@ public class PlayerService extends Service {
         adl_setScaleModulators(MIDIDevice, AppSettings.getScalableModulationRaw());
         adl_setSoftPanEnabled(MIDIDevice, AppSettings.getFullPanningStereoRaw());
         adl_setVolumeRangeModel(MIDIDevice, AppSettings.getVolumeModel());
+        adl_setChannelAllocMode(MIDIDevice, AppSettings.getChanAlocMode());
         adl_setLoopEnabled(MIDIDevice, 1);
     }
 
@@ -493,6 +494,14 @@ public class PlayerService extends Service {
             return;
         }
         adl_setVolumeRangeModel(MIDIDevice, volumeModel);
+    }
+
+    public void setChanAllocMode(int chanAllocMode)
+    {
+        if(MIDIDevice == 0) {
+            return;
+        }
+        adl_setChannelAllocMode(MIDIDevice, chanAllocMode);
     }
 
     public void setDeepTremolo(boolean flag)
@@ -784,6 +793,8 @@ public class PlayerService extends Service {
     //    /*Set different volume range model */
 //    extern void adl_setVolumeRangeModel(struct ADL_MIDIPlayer *device, int volumeModel);
     public static native void adl_setVolumeRangeModel(long device, int volumeModel);
+
+    public static native void adl_setChannelAllocMode(long device, int chanalloc);
 
     public static native int adl_setRunAtPcmRate(long device, int enabled);
 
