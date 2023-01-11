@@ -1,12 +1,17 @@
 apply plugin: 'com.android.application'
 
+def release_store_password = System.env.RELEASE_STORE_PASSWORD
+def release_key_password = System.env.RELEASE_KEY_PASSWORD
+def release_key_alias = System.env.RELEASE_KEY_ALIAS
+def pin_alias = System.env.PIN_ALIAS
+def db_pass_alias = System.env.DB_PASS_ALIAS
+
 android {
-    compileSdkVersion 30
-    buildToolsVersion '29.0.3'
+    compileSdkVersion 32
     defaultConfig {
         applicationId "ru.wohlsoft.adlmidiplayer"
         minSdkVersion 14
-        targetSdkVersion 30
+        targetSdkVersion 32
         versionCode 1050008
         versionName '1.5.0.8'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
@@ -21,6 +26,15 @@ android {
         }
     }
 
+    signingConfigs {
+        releaseci {
+            storeFile file("../release-key.jks")
+            storePassword = release_store_password
+            keyAlias = release_key_alias
+            keyPassword = release_key_password
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -31,6 +45,13 @@ android {
             ndk {
                 debugSymbolLevel = 'SYMBOL_TABLE'
             }
+        }
+        releaseci {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            buildConfigField "String", "PIN_ALIAS", "\"$pin_alias\""
+            buildConfigField "String", "DB_PASS_ALIAS", "\"$db_pass_alias\""
+            signingConfig signingConfigs.releaseci
         }
         debug {
             debuggable true
@@ -49,19 +70,20 @@ android {
     }
     productFlavors {
     }
-    lintOptions {
+    lint {
         abortOnError false
         checkReleaseBuilds false
     }
+    namespace 'ru.wohlsoft.adlmidiplayer'
 }
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
     androidTestImplementation('androidx.test.espresso:espresso-core:3.1.0', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    implementation 'androidx.appcompat:appcompat:1.2.0'
-    compileOnly 'junit:junit:4.13'
-    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
+    implementation 'androidx.appcompat:appcompat:1.5.1'
+    compileOnly 'junit:junit:4.13.2'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }

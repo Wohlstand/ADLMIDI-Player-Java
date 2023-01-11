@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="ru.wohlsoft.adlmidiplayer">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -11,8 +11,10 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:requestLegacyExternalStorage="true"
-        android:theme="@style/Theme.AppCompat.NoActionBar">
-        <activity android:name=".Player">
+        android:theme="@style/Theme.AppCompat.NoActionBar"
+        tools:ignore="DataExtractionRules">
+
+        <activity android:exported="true" android:name=".Player">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="android.intent.action.VIEW" />
@@ -77,7 +79,7 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".HardButtonReceiver">
+        <receiver android:exported="true" android:name=".HardButtonReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
