@@ -89,14 +89,14 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v3
         with:
-          name: ADLMIDI-Player-android-${BRANCH_NAME_RES}-APK
+          name: ADLMIDI-Player-android-APK
           path: ADLMIDI-Player-android-*.apk
 
       - name: Upload AAB
         if: success()
         uses: actions/upload-artifact@v3
         with:
-          name: ADLMIDI-Player-android-${BRANCH_NAME_RES}-AAB
+          name: ADLMIDI-Player-android-AAB
           path: ADLMIDI-Player-android-*.aab
 
       - name: Deploy to builds.wohlsoft.ru
