@@ -64,7 +64,7 @@ jobs:
         run: echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > release-key.jks
 
       - name: Build with Gradle
-        run: ./gradlew assembleReleaseci
+        run: ./gradlew bundleReleaseci assembleReleaseci
         env:
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
@@ -83,13 +83,21 @@ jobs:
           fi
 
           mv ADLMIDI-Player/build/outputs/apk/releaseci/ADLMIDI-Player-releaseci.apk ADLMIDI-Player-android-${BRANCH_NAME_RES}.apk
+          mv ADLMIDI-Player/build/outputs/bundle/releaseci/ADLMIDI-Player-releaseci.aab ADLMIDI-Player-android-${BRANCH_NAME_RES}.aab
 
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v3
         with:
-          name: ADLMIDI-Player-android-${BRANCH_NAME_RES}
+          name: ADLMIDI-Player-android-${BRANCH_NAME_RES}-APK
           path: ADLMIDI-Player-android-*.apk
+
+      - name: Upload AAB
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ADLMIDI-Player-android-${BRANCH_NAME_RES}-AAB
+          path: ADLMIDI-Player-android-*.aab
 
       - name: Deploy to builds.wohlsoft.ru
         if: success() && github.event_name != 'pull_request'
@@ -104,6 +112,7 @@ jobs:
 
           UPLOAD_LIST="set ssl:verify-certificate no;"
           UPLOAD_LIST="${UPLOAD_LIST} put -O "www/android/" ./ADLMIDI-Player-android-${BRANCH_NAME_RES}.apk;"
+          UPLOAD_LIST="${UPLOAD_LIST} put -O "www/android/" ./ADLMIDI-Player-android-${BRANCH_NAME_RES}.aab;"
           lftp -e "${UPLOAD_LIST} exit" -u ${{ secrets.builds_login }},${{ secrets.builds_password }} ${{ secrets.builds_host }}
 
       - name: List Build Directory
