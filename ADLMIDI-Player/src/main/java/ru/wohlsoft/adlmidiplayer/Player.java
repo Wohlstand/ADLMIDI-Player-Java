@@ -341,7 +341,7 @@ public class Player extends AppCompatActivity
                 this, android.R.layout.simple_spinner_item, chanAllocModeItems);
         adapterCA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         sChanMode.setAdapter(adapterCA);
-        sChanMode.setSelection(AppSettings.getChanAlocMode());
+        sChanMode.setSelection(AppSettings.getChanAlocMode() + 1);
 
         sChanMode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent,
