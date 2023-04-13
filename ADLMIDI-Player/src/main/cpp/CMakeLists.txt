@@ -147,8 +147,18 @@ if(NOT EMSCRIPTEN
    AND NOT NINTENDO_WII
    AND NOT NINTENDO_WIIU
    AND NOT ADLMIDI_DOS)
-    option(libADLMIDI_STATIC   "Build static library of libADLMIDI" ON)
-    option(libADLMIDI_SHARED   "Build shared library of libADLMIDI" OFF)
+
+    set(libADLMIDI_STATIC_ENABLED_BY_DEFAULT ON)
+    set(libADLMIDI_SHARED_ENABLED_BY_DEFAULT OFF)
+
+    # When defined, respect CMake's BUILD_SHARED_LIBS setting
+    if (BUILD_SHARED_LIBS)
+        set(libADLMIDI_SHARED_ENABLED_BY_DEFAULT ON)
+        set(libADLMIDI_STATIC_ENABLED_BY_DEFAULT OFF)
+    endif()
+
+    option(libADLMIDI_STATIC   "Build static library of libADLMIDI" ${libADLMIDI_STATIC_ENABLED_BY_DEFAULT})
+    option(libADLMIDI_SHARED   "Build shared library of libADLMIDI" ${libADLMIDI_SHARED_ENABLED_BY_DEFAULT})
 else()
     set(libADLMIDI_STATIC ON)
     set(libADLMIDI_SHARED OFF)
@@ -313,7 +323,7 @@ if(libADLMIDI_STATIC OR WITH_VLC_PLUGIN)
     else()
         set_target_properties(ADLMIDI_static PROPERTIES OUTPUT_NAME ADLMIDI)
     endif()
-    target_include_directories(ADLMIDI_static PUBLIC ${libADLMIDI_SOURCE_DIR}/include)
+    target_include_directories(ADLMIDI_static PUBLIC $<BUILD_INTERFACE:${libADLMIDI_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
     set_legacy_standard(ADLMIDI_static)
     set_visibility_hidden(ADLMIDI_static)
     handle_options(ADLMIDI_static)
@@ -336,7 +346,7 @@ if(libADLMIDI_SHARED)
         VERSION ${libADLMIDI_VERSION}
         SOVERSION ${libADLMIDI_VERSION_MAJOR}
     )
-    target_include_directories(ADLMIDI_shared PUBLIC ${libADLMIDI_SOURCE_DIR}/include)
+    target_include_directories(ADLMIDI_shared PUBLIC $<BUILD_INTERFACE:${libADLMIDI_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
     set_legacy_standard(ADLMIDI_shared)
     set_visibility_hidden(ADLMIDI_shared)
     handle_options(ADLMIDI_shared)
@@ -418,22 +428,44 @@ if(WIN32 AND WITH_WINMMDRV)
     add_subdirectory(utils/winmm_drv)
 endif()
 
-set(libADLMIDI_INSTALLS )
-foreach(lib ADLMIDI_static ADLMIDI_shared)
-    if(TARGET ${lib})
-        list(APPEND libADLMIDI_INSTALLS ${lib})
-    endif()
-endforeach()
+if(libADLMIDI_STATIC)
+    install(TARGETS ADLMIDI_static
+            EXPORT libADLMIDIStaticTargets
+            RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+            LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+            ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 
-install(TARGETS ${libADLMIDI_INSTALLS}
-        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+    install(EXPORT libADLMIDIStaticTargets
+            FILE libADLMIDI-static-targets.cmake
+            NAMESPACE libADLMIDI::
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/libADLMIDI")
+endif()
+
+if(libADLMIDI_SHARED)
+    install(TARGETS ADLMIDI_shared
+            EXPORT libADLMIDISharedTargets
+            RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+            LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+            ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+
+    install(EXPORT libADLMIDISharedTargets
+            FILE libADLMIDI-shared-targets.cmake
+            NAMESPACE libADLMIDI::
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/libADLMIDI")
+endif()
 
 install(FILES
         include/adlmidi.h
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+        
+include(CMakePackageConfigHelpers)
+configure_package_config_file(libADLMIDIConfig.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/libADLMIDIConfig.cmake"
+    PATH_VARS CMAKE_INSTALL_PREFIX CMAKE_INSTALL_FULL_BINDIR CMAKE_INSTALL_FULL_INCLUDEDIR CMAKE_INSTALL_FULL_LIBDIR
+    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/libADLMIDI"
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libADLMIDIConfig.cmake
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/libADLMIDI"
+)
 
 file(GLOB DOCTXT_FILES
     "${libADLMIDI_SOURCE_DIR}/LICENSE*.txt"
