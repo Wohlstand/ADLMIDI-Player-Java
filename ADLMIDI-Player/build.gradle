@@ -7,11 +7,11 @@ def pin_alias = System.env.PIN_ALIAS
 def db_pass_alias = System.env.DB_PASS_ALIAS
 
 android {
-    compileSdkVersion 32
+    compileSdkVersion 33
     defaultConfig {
         applicationId "ru.wohlsoft.adlmidiplayer"
         minSdkVersion 14
-        targetSdkVersion 32
+        targetSdkVersion 33
         versionCode 1050009
         versionName '1.5.0.9'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
@@ -83,7 +83,7 @@ dependencies {
     androidTestImplementation('androidx.test.espresso:espresso-core:3.1.0', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    implementation 'androidx.appcompat:appcompat:1.5.1'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
     compileOnly 'junit:junit:4.13.2'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }
