@@ -8,6 +8,12 @@ def db_pass_alias = System.env.DB_PASS_ALIAS
 
 android {
     compileSdkVersion 33
+
+    // Note: The NDK 23 is SIGNIFICANTLY important, because of the support for non-NEON and older Android versions
+    //       The NDK 24 removes the support for Android 4.1, 4.2, and 4.3.
+    //       See details: https://github.com/android/ndk/wiki/Changelog-r24
+    ndkVersion "23.2.8568313"
+
     defaultConfig {
         applicationId "ru.wohlsoft.adlmidiplayer"
         minSdkVersion 14
