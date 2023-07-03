@@ -549,6 +549,30 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1openBankFile(
 }
 
 JNIEXPORT jint JNICALL
+Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1openBankData(
+    JNIEnv *env,
+    jclass instance,
+    jlong device,
+    jbyteArray array_
+)
+{
+    jbyte *array;
+    jsize length;
+    jint ret;
+
+    (void)instance;
+
+    pthread_mutex_lock(&g_lock);
+    array = (*env)->GetByteArrayElements(env, array_, NULL);
+    length =  (*env)->GetArrayLength(env, array_);
+    ret = adl_openBankData(ADL_DEV, array, (unsigned long)(length));
+    (*env)->ReleaseByteArrayElements(env, array_, array, 0);
+    pthread_mutex_unlock(&g_lock);
+
+    return ret;
+}
+
+JNIEXPORT jint JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1openFile(
         JNIEnv *env,
         jclass instance,

@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -19,7 +18,6 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.text.InputType;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -41,6 +39,9 @@ import androidx.core.app.ActivityCompat;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
@@ -70,13 +71,20 @@ public class Player extends AppCompatActivity
     private int                 m_chipsCount = 2;
     private int                 m_fourOpsCount = -1;
 
+    // DELAYED OPERATIONS
+    private boolean             m_needBankReload = false;
+    private boolean             m_needMusicReload = false;
+
+
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver()
     {
         @Override
-        public void onReceive(Context context, Intent intent) {
+        public void onReceive(Context context, Intent intent)
+        {
             String intentType = intent.getStringExtra("INTENT_TYPE");
             assert intentType != null;
-            if(intentType.equalsIgnoreCase("SEEKBAR_RESULT")) {
+            if(intentType.equalsIgnoreCase("SEEKBAR_RESULT"))
+            {
                 int percentage = intent.getIntExtra("PERCENTAGE", -1);
                 SeekBar musPos = findViewById(R.id.musPos);
                 if(percentage >= 0)
@@ -107,17 +115,30 @@ public class Player extends AppCompatActivity
     }
 
     /** Defines callbacks for service binding, passed to bindService() */
-    private ServiceConnection mConnection = new ServiceConnection() {
-
+    private final ServiceConnection mConnection = new ServiceConnection()
+    {
         @Override
         public void onServiceConnected(ComponentName className,
-                                       IBinder service) {
+                                       IBinder service)
+        {
             // We've bound to LocalService, cast the IBinder and get LocalService instance
             PlayerService.LocalBinder binder = (PlayerService.LocalBinder) service;
             m_service = binder.getService();
             m_bound = true;
             Log.d(LOG_TAG, "mConnection: Connected");
             initUiSetup(true);
+
+            if(m_needBankReload)
+            {
+                m_service.openBank(m_lastBankPath);
+                m_needBankReload = false;
+            }
+
+            if(m_needMusicReload)
+            {
+                processMusicFile(m_lastMusicPath, m_lastPath);
+                m_needMusicReload = false;
+            }
         }
 
         @Override
@@ -658,7 +679,7 @@ public class Player extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_player);
 
-        if(android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.P)
+        if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P)
             m_lastPath = Environment.getExternalStorageDirectory().getPath();
         else
             m_lastPath = "/storage/emulated/0";
@@ -733,7 +754,7 @@ public class Player extends AppCompatActivity
             }
         });
 
-        checkNotificationsPermissions(NOTIFICATIONS_PERMISSION_FOR_INTENT);
+        checkNotificationsPermissions();
     }
 
 
@@ -875,7 +896,7 @@ public class Player extends AppCompatActivity
         }
     }
 
-    private boolean checkNotificationsPermissions(int requestCode)
+    private boolean checkNotificationsPermissions()
     {
         if(Build.VERSION.SDK_INT < 33)
             return false; /* Has no effect, it's a brand-new permission type on Android 13 */
@@ -901,7 +922,7 @@ public class Player extends AppCompatActivity
             return true;
         }
         else
-            ActivityCompat.requestPermissions(this, new String[] { postNotify }, requestCode);
+            ActivityCompat.requestPermissions(this, new String[] { postNotify }, NOTIFICATIONS_PERMISSION_FOR_INTENT);
 
         return true;
     }
@@ -925,8 +946,6 @@ public class Player extends AppCompatActivity
                 Log.d(LOG_TAG, "File permission is revoked");
         }
 
-//      // if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN)
-//        {
         if(ContextCompat.checkSelfPermission(this, exStorage) == grant)
             return false;
 
@@ -958,36 +977,6 @@ public class Player extends AppCompatActivity
         return true;
     }
 
-    public boolean hasManageAppFS()
-    {
-        if(Build.VERSION.SDK_INT >= 30)
-        {
-            if(Environment.isExternalStorageManager())
-                return true;
-
-            AlertDialog.Builder b = new AlertDialog.Builder(this);
-            b.setTitle(R.string.managePermExplainTitle);
-            b.setMessage(R.string.managePermExplainText);
-            b.setNegativeButton(android.R.string.ok, new DialogInterface.OnClickListener()
-            {
-                public void onClick(DialogInterface dialog, int whichButton)
-                {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                    String pName = getPackageName();
-                    Uri uri = Uri.fromParts("package", pName, null);
-                    intent.setData(uri);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(intent);
-                }
-            });
-            b.show();
-
-            return false;
-        }
-
-        return true;
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[] permissions,
@@ -1001,8 +990,6 @@ public class Player extends AppCompatActivity
             return;
         if(grantResults[0] != PackageManager.PERMISSION_GRANTED)
             return;
-        if(!hasManageAppFS())
-            return;
 
         if(requestCode == READ_PERMISSION_FOR_BANK)
             openBankDialog();
@@ -1012,11 +999,141 @@ public class Player extends AppCompatActivity
             handleFileIntent();
     }
 
+    private static final int PICK_MUSIC_FILE = 1;
+    private static final int PICK_BANK_FILE = 2;
+
+    private void openBankFileNEW()
+    {
+        if(android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R)
+            return;
+
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+//        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.setType("*/*");
+        // Optionally, specify a URI for the file that should appear in the
+        // system file picker when it loads.
+        // intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, pickerInitialUri);
+        startActivityForResult(intent, PICK_BANK_FILE);
+    }
+
+    private void openMusicFileNEW()
+    {
+        if(android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R)
+            return;
+
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+//        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.setType("*/*");
+        // Optionally, specify a URI for the file that should appear in the
+        // system file picker when it loads.
+        // intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, pickerInitialUri);
+        startActivityForResult(intent, PICK_MUSIC_FILE);
+    }
+
+    private String toTempFile(Uri inUri, String tempFileName)
+    {
+        String tempFilePath = this.getFilesDir().getAbsolutePath() + "/" + tempFileName;
+        File tempFile = new File(this.getFilesDir().getAbsolutePath(), tempFileName);
+
+        //Copy URI contents into temporary file.
+        try
+        {
+            tempFile.createNewFile();
+
+            FileOutputStream output = new FileOutputStream(tempFile);
+            InputStream input = this.getContentResolver().openInputStream(inUri);
+
+            byte[] buffer = new byte[1024];
+            int n = 0;
+
+            while(-1 != (n = input.read(buffer)))
+            {
+                output.write(buffer, 0, n);
+            }
+
+            try
+            {
+                input.close();
+            } catch(IOException ioe)
+            {
+                //skip
+            }
+
+            try
+            {
+                output.close();
+            }
+            catch(IOException ioe)
+            {
+                //skip
+            }
+        }
+        catch (IOException e)
+        {
+            //Log Error
+        }
+
+        return tempFilePath;
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data)
+    {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if(android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R)
+            return;
+
+        if(data == null)
+            return;
+
+        Uri uri = data.getData();
+
+        if(uri == null)
+            return;
+
+        // getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        if(requestCode == PICK_BANK_FILE)
+        {
+            String tempBank = toTempFile(uri, "current_bank.wopl");
+
+            m_lastBankPath = tempBank;
+            AppSettings.setBankPath(m_lastBankPath);
+
+            TextView cbl = (TextView) findViewById(R.id.bankFileName);
+            if(!m_lastBankPath.isEmpty())
+            {
+                File f = new File(m_lastBankPath);
+                cbl.setText(f.getName());
+            }
+            else
+                cbl.setText(R.string.noCustomBankLabel);
+
+            if(m_bound)
+                m_service.openBank(m_lastBankPath);
+            else
+                m_needBankReload = true;
+        }
+        else if(requestCode == PICK_MUSIC_FILE)
+        {
+            String tempMusik = toTempFile(uri, "current_music.bin");
+            processMusicFile(tempMusik, m_lastPath);
+        }
+    }
 
     public void OnOpenBankFileClick(View view)
     {
+        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R)
+        {
+            openBankFileNEW();
+            return;
+        }
+
         // Here, thisActivity is the current activity
-        if(checkFilePermissions(READ_PERMISSION_FOR_BANK) || !hasManageAppFS())
+        if(checkFilePermissions(READ_PERMISSION_FOR_BANK))
             return;
         openBankDialog();
     }
@@ -1057,9 +1174,16 @@ public class Player extends AppCompatActivity
         fileDialog.show();
     }
 
-    public void OnOpenFileClick(View view) {
+    public void OnOpenFileClick(View view)
+    {
+        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R)
+        {
+            openMusicFileNEW();
+            return;
+        }
+
         // Here, thisActivity is the current activity
-        if(checkFilePermissions(READ_PERMISSION_FOR_MUSIC) || !hasManageAppFS())
+        if(checkFilePermissions(READ_PERMISSION_FOR_MUSIC))
             return;
         openMusicFileDialog();
     }
@@ -1085,31 +1209,10 @@ public class Player extends AppCompatActivity
     private void handleFileIntent()
     {
         Intent intent = getIntent();
-        String scheme = intent.getScheme();
-        if(scheme != null)
+        if(intent != null && intent.getScheme() != null)
         {
-            if(checkFilePermissions(READ_PERMISSION_FOR_INTENT) || !hasManageAppFS())
-                return;
-            if(scheme.equals(ContentResolver.SCHEME_FILE))
-            {
-                Uri url = intent.getData();
-                if(url != null)
-                {
-                    Log.d(LOG_TAG, "Got a file: " + url + ";");
-                    String fileName = url.getPath();
-                    processMusicFile(fileName, m_lastPath);
-                }
-            }
-            else if(scheme.equals(ContentResolver.SCHEME_CONTENT))
-            {
-                Uri url = intent.getData();
-                if(url != null)
-                {
-                    Log.d(LOG_TAG, "Got a content: " + url + ";");
-                    String fileName = url.getPath();
-                    processMusicFile(fileName, m_lastPath);
-                }
-            }
+            String tempMusik = toTempFile(intent.getData(), "current_music.bin");
+            processMusicFile(tempMusik, m_lastPath);
         }
     }
 
@@ -1144,6 +1247,10 @@ public class Player extends AppCompatActivity
                     return;
                 }
             }
+        }
+        else
+        {
+            m_needMusicReload = true;
         }
 
         m_setup.edit().putString("lastPath", m_lastPath).apply();

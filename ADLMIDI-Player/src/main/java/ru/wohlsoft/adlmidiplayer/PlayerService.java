@@ -18,7 +18,13 @@ import android.os.IBinder;
 import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.util.Log;
+import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -436,12 +442,46 @@ public class PlayerService extends Service {
             return false;
         }
 
-        if(AppSettings.getBankPath().isEmpty() || !AppSettings.getUseCustomBank()) {
+        if(AppSettings.getBankPath().isEmpty() || !AppSettings.getUseCustomBank())
+        {
             adl_setBank(MIDIDevice, AppSettings.getEmbeddedBank());
-        } else {
-            if(adl_openBankFile(MIDIDevice, AppSettings.getBankPath()) < 0) {
-                m_lastErrorString = adl_errorInfo(MIDIDevice);
-                return false;
+        }
+        else
+        {
+            String bPath = AppSettings.getBankPath();
+            if(bPath.startsWith("/storage/") || bPath.startsWith("/sdcard/"))
+            {
+                if(adl_openBankFile(MIDIDevice, bPath) < 0)
+                {
+                    m_lastErrorString = adl_errorInfo(MIDIDevice);
+                    return false;
+                }
+            }
+            else
+            {
+                File bank = new File(bPath);
+                byte[] bankData = new byte[(int)bank.length()];
+
+                try(FileInputStream fis = new FileInputStream(bank))
+                {
+                    fis.read(bankData);
+                }
+                catch (FileNotFoundException e)
+                {
+                    Toast.makeText(getApplicationContext(), e.toString(), Toast.LENGTH_LONG).show();
+                    return false;
+                }
+                catch (IOException e)
+                {
+                    Toast.makeText(getApplicationContext(), e.toString(), Toast.LENGTH_LONG).show();
+                    return false;
+                }
+
+                if(adl_openBankData(MIDIDevice, bankData) < 0)
+                {
+                    m_lastErrorString = adl_errorInfo(MIDIDevice);
+                    return false;
+                }
             }
         }
         return true;
@@ -827,6 +867,8 @@ public class PlayerService extends Service {
 ///*Load WOPL bank file from File System. Is recommended to call adl_reset() to apply changes to already-loaded file player or real-time.*/
 //    extern int adl_openBankFile(struct ADL_MIDIPlayer *device, const char *filePath);
     public static native int adl_openBankFile(long device, String file);
+
+    public static native int adl_openBankData(long device, byte[] array);
     //
 ///*Load MIDI file from File System*/
 //    extern int adl_openFile(struct ADL_MIDIPlayer* device, char *filePath);

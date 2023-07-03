@@ -29,6 +29,4 @@
     <string name="noCustomBankLabel"><![CDATA[<Нет внешнего банка>]]></string>
     <string name="autoArpeggio">Авто-арпеджио</string>
     <string name="chanAllocationMode">Режим выборки каналов</string>
-    <string name="managePermExplainTitle">Требуется доступ ко всем файлам</string>
-    <string name="managePermExplainText">На данный момент, приложение не может работать с современными интерфейсами, поскольку оно требует доступ к нестандартным типам файлов, таких как банки и нетипичные музыкальные файлы, которые никогда не распознаются как \"документы\" или \"медиафайлы\". Поэтому, на Android 11 и старше, данное приложение требует доступ к файловой системе.</string>
 </resources>
