@@ -286,7 +286,7 @@ public class PlayerService extends Service {
     private Notification getNotify()
     {
         int serviceFlags = 0;
-        if(Build.VERSION.SDK_INT >= 32)
+        if(Build.VERSION.SDK_INT >= 31)
             serviceFlags = PendingIntent.FLAG_IMMUTABLE;
 
         // Create notification default intent.
