@@ -15,9 +15,9 @@ public class AppSettings
     static private int                 m_ADL_tremolo = -1;
     static private int                 m_ADL_vibrato = -1;
     static private int                 m_ADL_scalable = 0;
-    static private int                 m_ADL_softPanEnabled = 0;
+    static private int                 m_ADL_softPanEnabled = 1;
     // Default 1 for performance reasons
-    static private int                 m_ADL_runAtPcmRate = 1;
+    static private int                 m_ADL_runAtPcmRate = 0;
 
     static private int                 m_ADL_autoArpeggio = 0;
 
@@ -25,12 +25,12 @@ public class AppSettings
     static private int                 m_adl_numChips = 2;
     static private int                 m_ADL_num4opChannels = -1;
     static private int                 m_ADL_volumeModel = 0;
-    static private int                 m_ADL_chanAllocMode = 0;
+    static private int                 m_ADL_chanAllocMode = -1;
 
     static private double              m_gainingLevel = 2.0;
 
     //! Cache of previously sent seek position
-    static public int                 m_lastSeekPosition = -1;
+//    static public int                 m_lastSeekPosition = -1;
 
     static public void loadSetup(SharedPreferences setup)
     {
