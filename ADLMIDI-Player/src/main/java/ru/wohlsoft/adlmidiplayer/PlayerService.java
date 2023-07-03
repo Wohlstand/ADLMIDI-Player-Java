@@ -285,9 +285,13 @@ public class PlayerService extends Service {
 
     private Notification getNotify()
     {
+        int serviceFlags = 0;
+        if(Build.VERSION.SDK_INT >= 32)
+            serviceFlags = PendingIntent.FLAG_IMMUTABLE;
+
         // Create notification default intent.
         Intent intent = new Intent();
-        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
+        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, serviceFlags);
 
         // Create notification builder.
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_ID);
@@ -305,7 +309,10 @@ public class PlayerService extends Service {
             builder.setStyle(bigTextStyle);
         }
 
-        builder.setNotificationSilent();
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+            builder.setSilent(true);
+        else
+            builder.setNotificationSilent();
 
         builder.setWhen(System.currentTimeMillis());
         builder.setContentTitle(getResources().getString(R.string.app_name));
@@ -326,28 +333,29 @@ public class PlayerService extends Service {
 
         Intent openUI = new Intent(getApplicationContext(), Player.class);
         openUI.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent pendingOpenUiIntent = PendingIntent.getActivity(getApplicationContext(), 0, openUI, 0);
+        PendingIntent pendingOpenUiIntent = PendingIntent.getActivity(getApplicationContext(), 0, openUI, serviceFlags);
         builder.setContentIntent(pendingOpenUiIntent);
 
-        if(m_isRunning) {
+        if(m_isRunning)
+        {
             // Add Play button intent in notification.
             Intent playIntent = new Intent(this, PlayerService.class);
             playIntent.setAction(ACTION_PLAY);
-            PendingIntent pendingPlayIntent = PendingIntent.getService(this, 0, playIntent, 0);
+            PendingIntent pendingPlayIntent = PendingIntent.getService(this, 0, playIntent, serviceFlags);
             NotificationCompat.Action playAction = new NotificationCompat.Action(android.R.drawable.ic_media_play, "Play", pendingPlayIntent);
             builder.addAction(playAction);
 
             // Add Pause button intent in notification.
             Intent pauseIntent = new Intent(this, PlayerService.class);
             pauseIntent.setAction(ACTION_PAUSE);
-            PendingIntent pendingPrevIntent = PendingIntent.getService(this, 0, pauseIntent, 0);
+            PendingIntent pendingPrevIntent = PendingIntent.getService(this, 0, pauseIntent, serviceFlags);
             NotificationCompat.Action prevAction = new NotificationCompat.Action(android.R.drawable.ic_media_pause, "Pause", pendingPrevIntent);
             builder.addAction(prevAction);
 
             // Add Stop button intent in notification.
             Intent stopIntent = new Intent(this, PlayerService.class);
             stopIntent.setAction(ACTION_STOP);
-            PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, 0);
+            PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, serviceFlags);
             NotificationCompat.Action stopAction = new NotificationCompat.Action(android.R.drawable.ic_menu_close_clear_cancel, "Stop", pendingStopIntent);
             builder.addAction(stopAction);
         }
@@ -356,7 +364,7 @@ public class PlayerService extends Service {
             // Add close button intent in notification.
             Intent stopIntent = new Intent(this, PlayerService.class);
             stopIntent.setAction(ACTION_CLOSE);
-            PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, 0);
+            PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, serviceFlags);
             NotificationCompat.Action stopAction = new NotificationCompat.Action(android.R.drawable.ic_menu_close_clear_cancel, "Close", pendingStopIntent);
             builder.addAction(stopAction);
         }

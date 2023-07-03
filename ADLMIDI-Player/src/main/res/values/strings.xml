@@ -32,4 +32,6 @@
     <string name="noCustomBankLabel"><![CDATA[<No custom bank>]]></string>
     <string name="autoArpeggio">Auto Arpeggio</string>
     <string name="chanAllocationMode">Channel allocation mode</string>
+    <string name="managePermExplainTitle">All files access permission is required</string>
+    <string name="managePermExplainText">Currently, this application can\'t properly work via modern APIs because it requires an access to non-standard file types such as bank formats or non-typical music files were never recognised as \"document\" or a \"media file\". Therefore, on Android 11+ this application needs a file system permission.</string>
 </resources>
