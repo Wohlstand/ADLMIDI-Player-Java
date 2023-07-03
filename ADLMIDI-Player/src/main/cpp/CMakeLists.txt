@@ -86,11 +86,27 @@ if(NOT MSVC AND NOT MSDOS)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVITA -DVITA=1 -fcompare-debug-second")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVITA -DVITA=1 -fcompare-debug-second")
     endif()
+    if(NINTENDO_3DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_SWITCH)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fcompare-debug-second")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcompare-debug-second")
+    endif()
 endif()
 
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release")
+if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
+    if(NINTENDO_3DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_SWITCH)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu90")
+    else()
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c89")
+    endif()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++98")
 endif()
+
+if(DEFINED CMAKE_BUILD_TYPE)
+    string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
+endif()
+if(CMAKE_BUILD_TYPE_LOWER EQUAL "release")
+    add_definitions(-DNDEBUG)
+ENDIF()
 
 # Disable bogus MSVC warnings
 if(MSVC)
@@ -176,6 +192,7 @@ option(USE_JAVA_EMULATOR    "Use JavaOPL emulator" ${DEFAULT_HEAVY_EMULATORS})
 
 option(WITH_GENADLDATA      "Build and run full rebuild of embedded banks cache" OFF)
 option(WITH_GENADLDATA_COMMENTS "Enable comments in a generated embedded instruments cache file" OFF)
+set(GENADLDATA_CUSTOM_BANKLIST "" CACHE PATH "Use the custom INI file to build the database")
 
 option(WITH_MIDIPLAY        "Build also demo MIDI player" OFF)
 option(MIDIPLAY_WAVE_ONLY   "Build Demo MIDI player without support of real time playing. It will output into WAV only." OFF)
@@ -202,6 +219,15 @@ if(NOT WIN32
     option(ENABLE_FPIC "Build static libraries as position independent code" ON)
 else()
     set(ENABLE_FPIC OFF)
+endif()
+
+if(WITH_EMBEDDED_BANKS)
+    if(NOT WITH_GENADLDATA OR "${GENADLDATA_CUSTOM_BANKLIST}" STREQUAL "")
+        set(ADLDATA_DATABASE "${libADLMIDI_SOURCE_DIR}/src/inst_db.cpp")
+    else()
+        make_directory("${CMAKE_BINARY_DIR}/instdb")
+        set(ADLDATA_DATABASE "${CMAKE_BINARY_DIR}/instdb/inst_db.cpp")
+    endif()
 endif()
 
 function(handle_options targetLib)
@@ -245,6 +271,7 @@ function(handle_options targetLib)
             set(HAS_EMULATOR TRUE)
             target_sources(${targetLib} PRIVATE
                 ${libADLMIDI_SOURCE_DIR}/src/chips/opal_opl3.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/opal/opal.c
             )
         else()
             target_compile_definitions(${targetLib} PUBLIC ADLMIDI_DISABLE_OPAL_EMULATOR)
@@ -265,9 +292,13 @@ function(handle_options targetLib)
     endif()
 
     if(WITH_EMBEDDED_BANKS)
-        target_sources(${targetLib} PRIVATE
-            ${libADLMIDI_SOURCE_DIR}/src/inst_db.cpp
-        )
+        target_sources(${targetLib} PRIVATE ${ADLDATA_DATABASE})
+        if(WITH_GENADLDATA)
+            set_property(SOURCE "${ADLDATA_DATABASE}" PROPERTY INCLUDE_DIRECTORIES "${libADLMIDI_SOURCE_DIR}/src")
+            if(NOT "${GENADLDATA_CUSTOM_BANKLIST}" STREQUAL "")
+                set_property(SOURCE "${ADLDATA_DATABASE}" PROPERTY GENERATED TRUE)
+            endif()
+        endif()
     else()
         target_compile_definitions(${targetLib} PUBLIC DISABLE_EMBEDDED_BANKS)
     endif()
@@ -277,7 +308,9 @@ function(handle_options targetLib)
     endif()
 
     if(WITH_EMBEDDED_BANKS AND WITH_GENADLDATA AND NOT ADLMIDI_DOS)
-        add_dependencies(${targetLib} gen-adldata-run)
+        if("${GENADLDATA_CUSTOM_BANKLIST}" STREQUAL "")
+            add_dependencies(${targetLib} gen-adldata-run)
+        endif()
     endif()
 
     if(WITH_HQ_RESAMPLER AND NOT ADLMIDI_DOS)
@@ -311,7 +344,7 @@ file(GLOB libADLMIDI_HEADERS
     ${libADLMIDI_SOURCE_DIR}/src/chips/dosbox/*.h
     ${libADLMIDI_SOURCE_DIR}/src/chips/java/*.hpp
     ${libADLMIDI_SOURCE_DIR}/src/chips/nuked/*.h
-    ${libADLMIDI_SOURCE_DIR}/src/chips/opal/*.hpp
+    ${libADLMIDI_SOURCE_DIR}/src/chips/opal/*.h
 )
 list(APPEND libADLMIDI_SOURCES ${libADLMIDI_HEADERS})
 
@@ -457,7 +490,7 @@ endif()
 install(FILES
         include/adlmidi.h
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
-        
+
 include(CMakePackageConfigHelpers)
 configure_package_config_file(libADLMIDIConfig.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/libADLMIDIConfig.cmake"
     PATH_VARS CMAKE_INSTALL_PREFIX CMAKE_INSTALL_FULL_BINDIR CMAKE_INSTALL_FULL_INCLUDEDIR CMAKE_INSTALL_FULL_LIBDIR
