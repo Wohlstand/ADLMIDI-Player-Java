@@ -908,8 +908,11 @@ public class Player extends AppCompatActivity
 
     private boolean checkFilePermissions(int requestCode)
     {
+        if(android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.JELLY_BEAN)
+            return false;
+
         final int grant = PackageManager.PERMISSION_GRANTED;
-        final String exStorage = Manifest.permission.WRITE_EXTERNAL_STORAGE;
+        final String exStorage = Manifest.permission.READ_EXTERNAL_STORAGE;
 
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
             return false; /* Has no effect, the manage file storage permission is used instead of this */
@@ -939,6 +942,7 @@ public class Player extends AppCompatActivity
                     "Please, check the External Storage access permission to the application!");
             b.setNegativeButton(android.R.string.ok, null);
             b.show();
+
             return true;
         }
         else
@@ -952,9 +956,6 @@ public class Player extends AppCompatActivity
         }
 
         return true;
-//        } // if JELLY_BEAN
-
-//        return false;
     }
 
     public boolean hasManageAppFS()
@@ -988,7 +989,8 @@ public class Player extends AppCompatActivity
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
                                            @NonNull int[] grantResults)
     {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);

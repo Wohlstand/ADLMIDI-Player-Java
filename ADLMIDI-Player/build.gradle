@@ -18,8 +18,8 @@ android {
         applicationId "ru.wohlsoft.adlmidiplayer"
         minSdkVersion 14
         targetSdkVersion 33
-        versionCode 1050011
-        versionName '1.5.0.11'
+        versionCode 1050012
+        versionName '1.5.0.12'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         externalNativeBuild {
             cmake {
