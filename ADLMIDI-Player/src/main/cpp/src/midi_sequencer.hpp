@@ -1,7 +1,7 @@
 /*
  * BW_Midi_Sequencer - MIDI Sequencer for C++
  *
- * Copyright (c) 2015-2023 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2015-2024 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the "Software"),
@@ -457,6 +457,13 @@ private:
         //! Current level on the loop stack (<0 - out of loop, 0++ - the index in the loop stack)
         int                         stackLevel;
 
+        //! Constructor to initialize member variables
+        LoopState()
+                : caughtStart(false), caughtEnd(false), caughtStackStart(false),
+                caughtStackEnd(false), caughtStackBreak(false), skipStackStart(false),
+                invalidLoop(false), temporaryBroken(false), loopsCount(-1), loopsLeft(0),
+                stackLevel(-1)
+                {}
         /**
          * @brief Reset loop state to initial
          */

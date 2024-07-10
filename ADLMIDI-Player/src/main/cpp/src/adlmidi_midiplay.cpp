@@ -2,7 +2,7 @@
  * libADLMIDI is a free Software MIDI synthesizer library with OPL3 emulation
  *
  * Original ADLMIDI code: Copyright (c) 2010-2014 Joel Yliluoma <bisqwit@iki.fi>
- * ADLMIDI Library API:   Copyright (c) 2015-2023 Vitaly Novichkov <admin@wohlnet.ru>
+ * ADLMIDI Library API:   Copyright (c) 2015-2024 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Library is based on the ADLMIDI, a MIDI player for Linux and Windows with OPL3 emulation:
  * http://iki.fi/bisqwit/source/adlmidi.html
@@ -445,16 +445,11 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     voices[1].pseudo4op = pseudo_4op;
 #endif /* __WATCOMC__ */
 
-    if(
-        (synth.m_rhythmMode == 1) &&
-        (
-            ((ains->flags & OplInstMeta::Mask_RhythmMode) != 0) ||
-            (m_cmfPercussionMode && (channel >= 11))
-        )
-    )
-    {
+    bool rm_ains = (ains->flags & OplInstMeta::Mask_RhythmMode) != 0;
+    bool rm_cmf = m_cmfPercussionMode && (channel >= 11);
+
+    if(synth.m_rhythmMode && (rm_ains || rm_cmf))
         voices[1] = voices[0];//i[1] = i[0];
-    }
 
     bool isBlankNote = (ains->flags & OplInstMeta::Flag_NoSound) != 0;
 
@@ -507,24 +502,31 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 
                 if(synth.m_rhythmMode)
                 {
-                    if(m_cmfPercussionMode)
-                    {
-                        expected_mode = channel  < 11 ? OPL3::ChanCat_Regular : (OPL3::ChanCat_Rhythm_Bass + (channel  - 11)); // CMF
-                    }
+                    if(m_cmfPercussionMode) // CMF
+                        expected_mode = channel  < 11 ? OPL3::ChanCat_Regular : (OPL3::ChanCat_Rhythm_Bass + (channel  - 11));
                     else
                     {
-                        expected_mode = OPL3::ChanCat_Regular;
-                        uint32_t rm = (ains->flags & OplInstMeta::Mask_RhythmMode);
-                        if(rm == OplInstMeta::Flag_RM_BassDrum)
+                        switch((ains->flags & OplInstMeta::Mask_RhythmMode))
+                        {
+                        default:
+                            expected_mode = OPL3::ChanCat_Regular;
+                            break;
+                        case OplInstMeta::Flag_RM_BassDrum:
                             expected_mode = OPL3::ChanCat_Rhythm_Bass;
-                        else if(rm == OplInstMeta::Flag_RM_Snare)
+                            break;
+                        case OplInstMeta::Flag_RM_Snare:
                             expected_mode = OPL3::ChanCat_Rhythm_Snare;
-                        else if(rm == OplInstMeta::Flag_RM_TomTom)
+                            break;
+                        case OplInstMeta::Flag_RM_TomTom:
                             expected_mode = OPL3::ChanCat_Rhythm_Tom;
-                        else if(rm == OplInstMeta::Flag_RM_Cymbal)
+                            break;
+                        case OplInstMeta::Flag_RM_Cymbal:
                             expected_mode = OPL3::ChanCat_Rhythm_Cymbal;
-                        else if(rm == OplInstMeta::Flag_RM_HiHat)
+                            break;
+                        case OplInstMeta::Flag_RM_HiHat:
                             expected_mode = OPL3::ChanCat_Rhythm_HiHat;
+                            break;
+                        }
                     }
                 }
 
@@ -791,23 +793,42 @@ void MIDIplay::realTime_Controller(uint8_t channel, uint8_t type, uint8_t value)
         break; // Phaser effect depth. We don't do.
 
     case 98:
-        m_midiChannels[channel].lastlrpn = value;
-        m_midiChannels[channel].nrpn = true;
+        if(synth.m_musicMode != Synth::MODE_CMF)
+        {
+            m_midiChannels[channel].lastlrpn = value;
+            m_midiChannels[channel].nrpn = true;
+        }
         break;
 
     case 99:
-        m_midiChannels[channel].lastmrpn = value;
-        m_midiChannels[channel].nrpn = true;
+        if(synth.m_musicMode == Synth::MODE_CMF)
+        {
+            // CMF (ctrl 0x63) Depth control
+            synth.m_deepVibratoMode = (value & 1) != 0;
+            synth.m_deepTremoloMode = (value & 2) != 0;
+            synth.commitDeepFlags();
+        }
+        else
+        {
+            m_midiChannels[channel].lastmrpn = value;
+            m_midiChannels[channel].nrpn = true;
+        }
         break;
 
     case 100:
-        m_midiChannels[channel].lastlrpn = value;
-        m_midiChannels[channel].nrpn = false;
+        if(synth.m_musicMode != Synth::MODE_CMF)
+        {
+            m_midiChannels[channel].lastlrpn = value;
+            m_midiChannels[channel].nrpn = false;
+        }
         break;
 
     case 101:
-        m_midiChannels[channel].lastmrpn = value;
-        m_midiChannels[channel].nrpn = false;
+        if(synth.m_musicMode != Synth::MODE_CMF)
+        {
+            m_midiChannels[channel].lastmrpn = value;
+            m_midiChannels[channel].nrpn = false;
+        }
         break;
 
     case 113:
@@ -821,10 +842,10 @@ void MIDIplay::realTime_Controller(uint8_t channel, uint8_t type, uint8_t value)
         setRPN(channel, value, false);
         break;
 
-    case 103:
+    case 103: // CMF (ctrl 0x67) rhythm mode
         if(synth.m_musicMode == Synth::MODE_CMF)
             m_cmfPercussionMode = (value != 0);
-        break; // CMF (ctrl 0x67) rhythm mode
+        break;
 
     default:
         break;
