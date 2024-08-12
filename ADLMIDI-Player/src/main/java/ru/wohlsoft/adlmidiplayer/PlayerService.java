@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PlayerService extends Service {
-    private static int FOREGROUND_ID = 4478;
+    private static final int FOREGROUND_ID = 4478;
     private static final String NOTIFICATION_ID = "ADLMIDI-Player";
     final String LOG_TAG = "PlayerService";
 
@@ -108,7 +108,8 @@ public class PlayerService extends Service {
         m_seekerTimer.postDelayed(m_seekerRunnable, SEEK_TIMER_DELAY);
     }
 
-    private void stopSeekerTimer() {
+    private void stopSeekerTimer()
+    {
         if(m_seekerTimer != null && m_seekerRunnable != null)
             m_seekerTimer.removeCallbacks(m_seekerRunnable);
     }
@@ -121,18 +122,22 @@ public class PlayerService extends Service {
     // This is the object that receives interactions from clients.
     private final IBinder mBinder = new LocalBinder();
 
-    class LocalBinder extends Binder {
-        PlayerService getService() {
+    class LocalBinder extends Binder
+    {
+        PlayerService getService()
+        {
             return PlayerService.this;
         }
     }
 
     @Override
-    public IBinder onBind(Intent intent) {
+    public IBinder onBind(Intent intent)
+    {
         return mBinder;
     }
 
-    public void updateSeekBar(int percentage) {
+    public void updateSeekBar(int percentage)
+    {
         if(m_lastSeekPosition == percentage)
             return; //Do nothing
         m_lastSeekPosition = percentage;
@@ -252,7 +257,10 @@ public class PlayerService extends Service {
         {
             IntentFilter iF = new IntentFilter(Intent.ACTION_MEDIA_BUTTON);
             iF.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY + 42);
-            registerReceiver(mButtonReceiver, iF);
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                registerReceiver(mButtonReceiver, iF, Context.RECEIVER_NOT_EXPORTED);
+            else
+                registerReceiver(mButtonReceiver, iF);
             mButtonReceiverRegistered = true;
         }
     }
@@ -331,7 +339,7 @@ public class PlayerService extends Service {
             builder.setPriority(NotificationManager.IMPORTANCE_LOW);
         }
         else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-            builder.setPriority(NotificationManager.IMPORTANCE_HIGH);
+            builder.setPriority(NotificationCompat.PRIORITY_MAX);
         }
 
         // Make head-up notification.
