@@ -21,16 +21,16 @@ jobs:
     runs-on: ubuntu-latest
     name: Build release-apk
     steps:
-      - uses: styfle/cancel-workflow-action@0.11.0
+      - uses: styfle/cancel-workflow-action@0.12.1
         with:
           workflow_id: android-ci.yml
           all_but_latest: true
           access_token: ${{ github.token }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
 #      - uses: nelonoel/branch-name@v1.0.1
-      - uses: Wohlstand/branch-name@v1.0.1-wohl
+      - uses: Wohlstand/branch-name@v1.0.2-wohl
 
       - name: Pull submodules
         shell: bash
@@ -45,17 +45,18 @@ jobs:
           sudo apt-get install -qq lftp
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v3.11.0
+        uses: actions/setup-java@v4.2.1
         with:
           java-version: 17
           distribution: 'temurin'
 
-      # Without NDK not compile and not normal error message. NDK is required
-      - name: Install NDK
-        run: echo "y" | sudo ${ANDROID_HOME}/tools/bin/sdkmanager --install "ndk;22.1.7171670" --sdk_root=${ANDROID_SDK_ROOT}
-      # Some times is have problems with permissions for ./gradle file. Then uncommit it code
-      #    - name: Make gradlew executable
-      #      run: chmod +x ./gradlew
+      - uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r23c
+      # IMPORTANT NOTE: The SDK r23b is REQUIRED to support Android 4.1, 4.2, and 4.3, and to support non-Neon hardware
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Output version code
         run: echo VERSION_CODE=${{ github.run_number }} > ./version.properties
@@ -87,14 +88,14 @@ jobs:
 
       - name: Upload APK
         if: success()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ADLMIDI-Player-android-APK
           path: ADLMIDI-Player-android-*.apk
 
       - name: Upload AAB
         if: success()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ADLMIDI-Player-android-AAB
           path: ADLMIDI-Player-android-*.aab
