@@ -424,11 +424,14 @@ public class PlayerService extends Service {
 
     public boolean initPlayer()
     {
-        if(MIDIDevice == 0) { //Create context when it wasn't created
+        if(MIDIDevice == 0)
+        { //Create context when it wasn't created
             setGaining(AppSettings.getGaining());
             MIDIDevice = adl_init(44100);
         }
-        if(MIDIDevice == 0) {
+
+        if(MIDIDevice == 0)
+        {
             m_lastErrorString = adl_errorString();
             return false;
         }
@@ -438,9 +441,8 @@ public class PlayerService extends Service {
 
     public boolean reloadBank()
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return false;
-        }
 
         if(AppSettings.getBankPath().isEmpty() || !AppSettings.getUseCustomBank())
         {
@@ -489,9 +491,8 @@ public class PlayerService extends Service {
 
     public void applySetup()
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
 
         adl_setEmulator(MIDIDevice, AppSettings.getEmulator());
         adl_setNumChips(MIDIDevice, AppSettings.getChipsCount());
@@ -514,89 +515,89 @@ public class PlayerService extends Service {
 
     public void openBank(String bankFile)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         reloadBank();
     }
 
     public void setUseCustomBank(boolean use)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         reloadBank();
     }
 
     public void setEmbeddedBank(int bankId)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         reloadBank();
     }
 
     public void setVolumeModel(int volumeModel)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         adl_setVolumeRangeModel(MIDIDevice, volumeModel);
     }
 
     public void setChanAllocMode(int chanAllocMode)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         adl_setChannelAllocMode(MIDIDevice, chanAllocMode);
     }
 
     public void setDeepTremolo(boolean flag)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         adl_setHTremolo(MIDIDevice, AppSettings.getDeepTremoloRaw());
     }
 
     public void setDeepVibrato(boolean flag)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         adl_setHVibrato(MIDIDevice, AppSettings.getDeepVibratoRaw());
     }
 
     public void setScalableModulators(boolean flag)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         adl_setScaleModulators(MIDIDevice, AppSettings.getScalableModulationRaw());
     }
 
     public void setRunAtPcmRate(boolean flag)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         adl_setRunAtPcmRate(MIDIDevice, AppSettings.getRunAtPcmRateRaw());
     }
 
     public void setFullPanningStereo(boolean flag)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         adl_setSoftPanEnabled(MIDIDevice, AppSettings.getFullPanningStereoRaw());
     }
 
     public void setAutoArpeggio(boolean flag)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         adl_setAutoArpeggio(MIDIDevice, AppSettings.getAutoArpeggioRaw());
     }
 
@@ -610,34 +611,33 @@ public class PlayerService extends Service {
     {
         List<String> spinnerArray = new ArrayList<>();
         for(int i = 0; i < PlayerService.adl_getBanksCount(); i++)
-        {
             spinnerArray.add(i + " - " + PlayerService.adl_getBankName(i));
-        }
+
         return spinnerArray;
     }
 
     public int getSongLength()
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return 0;
-        }
+
         double time = adl_totalTimeLength(MIDIDevice);
         return (int)time;
     }
 
     public int getPosition()
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return 0;
-        }
+
         return (int)adl_positionTell(MIDIDevice);
     }
 
     public void setPosition(int pos)
     {
-        if(MIDIDevice == 0) {
+        if(MIDIDevice == 0)
             return;
-        }
+
         adl_positionSeek(MIDIDevice, (double)pos);
     }
 
@@ -646,12 +646,16 @@ public class PlayerService extends Service {
         setGaining(gaining);
     }
 
-    public boolean openMusic(String musicFile) {
-        if(MIDIDevice == 0) {
+    public boolean openMusic(String musicFile)
+    {
+        if(MIDIDevice == 0)
+        {
             m_lastErrorString = "Library is NOT initialized!";
             return false;
         }
-        if(adl_openFile(MIDIDevice, musicFile) < 0) {
+
+        if(adl_openFile(MIDIDevice, musicFile) < 0)
+        {
             m_lastErrorString = adl_errorInfo(MIDIDevice);
             return false;
         }
@@ -671,49 +675,57 @@ public class PlayerService extends Service {
     {
         return m_lastFile;
     }
+
     public boolean hasLoadedMusic()
     {
-        return m_lastFile.length() > 0;
+        return !m_lastFile.isEmpty();
     }
 
-    public boolean isPlaying() {
+    public boolean isPlaying()
+    {
         return m_isPlaying;
     }
 
-    public void togglePlayPause() {
+    public void togglePlayPause()
+    {
         if(m_isPlaying)
-        {
             playerStop();
-        } else {
+        else
             playerStart();
-        }
+
     }
 
-    public void playerRestart() {
+    public void playerRestart()
+    {
         if(m_isPlaying)
             playerStop();
+
         reloadBank();
         applySetup();
         openMusic(m_lastFile);
         playerStart();
     }
 
-    public void playerStart() {
-        if(MIDIDevice == 0) {
+    public void playerStart()
+    {
+        if(MIDIDevice == 0)
             return;
-        }
-        if(!m_isPlaying) {
+
+        if(!m_isPlaying)
+        {
             m_isPlaying = true;
             startPlaying(MIDIDevice);
             startSeekerTimer();
         }
     }
 
-    public void playerStop() {
-        if(MIDIDevice == 0) {
+    public void playerStop()
+    {
+        if(MIDIDevice == 0)
             return;
-        }
-        if(m_isPlaying) {
+
+        if(m_isPlaying)
+        {
             m_isPlaying = false;
             stopPlaying();
             stopSeekerTimer();
