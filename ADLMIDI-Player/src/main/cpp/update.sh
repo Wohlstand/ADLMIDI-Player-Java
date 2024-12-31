@@ -10,4 +10,5 @@ cp -av /home/vitaly/_git_repos/libADLMIDI/src .
 cp -v /home/vitaly/_git_repos/libADLMIDI/CMakeLists.txt .
 cp -v /home/vitaly/_git_repos/libADLMIDI/libADLMIDIConfig.cmake.in .
 
+echo "Press any key..."
 read -n 1
