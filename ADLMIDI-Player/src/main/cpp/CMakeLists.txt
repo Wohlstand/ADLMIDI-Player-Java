@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.2...3.5)
+cmake_minimum_required (VERSION 3.2...3.10)
 project (libADLMIDI VERSION 1.5.1 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
@@ -189,6 +189,7 @@ option(USE_DOSBOX_EMULATOR  "Use DosBox 0.74 OPL3 emulator (semi-accurate, sugge
 option(USE_NUKED_EMULATOR   "Use Nuked OPL3 emulator (most accurate, powerful)" ${DEFAULT_HEAVY_EMULATORS})
 option(USE_OPAL_EMULATOR    "Use Opal emulator (inaccurate)" ${DEFAULT_HEAVY_EMULATORS})
 option(USE_JAVA_EMULATOR    "Use JavaOPL emulator" ${DEFAULT_HEAVY_EMULATORS})
+option(USE_HW_SERIAL        "Use the hardware OPL3 chip via Serial on modern systems" OFF)
 
 option(WITH_GENADLDATA      "Build and run full rebuild of embedded banks cache" OFF)
 option(WITH_GENADLDATA_COMMENTS "Enable comments in a generated embedded instruments cache file" OFF)
@@ -284,6 +285,15 @@ function(handle_options targetLib)
             )
         else()
             target_compile_definitions(${targetLib} PUBLIC ADLMIDI_DISABLE_JAVA_EMULATOR)
+        endif()
+
+        if(USE_HW_SERIAL)
+            set(HAS_EMULATOR TRUE)
+            target_sources(${targetLib} PRIVATE
+                ${libADLMIDI_SOURCE_DIR}/src/chips/opl_serial_port.cpp
+            )
+            target_compile_definitions(${targetLib} PRIVATE ENABLE_HW_OPL_SERIAL_PORT)
+            target_compile_definitions(${targetLib} PUBLIC ADLMIDI_ENABLE_HW_SERIAL)
         endif()
 
         if(NOT HAS_EMULATOR)
@@ -414,6 +424,7 @@ function(libADLMIDI_find_SDL2)
         add_library(ADLMIDI_SDL2 INTERFACE)
         if(TARGET SDL2::SDL2)
             target_link_libraries(ADLMIDI_SDL2 INTERFACE SDL2::SDL2)
+            target_include_directories(ADLMIDI_SDL2 INTERFACE ${SDL2_INCLUDE_DIRS})
         else()
             string(STRIP ${SDL2_LIBRARIES} SDL2_LIBRARIES)
             target_include_directories(ADLMIDI_SDL2 INTERFACE ${SDL2_INCLUDE_DIRS})
@@ -547,6 +558,7 @@ message("USE_DOSBOX_EMULATOR      = ${USE_DOSBOX_EMULATOR}")
 message("USE_NUKED_EMULATOR       = ${USE_NUKED_EMULATOR}")
 message("USE_OPAL_EMULATOR        = ${USE_OPAL_EMULATOR}")
 message("USE_JAVA_EMULATOR        = ${USE_JAVA_EMULATOR}")
+message("USE_HW_SERIAL            = ${USE_HW_SERIAL}")
 
 message("===== Utils and extras =====")
 message("WITH_GENADLDATA          = ${WITH_GENADLDATA}")
