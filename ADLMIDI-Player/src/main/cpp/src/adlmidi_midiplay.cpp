@@ -89,7 +89,11 @@ MIDIplay::MIDIplay(unsigned long sampleRate):
 
     m_setup.bankId = 0;
     m_setup.numFourOps = -1;
+#ifdef ADLMIDI_ENABLE_HW_DOS
+    m_setup.numChips = 1;
+#else
     m_setup.numChips = 2;
+#endif
     m_setup.deepTremoloMode = -1;
     m_setup.deepVibratoMode = -1;
     m_setup.rhythmMode = -1;
@@ -1541,6 +1545,13 @@ void MIDIplay::prepareChipChannelForNewNote(size_t c, const MIDIchannel::NoteInf
             // UNLESS we're going to do arpeggio
             MIDIchannel::notes_iterator i (m_midiChannels[jd.loc.MidCh].ensure_find_activenote(jd.loc.note));
 
+            if(!m_setup.enableAutoArpeggio)
+            {
+                // Kill the note
+                noteUpdate(j->value.loc.MidCh, i, Upd_Off, static_cast<int32_t>(c));
+                continue;
+            }
+
             // Check if we can do arpeggio.
             if(((jd.vibdelay_us < 70000) || (jd.kon_time_until_neglible_us > 20000000)) && jd.ins == ins)
             {
@@ -1582,9 +1593,6 @@ void MIDIplay::killOrEvacuate(size_t from_channel,
     for(uint32_t c = 0; c < synth.m_numChannels; ++c)
     {
         uint16_t cs = static_cast<uint16_t>(c);
-
-        if(!m_setup.enableAutoArpeggio)
-            break; // Arpeggio disabled completely
 
         if(c >= maxChannels)
             break;

@@ -3,11 +3,33 @@ project (libADLMIDI VERSION 1.5.1 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 include(CheckCCompilerFlag)
+include(CheckCXXCompilerFlag)
 
 # Prefer C90 standard
 set(CMAKE_C_STANDARD 90)
 # Prefer C++98 standard
 set(CMAKE_CXX_STANDARD 98)
+
+if(MSVC)
+    check_cxx_compiler_flag("/std:c++14" COMPILER_SUPPORTS_CXX14)
+    if(COMPILER_SUPPORTS_CXX14)
+        set(FLAG_CPP14 "/std:c++14")
+    endif()
+    if(MSVC_VERSION LESS 1910)
+        unset(COMPILER_SUPPORTS_CXX14) # MSVC older than 2017 fails to build YMFM
+    endif()
+else()
+    check_cxx_compiler_flag("-std=c++14" COMPILER_SUPPORTS_CXX14)
+    if(COMPILER_SUPPORTS_CXX14)
+        set(FLAG_CPP14 "-std=c++14")
+    endif()
+endif()
+
+if(COMPILER_SUPPORTS_CXX14)
+    message("== Your C++ compiler supports C++14, YMFM emulator will be ENABLED")
+else()
+    message("== Your C++ compiler does NOT supports C++14, YMFM emulator will be DISABLED")
+endif()
 
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -108,6 +130,10 @@ if(CMAKE_BUILD_TYPE_LOWER EQUAL "release")
     add_definitions(-DNDEBUG)
 ENDIF()
 
+if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug" AND CMAKE_COMPILER_IS_GNUCXX)
+    add_definitions(-D_GLIBCXX_DEBUG=1 -D_GLIBCXX_ASSERTIONS=1)
+endif()
+
 # Disable bogus MSVC warnings
 if(MSVC)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -189,6 +215,13 @@ option(USE_DOSBOX_EMULATOR  "Use DosBox 0.74 OPL3 emulator (semi-accurate, sugge
 option(USE_NUKED_EMULATOR   "Use Nuked OPL3 emulator (most accurate, powerful)" ${DEFAULT_HEAVY_EMULATORS})
 option(USE_OPAL_EMULATOR    "Use Opal emulator (inaccurate)" ${DEFAULT_HEAVY_EMULATORS})
 option(USE_JAVA_EMULATOR    "Use JavaOPL emulator" ${DEFAULT_HEAVY_EMULATORS})
+option(USE_ESFMU_EMULATOR   "Use ESFMu emulator (Based on Nuked OPL3, powerful)" ${DEFAULT_HEAVY_EMULATORS})
+option(USE_MAME_EMULATOR    "Use MAME OPL2 emulator" ${DEFAULT_HEAVY_EMULATORS})
+if(COMPILER_SUPPORTS_CXX14)
+    option(USE_YMFM_EMULATOR    "Use YMFM emulator (requires C++14 support)" ON)
+endif()
+option(USE_NUKED_OPL2_LLE_EMULATOR  "Use Nuked OPL2-LLE emulator [!EXTRA HEAVY!]" OFF)
+option(USE_NUKED_OPL3_LLE_EMULATOR  "Use Nuked OPL3-LLE emulator [!EXTRA HEAVY!]" OFF)
 option(USE_HW_SERIAL        "Use the hardware OPL3 chip via Serial on modern systems" OFF)
 
 option(WITH_GENADLDATA      "Build and run full rebuild of embedded banks cache" OFF)
@@ -208,6 +241,8 @@ option(EXAMPLE_SDL2_AUDIO   "Build also a simple SDL2 demo MIDI player" OFF)
 if(WIN32)
     option(WITH_WINMMDRV    "Build a WinMM MIDI driver" OFF)
 endif()
+
+option(ENABLE_ADDRESS_SANITIZER "Enable the Address Sanitizer GCC feature" OFF)
 
 if(NOT WIN32
    AND NOT VITA
@@ -245,7 +280,15 @@ function(handle_options targetLib)
         target_compile_definitions(${targetLib} PUBLIC BWMIDI_DISABLE_XMI_SUPPORT)
     endif()
 
-    if(NOT ADLMIDI_DOS)
+    if(ADLMIDI_DOS)
+        set(HAS_EMULATOR TRUE)
+        target_sources(${targetLib} PRIVATE
+            ${libADLMIDI_SOURCE_DIR}/src/chips/dos_hw_opl.cpp
+            ${libADLMIDI_SOURCE_DIR}/src/chips/dos_hw_opl.h
+        )
+        target_compile_definitions(${targetLib} PRIVATE ENABLE_HW_OPL_DOS)
+        target_compile_definitions(${targetLib} PUBLIC ADLMIDI_ENABLE_HW_DOS)
+    else()
         if(USE_DOSBOX_EMULATOR)
             set(HAS_EMULATOR TRUE)
             target_sources(${targetLib} PRIVATE
@@ -260,9 +303,13 @@ function(handle_options targetLib)
             set(HAS_EMULATOR TRUE)
             target_sources(${targetLib} PRIVATE
                 ${libADLMIDI_SOURCE_DIR}/src/chips/nuked_opl3.cpp       # v 1.8
+                ${libADLMIDI_SOURCE_DIR}/src/chips/nuked_opl3.h
                 ${libADLMIDI_SOURCE_DIR}/src/chips/nuked/nukedopl3.c
+                ${libADLMIDI_SOURCE_DIR}/src/chips/nuked/nukedopl3.h
                 ${libADLMIDI_SOURCE_DIR}/src/chips/nuked_opl3_v174.cpp  # v 1.7.4
+                ${libADLMIDI_SOURCE_DIR}/src/chips/nuked_opl3_v174.h
                 ${libADLMIDI_SOURCE_DIR}/src/chips/nuked/nukedopl3_174.c
+                ${libADLMIDI_SOURCE_DIR}/src/chips/nuked/nukedopl3_174.h
             )
         else()
             target_compile_definitions(${targetLib} PUBLIC ADLMIDI_DISABLE_NUKED_EMULATOR)
@@ -272,7 +319,9 @@ function(handle_options targetLib)
             set(HAS_EMULATOR TRUE)
             target_sources(${targetLib} PRIVATE
                 ${libADLMIDI_SOURCE_DIR}/src/chips/opal_opl3.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/opal_opl3.h
                 ${libADLMIDI_SOURCE_DIR}/src/chips/opal/opal.c
+                ${libADLMIDI_SOURCE_DIR}/src/chips/opal/opal.h
             )
         else()
             target_compile_definitions(${targetLib} PUBLIC ADLMIDI_DISABLE_OPAL_EMULATOR)
@@ -285,6 +334,88 @@ function(handle_options targetLib)
             )
         else()
             target_compile_definitions(${targetLib} PUBLIC ADLMIDI_DISABLE_JAVA_EMULATOR)
+        endif()
+
+        if(USE_ESFMU_EMULATOR)
+            set(HAS_EMULATOR TRUE)
+            target_sources(${targetLib} PRIVATE
+                ${libADLMIDI_SOURCE_DIR}/src/chips/esfmu_opl3.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/esfmu_opl3.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/esfmu/esfm.c
+                ${libADLMIDI_SOURCE_DIR}/src/chips/esfmu/esfm_registers.c
+                ${libADLMIDI_SOURCE_DIR}/src/chips/esfmu/esfm.h
+            )
+        else()
+            target_compile_definitions(${targetLib} PUBLIC ADLMIDI_DISABLE_ESFMU_EMULATOR)
+        endif()
+
+        if(USE_MAME_EMULATOR)
+            set(HAS_EMULATOR TRUE)
+            target_sources(${targetLib} PRIVATE
+                ${libADLMIDI_SOURCE_DIR}/src/chips/mame_opl2.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/mame_opl2.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/mame/opl.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/mame/mame_fmopl.cpp
+            )
+        else()
+            target_compile_definitions(${targetLib} PUBLIC ADLMIDI_DISABLE_MAME_OPL2_EMULATOR)
+        endif()
+
+        if(USE_YMFM_EMULATOR)
+            set(YMFM_SOURCES
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm_opl2.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm_opl2.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm_opl3.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm_opl3.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_adpcm.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_adpcm.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_fm.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_fm.ipp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_misc.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_misc.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_opl.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_opl.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_pcm.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_pcm.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_ssg.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymfm/ymfm_ssg.h
+            )
+            if(DEFINED FLAG_CPP14)
+                set_source_files_properties(${YMFM_SOURCES} COMPILE_FLAGS ${FLAG_CPP14})
+            endif()
+            target_sources(${targetLib} PRIVATE ${YMFM_SOURCES})
+            set(HAS_EMULATOR TRUE)
+        else()
+            target_compile_definitions(${targetLib} PUBLIC -DADLMIDI_DISABLE_YMFM_EMULATOR)
+        endif()
+
+        if(USE_NUKED_OPL2_LLE_EMULATOR)
+            set(HAS_EMULATOR TRUE)
+            target_sources(${targetLib} PRIVATE
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ym3812_lle.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ym3812_lle.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ym3812_lle/nopl2.c
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ym3812_lle/nopl2.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ym3812_lle/nuked_fmopl2.c
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ym3812_lle/nuked_fmopl2.h
+            )
+            target_compile_definitions(${targetLib} PUBLIC ADLMIDI_ENABLE_OPL2_LLE_EMULATOR)
+        endif()
+
+        if(USE_NUKED_OPL3_LLE_EMULATOR)
+            set(HAS_EMULATOR TRUE)
+            target_sources(${targetLib} PRIVATE
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymf262_lle.cpp
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymf262_lle.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymf262_lle/nopl3.c
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymf262_lle/nopl3.h
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymf262_lle/nuked_fmopl3.c
+                ${libADLMIDI_SOURCE_DIR}/src/chips/ymf262_lle/nuked_fmopl3.h
+            )
+            target_compile_definitions(${targetLib} PUBLIC ADLMIDI_ENABLE_OPL3_LLE_EMULATOR)
+        endif()
+
+        if(USE_NUKED_OPL3_LLE_EMULATOR)
         endif()
 
         if(USE_HW_SERIAL)
@@ -330,6 +461,11 @@ function(handle_options targetLib)
         endif()
         target_compile_definitions(${targetLib} PRIVATE ADLMIDI_ENABLE_HQ_RESAMPLER)
         target_link_libraries(${targetLib} PUBLIC ${ZITA_RESAMPLER_LIBRARY})
+    endif()
+
+    if(ENABLE_ADDRESS_SANITIZER)
+        target_compile_options(${targetLib} PUBLIC -fsanitize=address)
+        target_link_options(${targetLib} PUBLIC -fsanitize=address)
     endif()
 endfunction()
 
@@ -558,7 +694,21 @@ message("USE_DOSBOX_EMULATOR      = ${USE_DOSBOX_EMULATOR}")
 message("USE_NUKED_EMULATOR       = ${USE_NUKED_EMULATOR}")
 message("USE_OPAL_EMULATOR        = ${USE_OPAL_EMULATOR}")
 message("USE_JAVA_EMULATOR        = ${USE_JAVA_EMULATOR}")
+message("USE_ESFMU_EMULATOR       = ${USE_ESFMU_EMULATOR}")
+message("USE_MAME_EMULATOR        = ${USE_MAME_EMULATOR}")
+if(COMPILER_SUPPORTS_CXX14)
+    message("USE_YMFM_EMULATOR        = ${USE_YMFM_EMULATOR}")
+endif()
 message("USE_HW_SERIAL            = ${USE_HW_SERIAL}")
+if(USE_NUKED_OPL2_LLE_EMULATOR OR USE_NUKED_OPL3_LLE_EMULATOR)
+    message(WARNING "You enabled EXTRA-HEAVY LLE emulators, they do REALLY require \
+VERY POWERFUL processor to work (For example, on Intel Core i7-11700KF (8 cores, 3.60 GHz) \
+they can work in real-time only when they built with Release optimisations, Debug builds \
+are choppy even single chip run). You can't use them on weak devices, don't even think to \
+run theom mobile. I warned. If you want, feel free to optimize them and contribute your \
+updates to @NukeYkt who created them. The only way you can use them on weaker hardware \
+is record WAVs where real-time performance doesn't matter.")
+endif()
 
 message("===== Utils and extras =====")
 message("WITH_GENADLDATA          = ${WITH_GENADLDATA}")

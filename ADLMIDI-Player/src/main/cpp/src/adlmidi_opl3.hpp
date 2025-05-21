@@ -38,6 +38,7 @@
 #define NUM_OF_4OP_CHANNELS             6
 #define NUM_OF_2OP_CHANNELS             18
 #define NUM_OF_2x2_CHANNELS             9
+#define NUM_OF_OPL2_CHANNELS            9
 #define NUM_OF_RM_CHANNELS              5
 
 /**
@@ -59,10 +60,8 @@ public:
     uint32_t m_numChannels;
     //! Just a padding. Reserved.
     char _padding[4];
-#ifndef ADLMIDI_HW_OPL
     //! Running chip emulators
     std::vector<AdlMIDI_SPtr<OPLChipBase > > m_chips;
-#endif
 
 private:
     //! Cached patch data, needed by Touch()
@@ -73,6 +72,8 @@ private:
     std::vector<uint32_t>   m_keyBlockFNumCache;
     //! Cached BD registry value (flags register: DeepTremolo, DeepVibrato, and RhythmMode)
     std::vector<uint32_t>   m_regBD;
+    //! Cached C0 register value (primarily for the panning state)
+    std::vector<uint8_t>    m_regC0;
 
 #ifdef ADLMIDI_ENABLE_HW_SERIAL
     bool        m_serial;
@@ -80,6 +81,57 @@ private:
     unsigned    m_serialBaud;
     unsigned    m_serialProtocol;
 #endif
+    //! Does loaded emulator supports soft panning?
+    bool m_softPanningSup;
+    //! Current type of chip
+    int  m_currentChipType;
+    //! Number channels per chip
+    size_t m_perChipChannels;
+
+    /*!
+     * \brief Current state of the synth (if values matched to setup, chips and arrays won't be fully re-created)
+     */
+    struct State
+    {
+        int         emulator;
+        uint32_t    numChips;
+        unsigned long pcm_rate;
+
+        State()
+        {
+            clear();
+        }
+
+        void clear()
+        {
+            emulator = -2;
+            numChips = 0;
+            pcm_rate = 0;
+        }
+
+        bool cmp_rate(unsigned long rate)
+        {
+            bool ret = pcm_rate != rate;
+
+            if(ret)
+                pcm_rate = rate;
+
+            return ret;
+        }
+
+        bool cmp(int emu, uint32_t chips)
+        {
+            bool ret = emu != emulator || chips != numChips;
+
+            if(ret)
+            {
+                emulator = emu;
+                numChips = chips;
+            }
+
+            return ret;
+        }
+    } m_curState;
 
 public:
     /**
@@ -197,7 +249,9 @@ public:
         //! Rhythm-mode Hi-Hat
         ChanCat_Rhythm_HiHat    = 7,
         //! Rhythm-mode Secondary channel
-        ChanCat_Rhythm_Secondary    = 8
+        ChanCat_Rhythm_Secondary    = 8,
+        //! Here is no channel used (OPL2 only)
+        ChanCat_None = 9
     };
 
     //! Category of the channel
@@ -328,12 +382,10 @@ public:
      */
     ADLMIDI_VolumeModels getVolumeScaleModel();
 
-#ifndef ADLMIDI_HW_OPL
     /**
      * @brief Clean up all running emulated chip instances
      */
     void clearChips();
-#endif
 
     /**
      * @brief Reset chip properties and initialize them

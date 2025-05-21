@@ -303,7 +303,11 @@ public class Player extends AppCompatActivity
             "Nuked OPL3 v1.7 (very accurate)",
             "DosBox OPL3 (accurate and fast)",
             "Opal OPL3 (no rhythm-mode)",
-            "Java OPL3 (broken rhythm-mode)"
+            "Java OPL3 (broken rhythm-mode)",
+            "ESFMu (Emulator of ESS's ESFM)",
+            "MAME OPL2 (9 2op voices, broken rhythm-mode)",
+            "YMFM OPL2 (9 2op voices)",
+            "YMFM OPL3 (good accuracy)",
         };
 
         ArrayAdapter<String> adapterEMU = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, emulatorItems);

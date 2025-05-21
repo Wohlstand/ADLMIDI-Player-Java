@@ -705,6 +705,18 @@ enum ADL_Emulator
     ADLMIDI_EMU_OPAL,
     /*! Java */
     ADLMIDI_EMU_JAVA,
+    /*! ESFMu */
+    ADLMIDI_EMU_ESFMu,
+    /*! MAME OPL2 */
+    ADLMIDI_EMU_MAME_OPL2,
+    /*! YMFM OPL2 */
+    ADLMIDI_EMU_YMFM_OPL2,
+    /*! YMFM OPL3 */
+    ADLMIDI_EMU_YMFM_OPL3,
+    /*! Nuked OPL2 LLE*/
+    ADLMIDI_EMU_NUKED_OPL2_LLE,
+    /*! Nuked OPL3 LLE*/
+    ADLMIDI_EMU_NUKED_OPL3_LLE,
     /*! Count instrument on the level */
     ADLMIDI_EMU_end
 };
@@ -760,6 +772,27 @@ extern ADLMIDI_DECLSPEC int adl_switchSerialHW(struct ADL_MIDIPlayer *device,
                                                const char *name,
                                                unsigned baud,
                                                unsigned protocol);
+
+
+/**
+ * \brief The list of possible chip types for DOS hardware interface
+ */
+enum ADL_DOS_ChipType
+{
+    ADLMIDI_DOS_ChipAuto = 0,
+    ADLMIDI_DOS_ChipOPL2,
+    ADLMIDI_DOS_ChipOPL3
+};
+
+/**
+ * @brief Specify the chip type and the base address before initialization.
+ * This function has no effect if library didn't built for DOS with hardware OPL mode
+ * Important: Run this BEFORE creating the instance of the library.
+ * @param chipType
+ * @param baseAddress
+ * @return 0 on success, <0 when any error has occurred
+ */
+extern ADLMIDI_DECLSPEC int adl_switchDOSHW(int chipType, ADL_UInt16 baseAddress);
 
 /**
  * @brief Set 4-bit device identifier. Used by the SysEx processor.
