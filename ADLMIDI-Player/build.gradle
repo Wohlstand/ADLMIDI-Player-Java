@@ -7,7 +7,7 @@ def pin_alias = System.env.PIN_ALIAS
 def db_pass_alias = System.env.DB_PASS_ALIAS
 
 android {
-    compileSdk 34
+    compileSdk 35
 
     // Note: The NDK 23 is SIGNIFICANTLY important, because of the support for non-NEON and older Android versions
     //       The NDK 24 removes the support for Android 4.1, 4.2, and 4.3.
@@ -16,8 +16,8 @@ android {
 
     defaultConfig {
         applicationId "ru.wohlsoft.adlmidiplayer"
-        minSdkVersion 14
-        targetSdkVersion 34
+        minSdkVersion 16
+        targetSdkVersion 35
         versionCode 1050100
         versionName '1.5.1.0'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
@@ -92,5 +92,6 @@ dependencies {
     //noinspection GradleDependency: Last version that supports MinSDK 14
     implementation 'androidx.appcompat:appcompat:1.6.1'
     compileOnly 'junit:junit:4.13.2'
+    //noinspection GradleDependency: the version 2.1.4 is last that support minSDK 16, newer version will require MinSDK 21
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }

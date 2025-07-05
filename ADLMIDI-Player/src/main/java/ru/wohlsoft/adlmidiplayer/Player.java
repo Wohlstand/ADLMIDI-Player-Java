@@ -26,6 +26,7 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.RelativeLayout;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -682,6 +683,13 @@ public class Player extends AppCompatActivity
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_player);
+
+        // Workaround to keep content visible
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM)
+        {
+            RelativeLayout lo = findViewById(R.id.activity_playerZ);
+            lo.setPadding(lo.getPaddingLeft(), lo.getPaddingLeft() + 140, lo.getPaddingRight(), lo.getPaddingBottom() + 140);
+        }
 
         if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P)
             m_lastPath = Environment.getExternalStorageDirectory().getPath();
