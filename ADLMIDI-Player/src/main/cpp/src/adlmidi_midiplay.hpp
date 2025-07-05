@@ -235,11 +235,16 @@ public:
             Phys *phys_find(unsigned chip_chan)
             {
                 Phys *ph = NULL;
+
                 for(unsigned i = 0; i < chip_channels_count && !ph; ++i)
+                {
                     if(chip_channels[i].chip_chan == chip_chan)
                         ph = &chip_channels[i];
+                }
+
                 return ph;
             }
+
             Phys *phys_find_or_create(uint16_t chip_chan)
             {
                 Phys *ph = phys_find(chip_chan);
@@ -251,20 +256,23 @@ public:
                 }
                 return ph;
             }
+
             Phys *phys_ensure_find_or_create(uint16_t chip_chan)
             {
                 Phys *ph = phys_find_or_create(chip_chan);
                 assert(ph);
                 return ph;
             }
+
             void phys_erase_at(const Phys *ph)
             {
                 intptr_t pos = ph - chip_channels;
-                assert(pos < static_cast<intptr_t>(chip_channels_count));
+                assert(pos >= 0 && pos < static_cast<intptr_t>(chip_channels_count));
                 for(intptr_t i = pos + 1; i < static_cast<intptr_t>(chip_channels_count); ++i)
                     chip_channels[i - 1] = chip_channels[i];
                 --chip_channels_count;
             }
+
             void phys_erase(unsigned chip_chan)
             {
                 Phys *ph = phys_find(chip_chan);
@@ -284,6 +292,24 @@ public:
         pl_list<NoteInfo> activenotes;
         typedef pl_list<NoteInfo>::iterator notes_iterator;
         typedef pl_list<NoteInfo>::const_iterator const_notes_iterator;
+
+        void clear_all_phys_users(unsigned chip_chan)
+        {
+            for(pl_list<NoteInfo>::iterator it = activenotes.begin(); it != activenotes.end(); )
+            {
+                NoteInfo::Phys *p = it->value.phys_find(chip_chan);
+                if(p)
+                {
+                    it->value.phys_erase_at(p);
+                    if(it->value.chip_channels_count == 0)
+                        it = activenotes.erase(it);
+                    else
+                        ++it;
+                }
+                else
+                    ++it;
+            }
+        }
 
         notes_iterator find_activenote(unsigned note)
         {
@@ -311,9 +337,24 @@ public:
             return it;
         }
 
+        notes_iterator create_activenote(unsigned note)
+        {
+            NoteInfo ni;
+            ni.note = note;
+            notes_iterator it = activenotes.insert(activenotes.end(), ni);
+            return it;
+        }
+
         notes_iterator ensure_find_or_create_activenote(unsigned note)
         {
             notes_iterator it = find_or_create_activenote(note);
+            assert(!it.is_end());
+            return it;
+        }
+
+        notes_iterator ensure_create_activenote(unsigned note)
+        {
+            notes_iterator it = create_activenote(note);
             assert(!it.is_end());
             return it;
         }
@@ -946,6 +987,13 @@ private:
      * @return Calculated coodness points
      */
     int64_t calculateChipChannelGoodness(size_t c, const MIDIchannel::NoteInfo::Phys &ins) const;
+
+    /**
+     * @brief If no free chip channels, try to kill at least one second voice of pseudo-4-op instruments and steal the released channel
+     * @param new_chan Value of released chip channel to reuse
+     * @return true if any channel was been stolen, or false when nothing happen
+     */
+    bool killSecondVoicesIfOverflow(int32_t &new_chan);
 
     /**
      * @brief A new note will be played on this channel using this instrument.

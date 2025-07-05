@@ -331,14 +331,18 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 
     if(static_cast<size_t>(channel) > m_midiChannels.size())
         channel = channel % 16;
-    noteOff(channel, note, velocity != 0);
+
+    //noteOff(channel, note, velocity != 0);
     // On Note on, Keyoff the note first, just in case keyoff
     // was omitted; this fixes Dance of sugar-plum fairy
     // by Microsoft. Now that we've done a Keyoff,
     // check if we still need to do a Keyon.
     // vol=0 and event 8x are both Keyoff-only.
     if(velocity == 0)
+    {
+        noteOff(channel, note, false);
         return false;
+    }
 
     MIDIchannel &midiChan = m_midiChannels[channel];
 
@@ -492,7 +496,7 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     if(isBlankNote)
     {
         // Don't even try to play the blank instrument! But, insert the dummy note.
-        MIDIchannel::notes_iterator i = midiChan.ensure_find_or_create_activenote(note);
+        MIDIchannel::notes_iterator i = midiChan.ensure_create_activenote(note);
         MIDIchannel::NoteInfo &dummy = i->value;
         dummy.isBlank = true;
         dummy.isOnExtendedLifeTime = false;
@@ -509,6 +513,9 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 
     for(uint32_t ccount = 0; ccount < MIDIchannel::NoteInfo::MaxNumPhysChans; ++ccount)
     {
+        int32_t c = -1;
+        int32_t bs = -0x7FFFFFFFl;
+
         if(ccount == 1)
         {
             if(voices[0] == voices[1])
@@ -516,9 +523,18 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
             if(adlchannel[0] == -1)
                 break; // No secondary if primary failed
         }
-
-        int32_t c = -1;
-        int32_t bs = -0x7FFFFFFFl;
+        else if(!m_setup.enableAutoArpeggio &&
+                (is_2op || pseudo_4op) &&
+                (ains->flags & OplInstMeta::Mask_RhythmMode) == 0)
+        {
+            if(killSecondVoicesIfOverflow(c))
+            {
+                adlchannel[0] = c;
+                adlchannel[1] = -1;
+                voices[1] = voices[0];
+                break;
+            }
+        }
 
         for(size_t a = 0; a < (size_t)synth.m_numChannels; ++a)
         {
@@ -613,7 +629,7 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         velocity = static_cast<uint8_t>(std::floor(static_cast<float>(velocity) * 0.8f));
 
     // Allocate active note for MIDI channel
-    MIDIchannel::notes_iterator ir = midiChan.ensure_find_or_create_activenote(note);
+    MIDIchannel::notes_iterator ir = midiChan.ensure_create_activenote(note);
     MIDIchannel::NoteInfo &ni = ir->value;
     ni.vol     = velocity;
     ni.vibrato = midiChan.noteAftertouch[note];
@@ -657,7 +673,8 @@ bool MIDIplay::realTime_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         if(c < 0)
             continue;
         uint16_t chipChan = static_cast<uint16_t>(adlchannel[ccount]);
-        ni.phys_ensure_find_or_create(chipChan)->assign(voices[ccount]);
+        MIDIchannel::NoteInfo::Phys* p = ni.phys_ensure_find_or_create(chipChan);
+        p->assign(voices[ccount]);
     }
 
     noteUpdate(channel, ir, Upd_All | Upd_Patch);
@@ -1525,12 +1542,85 @@ int64_t MIDIplay::calculateChipChannelGoodness(size_t c, const MIDIchannel::Note
     return s;
 }
 
+bool MIDIplay::killSecondVoicesIfOverflow(int32_t &new_chan)
+{
+    Synth &synth = *m_synth;
+    bool ret = false;
+
+    int free2op = 0;
+    int32_t volume = -1;
+
+    for(size_t a = 0; a < (size_t)synth.m_numChannels; ++a)
+    {
+        if(synth.m_channelCategory[a] != OPL3::ChanCat_Regular)
+            continue;
+
+        AdlChannel &chan = m_chipChannels[a];
+
+        if(chan.users.empty())
+        {
+            ++free2op;
+            break; // No reason to loop more
+        }
+        else if(chan.recent_ins.pseudo4op)
+        {
+            AdlChannel::users_iterator j = &chan.users.front();
+            AdlChannel::LocationData &jd = j->value;
+            MIDIchannel &mc = m_midiChannels[jd.loc.MidCh];
+            MIDIchannel::notes_iterator nc = mc.find_activenote(jd.loc.note);
+            int32_t total = mc.volume + mc.expression;
+
+            if(!nc.is_end())
+                total += nc->value.vol;
+
+            // Quitest tones has highest priority to be stolen
+            if(volume < 0 || total < volume)
+            {
+                volume = total;
+                new_chan = a;
+            }
+        }
+    }
+
+    if(!free2op && new_chan >= 0)
+    {
+        AdlChannel::users_iterator j = &m_chipChannels[new_chan].users.front();
+        AdlChannel::LocationData &jd = j->value;
+
+        m_midiChannels[jd.loc.MidCh].clear_all_phys_users(new_chan);
+        m_chipChannels[new_chan].users.erase(j);
+        assert(m_chipChannels[new_chan].users.empty()); // No users should remain!
+        synth.noteOff(new_chan);
+        ret = true;
+    }
+
+    return ret;
+}
 
 void MIDIplay::prepareChipChannelForNewNote(size_t c, const MIDIchannel::NoteInfo::Phys &ins)
 {
     if(m_chipChannels[c].users.empty()) return; // Nothing to do
 
     Synth &synth = *m_synth;
+
+    if(!m_setup.enableAutoArpeggio)
+    {
+        // Kill all notes on this channel with no mercy
+        for(AdlChannel::users_iterator jnext = m_chipChannels[c].users.begin(); !jnext.is_end();)
+        {
+            AdlChannel::users_iterator j = jnext;
+            AdlChannel::LocationData &jd = j->value;
+            ++jnext;
+
+            m_midiChannels[jd.loc.MidCh].clear_all_phys_users(c);
+            m_chipChannels[c].users.erase(j);
+        }
+
+        synth.noteOff(c);
+        assert(m_chipChannels[c].users.empty()); // No users should remain!
+
+        return;
+    }
 
     //bool doing_arpeggio = false;
     for(AdlChannel::users_iterator jnext = m_chipChannels[c].users.begin(); !jnext.is_end();)
@@ -1544,13 +1634,6 @@ void MIDIplay::prepareChipChannelForNewNote(size_t c, const MIDIchannel::NoteInf
             // Collision: Kill old note,
             // UNLESS we're going to do arpeggio
             MIDIchannel::notes_iterator i (m_midiChannels[jd.loc.MidCh].ensure_find_activenote(jd.loc.note));
-
-            if(!m_setup.enableAutoArpeggio)
-            {
-                // Kill the note
-                noteUpdate(j->value.loc.MidCh, i, Upd_Off, static_cast<int32_t>(c));
-                continue;
-            }
 
             // Check if we can do arpeggio.
             if(((jd.vibdelay_us < 70000) || (jd.kon_time_until_neglible_us > 20000000)) && jd.ins == ins)
@@ -1637,6 +1720,10 @@ void MIDIplay::killOrEvacuate(size_t from_channel,
             info.phys_erase(static_cast<uint16_t>(from_channel));
             info.phys_ensure_find_or_create(cs)->assign(jd.ins);
             m_chipChannels[cs].users.push_back(jd);
+#ifndef NDEBUG
+            if(!m_setup.enableAutoArpeggio)
+                assert(m_chipChannels[cs].users.size() <= 1);
+#endif
             m_chipChannels[from_channel].users.erase(j);
             return;
         }
@@ -1942,9 +2029,9 @@ void MIDIplay::describeChannels(char *str, char *attr, size_t size)
     Synth &synth = *m_synth;
     uint32_t numChannels = synth.m_numChannels;
 
-    uint32_t index = 0;
+    uint32_t index = 0, index_out = 0;
 
-    while(index < numChannels && index < size - 1)
+    while(index < numChannels && index_out < size - 1)
     {
         const AdlChannel &adlChannel = m_chipChannels[index];
 
@@ -1954,23 +2041,29 @@ void MIDIplay::describeChannels(char *str, char *attr, size_t size)
         if(!loc.is_end())
             ++locnext;
 
+        if(synth.m_channelCategory[index] == Synth::ChanCat_None)
+        {
+            ++index; // Skip OPL2-absent channels
+            continue;
+        }
+
         if(loc.is_end())  // off
-            str[index] = '-';
+            str[index_out] = '-';
         else if(!locnext.is_end())  // arpeggio
-            str[index] = '@';
+            str[index_out] = '@';
         else  // on
         {
             switch(synth.m_channelCategory[index])
             {
             case Synth::ChanCat_Regular:
-                str[index] = '+';
+                str[index_out] = '+';
                 break;
             case Synth::ChanCat_4op_First:
             case Synth::ChanCat_4op_Second:
-                str[index] = '#';
+                str[index_out] = '#';
                 break;
             default:  // rhythm-mode percussion
-                str[index] = 'r';
+                str[index_out] = 'r';
                 break;
             }
         }
@@ -1979,10 +2072,11 @@ void MIDIplay::describeChannels(char *str, char *attr, size_t size)
         if(!loc.is_end())  // 4-bit color index of MIDI channel
             attribute |= (uint8_t)(loc->value.loc.MidCh & 0xF);
 
-        attr[index] = (char)attribute;
+        attr[index_out] = (char)attribute;
         ++index;
+        ++index_out;
     }
 
-    str[index] = 0;
-    attr[index] = 0;
+    str[index_out] = 0;
+    attr[index_out] = 0;
 }
