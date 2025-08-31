@@ -56,6 +56,9 @@ add_library(
     src/main/cpp/adlmidi-jni.c
 )
 
+target_link_options(ADLMIDI_static PUBLIC "-Wl,-z,max-page-size=16384")
+target_link_options(ADLMIDI_static PUBLIC "-Wl,-z,common-page-size=16384")
+
 target_link_libraries(adlmidi-jni ADLMIDI_IF)
 target_include_directories(adlmidi-jni PUBLIC src/main/cpp/include)
 add_dependencies(adlmidi-jni ADLMIDI_static)
