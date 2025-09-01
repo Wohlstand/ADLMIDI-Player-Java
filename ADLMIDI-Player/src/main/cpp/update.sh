@@ -12,7 +12,7 @@ cp -v /home/vitaly/_git_repos/libADLMIDI/CMakeLists.txt .
 cp -v /home/vitaly/_git_repos/libADLMIDI/libADLMIDIConfig.cmake.in .
 
 mkdir -p ./cmake
-cp -av /home/vitaly/_git_repos/libADLMIDI/cmake/checks ./checks
+cp -av /home/vitaly/_git_repos/libADLMIDI/cmake/checks ./cmake/
 
 echo "Press any key..."
 read -n 1
