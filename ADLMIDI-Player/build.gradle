@@ -7,7 +7,7 @@ def pin_alias = System.env.PIN_ALIAS
 def db_pass_alias = System.env.DB_PASS_ALIAS
 
 android {
-    compileSdk 35
+    compileSdkVersion 35
 
     // Note: The NDK 23 is SIGNIFICANTLY important, because of the support for non-NEON and older Android versions
     //       The NDK 24 removes the support for Android 4.1, 4.2, and 4.3.
