@@ -1203,7 +1203,7 @@ public class Player extends AppCompatActivity
     public void openMusicFileDialog()
     {
         OpenFileDialog fileDialog = new OpenFileDialog(this)
-                .setFilter(".*\\.mid|.*\\.midi|.*\\.kar|.*\\.rmi|.*\\.imf|.*\\.cmf|.*\\.mus|.*\\.xmi")
+                .setFilter(".*\\.mid|.*\\.midi|.*\\.kar|.*\\.rmi|.*\\.imf|.*\\.cmf|.*\\.mus|.*\\.xmi|.*\\.klm")
                 .setCurrentDirectory(m_lastPath)
                 .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
                 {

@@ -45,12 +45,14 @@
                 <data android:mimeType="x-music/midi" />
                 <data android:mimeType="x-music/x-mid" />
                 <data android:mimeType="x-music/x-midi" />
+                <data android:mimeType="x-music/klm" />
                 <data android:mimeType="application/mid" />
                 <data android:mimeType="application/midi" />
                 <data android:mimeType="application/x-mid" />
                 <data android:mimeType="application/x-midi" />
                 <data android:mimeType="application/x-mid" />
                 <data android:mimeType="application/x-midi" />
+                <data android:mimeType="application/music-klm" />
             </intent-filter>
 
             <intent-filter>
@@ -79,6 +81,8 @@
                 <data android:pathPattern=".*\\.MUS" />
                 <data android:pathPattern=".*\\.xmi" />
                 <data android:pathPattern=".*\\.XMI" />
+                <data android:pathPattern=".*\\.klm" />
+                <data android:pathPattern=".*\\.KLM" />
             </intent-filter>
         </activity>
 
