@@ -29,8 +29,6 @@
 #include "adlmidi_private.hpp"
 #include "adlmidi_bankmap.h"
 
-#define BEND_COEFFICIENT                172.4387
-
 #define OPL3_CHANNELS_MELODIC_BASE      0
 #define OPL3_CHANNELS_RHYTHM_BASE       18
 
@@ -65,7 +63,8 @@ public:
 
 private:
     //! Cached patch data, needed by Touch()
-    std::vector<OplTimbre>    m_insCache;
+    std::vector<const OplTimbre*> m_insCache;
+    std::vector<bool> m_insCacheModified;
     //! Value written to B0, cached, needed by NoteOff.
     /*! Contains Key on/off state, octave block and frequency number values
      */
@@ -218,8 +217,24 @@ public:
         //! HMI Sound Operating System volume scale table
         VOLUME_HMI,
         //! HMI Sound Operating System volume scale model, older variant
-        VOLUME_HMI_OLD
+        VOLUME_HMI_OLD,
+        //! Volume model from the AdLib driver for Windows 3.1
+        VOLUME_MS_ADLIB,
+        //! Uses DMX fixed volume model and "same-instrument" channel allocation
+        VOLUME_IMF_CREATOR,
+        //! Jamie O'Connell's FM Synth driver
+        VOLUME_OCONNELL,
+
+        /* !! Insert new PUBLIC enum leafs to HERE, NOT BELOW! !! */
+
+        //! [PRIVATE] Volume model specific to RSXX format playing, should never being refered in WOPL file!
+        VOLUME_RSXX
     } m_volumeScale;
+
+    //! Frequency computation function
+    uint16_t (*m_getFreq)(double tone, uint32_t *mul_offset);
+    //! OPL Volume computation function
+    void (*m_getVolume)(struct OPLVolume_t *v);
 
     //! Channel allocation algorithm
     ADLMIDI_ChannelAlloc m_channelAlloc;
@@ -281,6 +296,12 @@ public:
      * @return true when setup on the fly is locked
      */
     bool setupLocked();
+
+    /**
+     * @brief Changes the volume model and assigns frequency formula
+     * @param model
+     */
+    void setFrequencyModel(VolumesScale model);
 
     /**
      * @brief Choose one of embedded banks
@@ -347,7 +368,7 @@ public:
      * @param c Channel of chip (Emulated chip choosing by next formula: [c = ch + (chipId * 23)])
      * @param instrument Instrument data to set into the chip channel
      */
-    void setPatch(size_t c, const OplTimbre &instrument);
+    void setPatch(size_t c, const OplTimbre *instrument);
 
     /**
      * @brief Set panpot position

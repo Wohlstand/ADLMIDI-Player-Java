@@ -207,20 +207,22 @@ public:
             {
                 //! Destination chip channel
                 uint16_t chip_chan;
-                //! ins, inde to adl[]
-                OplTimbre op;
-                //! Is this voice must be detunable?
-                bool    pseudo4op;
+                //! Instrument entry
+                const OplTimbre *op;
+                //! Should we play the second 2-op voice?
+                bool pseudo4op;
 
                 void assign(const Phys &oth)
                 {
                     op = oth.op;
                     pseudo4op = oth.pseudo4op;
                 }
+
                 bool operator==(const Phys &oth) const
                 {
                     return (op == oth.op) && (pseudo4op == oth.pseudo4op);
                 }
+
                 bool operator!=(const Phys &oth) const
                 {
                     return !operator==(oth);
@@ -464,11 +466,11 @@ public:
         {
             uint16_t    MidCh;
             uint8_t     note;
-            bool operator==(const Location &l) const
-                { return MidCh == l.MidCh && note == l.note; }
-            bool operator!=(const Location &l) const
-                { return !operator==(l); }
+
+            bool operator==(const Location &l) const { return MidCh == l.MidCh && note == l.note; }
+            bool operator!=(const Location &l) const { return !operator==(l); }
         };
+
         struct LocationData
         {
             Location loc;
@@ -645,9 +647,19 @@ public:
 
 private:
     //! Per-track MIDI devices map
-    std::map<std::string, size_t> m_midiDevices;
+    struct MidiDeviceEntry
+    {
+        char name[100];
+        size_t track;
+    } m_midiDevices[127];
+    static const size_t m_midiDevicesSize = 127;
+
+    //! Number of used MIDI devices (up to 100)
+    size_t m_midiDevicesUsed;
+
     //! Current MIDI device per track
-    std::map<size_t /*track*/, size_t /*channel begin index*/> m_currentMidiDevice;
+    size_t m_currentMidiDevice[127];
+    static const size_t m_currentMidiDeviceMax = 127;
 
     //! Padding to fix CLanc code model's warning
     char _padding[7];
@@ -962,6 +974,18 @@ private:
         Upd_OffMute = Upd_Off + Upd_Mute
     };
 
+    void noteUpdPatch(const AdlChannel::Location &loc, const MIDIchannel::NoteInfo::Phys &ins, const OplInstMeta *ains);
+
+    void noteUpdOff(size_t midCh,
+                    MIDIchannel::NoteInfo &info,
+                    const AdlChannel::Location &loc,
+                    const MIDIchannel::NoteInfo::Phys &ins,
+                    bool mute);
+
+    void noteUpdVolume(size_t midCh, MIDIchannel::NoteInfo &info, const MIDIchannel::NoteInfo::Phys &ins);
+
+    void noteUpdFreq(size_t midCh, const AdlChannel::Location &loc, MIDIchannel::NoteInfo &info, const MIDIchannel::NoteInfo::Phys &ins);
+
     /**
      * @brief Update active note
      * @param MidCh MIDI Channel where note is processing
@@ -1078,10 +1102,11 @@ private:
 public:
     /**
      * @brief Checks was device name used or not
-     * @param name Name of MIDI device
+     * @param name Non-null-terminated name of MIDI device
+     * @param len Length of string
      * @return Offset of the MIDI Channels, multiple to 16
      */
-    size_t chooseDevice(const std::string &name);
+    size_t chooseDevice(const char *name, size_t len);
 
     /**
      * @brief Gets a textual description of the state of chip channels

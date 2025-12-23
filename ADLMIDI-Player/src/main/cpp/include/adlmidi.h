@@ -30,7 +30,7 @@ extern "C" {
 
 #define ADLMIDI_VERSION_MAJOR       1
 #define ADLMIDI_VERSION_MINOR       6
-#define ADLMIDI_VERSION_PATCHLEVEL  1
+#define ADLMIDI_VERSION_PATCHLEVEL  2
 
 #define ADLMIDI_TOSTR_I(s) #s
 #define ADLMIDI_TOSTR(s) ADLMIDI_TOSTR_I(s)
@@ -126,6 +126,12 @@ enum ADLMIDI_VolumeModels
     ADLMIDI_VolumeModel_HMI = 10,
     /*! HMI Sound Operating System volume scaling model, older variant with bugs */
     ADLMIDI_VolumeModel_HMI_OLD = 11,
+    /*! Volume model from the AdLib driver for Windows 3.1 */
+    ADLMIDI_VolumeModel_MS_ADLIB = 12,
+    /*! Volume model used by IMF Creator utility */
+    ADLMIDI_VolumeModel_IMF_Creator = 13,
+    /*! Volume model used by Jamie O'Connell's FM Synth driver for Windows 3.x */
+    ADLMIDI_VolumeModel_OConnell = 14,
     /*! Count of available volume model modes */
     ADLMIDI_VolumeModel_Count
 };
@@ -1216,7 +1222,7 @@ extern ADLMIDI_DECLSPEC int  adl_generateFormat(struct ADL_MIDIPlayer *device, i
  * @param device Instance of the library
  * @param seconds Previous delay. On a first moment, pass the `0.0`
  * @param granulality Minimal size of one MIDI tick in seconds.
- * @return desired number of seconds until next call. Pass this value into `seconds` field in next time
+ * @return desired number of seconds until next call. On error the <0 value gets returned, =0 at end of the song with disabled loop.
  */
 extern ADLMIDI_DECLSPEC double adl_tickEvents(struct ADL_MIDIPlayer *device, double seconds, double granulality);
 

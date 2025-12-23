@@ -25,10 +25,10 @@
 #include "adlmidi_opl3.hpp"
 #include "adlmidi_private.hpp"
 #include "adlmidi_cvt.hpp"
-#include "file_reader.hpp"
+#include "midiseq/file_reader.hpp"
 #ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
 #   define BWMIDI_ENABLE_OPL_MUSIC_SUPPORT
-#   include "midi_sequencer.hpp"
+#   include "midiseq/midi_sequencer.hpp"
 #endif
 #include "wopl/wopl_file.h"
 
@@ -110,6 +110,9 @@ bool MIDIplay::LoadBank(FileAndMemReader &fr)
             return false;
         }
     }
+
+    // Kill all notes before switching the bank
+    realTime_panic();
 
     Synth &synth = *m_synth;
 
@@ -223,11 +226,10 @@ bool MIDIplay::LoadMIDI_post()
             adlins.voice2_fine_tune = 0.0;
         }
 
-        synth.m_embeddedBank = Synth::CustomBankTag; // Ignore AdlBank number, use dynamic banks instead
-        //std::printf("CMF deltas %u ticks %u, basictempo = %u\n", deltas, ticks, basictempo);
+        synth.m_embeddedBank = Synth::CustomBankTag;
         synth.m_rhythmMode = true;
         synth.m_musicMode = Synth::MODE_CMF;
-        synth.m_volumeScale = Synth::VOLUME_NATIVE;
+        synth.setFrequencyModel(Synth::VOLUME_NATIVE);
         setToOPL2 = true;
 
         synth.m_numChips = 1;
@@ -235,16 +237,14 @@ bool MIDIplay::LoadMIDI_post()
     }
     else if(format == MidiSequencer::Format_RSXX)
     {
-        //opl.CartoonersVolumes = true;
         synth.m_musicMode     = Synth::MODE_RSXX;
-        synth.m_volumeScale   = Synth::VOLUME_NATIVE;
+        synth.setFrequencyModel(Synth::VOLUME_RSXX);
 
         synth.m_numChips = 1;
         synth.m_numFourOps = 0;
     }
     else if(format == MidiSequencer::Format_IMF || format == MidiSequencer::Format_KLM)
     {
-        //std::fprintf(stderr, "Done reading IMF file\n");
         synth.m_numFourOps  = 0; //Don't use 4-operator channels for IMF playing!
         synth.m_rhythmMode = false;//Don't enforce rhythm-mode when it's unneeded
         synth.m_musicMode = Synth::MODE_IMF;
@@ -282,10 +282,16 @@ bool MIDIplay::LoadMIDI(const std::string &filename)
     FileAndMemReader file;
     file.openFile(filename.c_str());
 
+    file.dumpFile();
+
     if(!LoadMIDI_pre())
         return false;
 
     MidiSequencer &seq = *m_sequencer;
+
+    // FIXME: Implement public libADLMIDI's API to choice this
+    seq.setDeviceMask(MidiSequencer::Device_OPL2|MidiSequencer::Device_OPL3);
+
     if(!seq.loadMIDI(file))
     {
         errorStringOut = seq.getErrorString();
@@ -294,6 +300,10 @@ bool MIDIplay::LoadMIDI(const std::string &filename)
 
     if(!LoadMIDI_post())
         return false;
+
+#if defined(BWMIDI_ENABLE_DEBUG_SONG_DUMP) && !defined(__DJGPP__)
+    seq.debugDumpContents(filename + ".dump.txt");
+#endif
 
     return true;
 }
@@ -307,6 +317,10 @@ bool MIDIplay::LoadMIDI(const void *data, size_t size)
         return false;
 
     MidiSequencer &seq = *m_sequencer;
+
+    // FIXME: Implement public libADLMIDI's API to choice this
+    seq.setDeviceMask(MidiSequencer::Device_OPL2|MidiSequencer::Device_OPL3);
+
     if(!seq.loadMIDI(file))
     {
         errorStringOut = seq.getErrorString();

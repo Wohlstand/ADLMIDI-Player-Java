@@ -27,7 +27,7 @@
 #include "chips/opl_chip_base.h"
 #ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
 #   define BWMIDI_ENABLE_OPL_MUSIC_SUPPORT
-#   include "midi_sequencer.hpp"
+#   include "midiseq/midi_sequencer.hpp"
 #endif
 #ifdef ENABLE_HW_OPL_DOS
 #   include "chips/dos_hw_opl.h"
@@ -217,6 +217,9 @@ ADLMIDI_EXPORT int adl_setBank(ADL_MIDIPlayer *device, int bank)
         play->setErrorString(errBuf);
         return -1;
     }
+
+    // Kill all notes before switching the bank
+    play->realTime_panic();
 
     Synth &synth = *play->m_synth;
     play->m_setup.bankId = static_cast<uint32_t>(bankno);
@@ -661,7 +664,7 @@ ADLMIDI_EXPORT void adl_setVolumeRangeModel(struct ADL_MIDIPlayer *device, int v
     if(!synth.setupLocked())
     {
         if(play->m_setup.volumeScaleModel == ADLMIDI_VolumeModel_AUTO)//Use bank default volume model
-            synth.m_volumeScale = (Synth::VolumesScale)synth.m_insBankSetup.volumeModel;
+            synth.setFrequencyModel((Synth::VolumesScale)synth.m_insBankSetup.volumeModel);
         else
             synth.setVolumeScaleModel(static_cast<ADLMIDI_VolumeModels>(volumeModel));
     }
@@ -1092,7 +1095,7 @@ ADLMIDI_EXPORT const char *adl_metaMusicTitle(struct ADL_MIDIPlayer *device)
         return "";
     MidiPlayer *play = GET_MIDI_PLAYER(device);
     assert(play);
-    return play->m_sequencer->getMusicTitle().c_str();
+    return play->m_sequencer->getMusicTitle();
 #else
     ADL_UNUSED(device);
     return "";
@@ -1107,7 +1110,7 @@ ADLMIDI_EXPORT const char *adl_metaMusicCopyright(struct ADL_MIDIPlayer *device)
         return "";
     MidiPlayer *play = GET_MIDI_PLAYER(device);
     assert(play);
-    return play->m_sequencer->getMusicCopyright().c_str();
+    return play->m_sequencer->getMusicCopyright();
 #else
     ADL_UNUSED(device);
     return "";
@@ -1135,10 +1138,10 @@ ADLMIDI_EXPORT const char *adl_metaTrackTitle(struct ADL_MIDIPlayer *device, siz
         return "";
     MidiPlayer *play = GET_MIDI_PLAYER(device);
     assert(play);
-    const std::vector<std::string> &titles = play->m_sequencer->getTrackTitles();
+    const std::vector<BW_MidiSequencer::DataBlock> &titles = play->m_sequencer->getTrackTitles();
     if(index >= titles.size())
         return "INVALID";
-    return titles[index].c_str();
+    return reinterpret_cast<const char*>(play->m_sequencer->getData(titles[index]));
 #else
     ADL_UNUSED(device);
     ADL_UNUSED(index);
@@ -1187,7 +1190,7 @@ ADLMIDI_EXPORT Adl_MarkerEntry adl_metaMarker(struct ADL_MIDIPlayer *device, siz
     }
 
     const MidiSequencer::MIDI_MarkerEntry &mk = markers[index];
-    marker.label = mk.label.c_str();
+    marker.label = reinterpret_cast<const char*>(play->m_sequencer->getData(mk.label));
     marker.pos_time = mk.pos_time;
     marker.pos_ticks = (unsigned long)mk.pos_ticks;
 #else
