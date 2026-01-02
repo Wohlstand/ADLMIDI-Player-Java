@@ -309,6 +309,7 @@ public class Player extends AppCompatActivity
             "MAME OPL2 (9 2op voices, broken rhythm-mode)",
             "YMFM OPL2 (9 2op voices)",
             "YMFM OPL3 (good accuracy)",
+            "Nuked OPL2 Lite (9 2op voices, better accuracy)",
         };
 
         ArrayAdapter<String> adapterEMU = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, emulatorItems);

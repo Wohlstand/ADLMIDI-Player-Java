@@ -393,6 +393,8 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setEmulator(
     (void)instance; (void)env;
 
     pthread_mutex_lock(&g_lock);
+    if(emulator >= ADLMIDI_EMU_NUKED_OPL2_LLE)
+        emulator += 2; // Skip disabled-by-default emulators (they impossible to work on mobile device!)
     ret = (jint)adl_switchEmulator(ADL_DEV, (int)emulator);
     pthread_mutex_unlock(&g_lock);
 
