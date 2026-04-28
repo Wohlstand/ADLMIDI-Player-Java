@@ -83,6 +83,12 @@
                 <data android:pathPattern=".*\\.XMI" />
                 <data android:pathPattern=".*\\.klm" />
                 <data android:pathPattern=".*\\.KLM" />
+                <data android:pathPattern=".*\\.hmi" />
+                <data android:pathPattern=".*\\.HMI" />
+                <data android:pathPattern=".*\\.hmp" />
+                <data android:pathPattern=".*\\.HMP" />
+                <data android:pathPattern=".*\\.hmq" />
+                <data android:pathPattern=".*\\.HMQ" />
             </intent-filter>
         </activity>
 
