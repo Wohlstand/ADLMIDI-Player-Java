@@ -7,6 +7,10 @@ def pin_alias = System.env.PIN_ALIAS
 def db_pass_alias = System.env.DB_PASS_ALIAS
 
 android {
+    buildFeatures {
+        buildConfig = true
+    }
+
     compileSdkVersion 36
 
     // Note: The NDK 23 is SIGNIFICANTLY important, because of the support for non-NEON and older Android versions
@@ -44,7 +48,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles 'proguard-rules.pro'
             debuggable false
             jniDebuggable false
             renderscriptDebuggable false
@@ -54,7 +58,7 @@ android {
         }
         releaseci {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles 'proguard-rules.pro'
             buildConfigField "String", "PIN_ALIAS", "\"$pin_alias\""
             buildConfigField "String", "DB_PASS_ALIAS", "\"$db_pass_alias\""
             signingConfig signingConfigs.releaseci
@@ -94,4 +98,5 @@ dependencies {
     compileOnly 'junit:junit:4.13.2'
     //noinspection GradleDependency: the version 2.1.4 is last that support minSDK 16, newer version will require MinSDK 21
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.media:media:1.8.0'
 }

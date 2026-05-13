@@ -92,7 +92,7 @@
             </intent-filter>
         </activity>
 
-        <receiver android:exported="true" android:name=".HardButtonReceiver">
+        <receiver android:exported="true" android:name="android.support.v4.media.session.MediaButtonReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
