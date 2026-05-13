@@ -98,5 +98,6 @@ dependencies {
     compileOnly 'junit:junit:4.13.2'
     //noinspection GradleDependency: the version 2.1.4 is last that support minSDK 16, newer version will require MinSDK 21
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.media:media:1.8.0'
+    //noinspection GradleDependency: Last version that supports MinSDK 14
+    implementation 'androidx.media:media:1.6.0'
 }
