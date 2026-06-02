@@ -1,5 +1,8 @@
+
 /* Nuked OPL3
+ *
  * Copyright (C) 2013-2020 Nuke.YKT
+ * Copyright (C) 2026 Tony Gies (Nuked-OPL3-fast modifications)
  *
  * This file is part of Nuked OPL3.
  *
@@ -15,7 +18,7 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with Nuked OPL3. If not, see <https://www.gnu.org/licenses/>.
-
+ *
  *  Nuked OPL3 emulator.
  *  Thanks:
  *      MAME Development Team(Jarek Burczynski, Tatsuyuki Satoh):
@@ -27,11 +30,25 @@
  *      siliconpr0n.org(John McMaster, digshadow):
  *          YMF262 and VRC VII decaps and die shots.
  *
- * version: 1.8
+ * Upstream version: 1.8 (commit cfedb09)
+ * Fork version:    1.8-fast.1
+ * Fork home:       https://github.com/tgies/Nuked-OPL3-fast
+ *
+ * Nuked-OPL3-fast is a bit-exact performance-optimized fork of Nuked-OPL3.
+ * Audio output is identical to upstream for the same register stream.
+ *
+ * Modifications vs. upstream visible in this header:
+ *
+ *   - Added cached fields to opl3_slot: eg_tl_ksl, eg_ks, pg_inc,
+ *     eg_rate_hi[4], eg_rate_lo[4], slot_num.
+ *   - Added out_cnt to opl3_channel for mix-loop active-slot tracking.
+ *   - Reordered opl3_slot to put hot per-sample fields first; struct size
+ *     shrank from 96 to 88 bytes.
+ *   - Removed unused legacy fields (eg_inc, eg_rate) from opl3_slot.
  */
 
-#ifndef OPL_OPL3_H
-#define OPL_OPL3_H
+#ifndef OPL_OPL3_FAST_H
+#define OPL_OPL3_FAST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,8 +60,8 @@ extern "C" {
 #define OPL_ENABLE_STEREOEXT 0
 #endif
 
-#ifndef OPL_FAST_WAVEGEN
-#define OPL_FAST_WAVEGEN 1 /* optimized waveform generation */
+#ifndef OPL_QUIRK_CHANNELSAMPLEDELAY
+#define OPL_QUIRK_CHANNELSAMPLEDELAY 1 /* libADLMIDI: preserve OPL3 channel sample-delay quirk regardless of STEREOEXT */
 #endif
 
 #define OPL_WRITEBUF_SIZE   2048
@@ -57,39 +74,40 @@ typedef struct _opl3_chip opl3_chip;
 struct _opl3_slot {
     opl3_channel *channel;
     opl3_chip *chip;
+    int16_t *mod;
+    uint8_t *trem;
+    uint32_t pg_reset;
+    uint32_t pg_phase;
+    uint32_t pg_inc;
     int16_t out;
     int16_t fbmod;
-    int16_t *mod;
     int16_t prout;
     uint16_t eg_rout;
     uint16_t eg_out;
-    uint8_t eg_inc;
+    /* Cached (reg_tl << 2) + (eg_ksl >> kslshift[reg_ksl]); maintained by
+     * OPL3_EnvelopeUpdateKSL whenever any of those inputs change. Hoists
+     * a load + lookup + shift out of the per-sample envelope hot path. */
+    uint16_t eg_tl_ksl;
+    uint16_t pg_phase_out;
+    uint8_t key;
     uint8_t eg_gen;
-    uint8_t eg_rate;
-    uint8_t eg_ksl;
-    uint8_t *trem;
     uint8_t reg_vib;
+    uint8_t reg_mult;
+    uint8_t reg_wf;
+    uint8_t slot_num;
+    uint8_t eg_ksl;
+    uint8_t eg_ks;
     uint8_t reg_type;
     uint8_t reg_ksr;
-    uint8_t reg_mult;
     uint8_t reg_ksl;
     uint8_t reg_tl;
     uint8_t reg_ar;
     uint8_t reg_dr;
     uint8_t reg_sl;
     uint8_t reg_rr;
-    uint8_t reg_wf;
-    uint8_t key;
-    uint32_t pg_reset;
-    uint32_t pg_phase;
-    uint16_t pg_phase_out;
-    uint8_t slot_num;
-
-#if OPL_FAST_WAVEGEN
-    uint16_t maskzero;
-    uint8_t  signpos;
-    uint8_t  phaseshift;
-#endif
+    uint8_t eg_rates[4];
+    uint8_t eg_rate_hi[4];
+    uint8_t eg_rate_lo[4];
 };
 
 struct _opl3_channel {
@@ -97,6 +115,7 @@ struct _opl3_channel {
     opl3_channel *pair;
     opl3_chip *chip;
     int16_t *out[4];
+    uint8_t out_cnt;
 
 #if OPL_ENABLE_STEREOEXT
     int32_t leftpan;
@@ -139,6 +158,7 @@ struct _opl3_chip {
     uint8_t tremolo;
     uint8_t tremolopos;
     uint8_t tremoloshift;
+    uint8_t tremolo_dirty;
     uint32_t noise;
     int16_t zeromod;
     int32_t mixbuff[4];
@@ -166,16 +186,16 @@ struct _opl3_chip {
     opl3_writebuf writebuf[OPL_WRITEBUF_SIZE];
 };
 
-void OPL3_Generate(opl3_chip *chip, int16_t *buf);
-void OPL3_GenerateResampled(opl3_chip *chip, int16_t *buf);
-void OPL3_Reset(opl3_chip *chip, uint32_t samplerate);
-void OPL3_WriteReg(opl3_chip *chip, uint16_t reg, uint8_t v);
-void OPL3_WriteRegBuffered(opl3_chip *chip, uint16_t reg, uint8_t v);
-void OPL3_WritePan(opl3_chip *chip, uint16_t reg, uint8_t v);
-void OPL3_GenerateStream(opl3_chip *chip, int16_t *sndptr, uint32_t numsamples);
+void OPL3Fast_Generate(opl3_chip *chip, int16_t *buf);
+void OPL3Fast_GenerateResampled(opl3_chip *chip, int16_t *buf);
+void OPL3Fast_Reset(opl3_chip *chip, uint32_t samplerate);
+void OPL3Fast_WriteReg(opl3_chip *chip, uint16_t reg, uint8_t v);
+void OPL3Fast_WriteRegBuffered(opl3_chip *chip, uint16_t reg, uint8_t v);
+void OPL3Fast_WritePan(opl3_chip *chip, uint16_t reg, uint8_t v);
+void OPL3Fast_GenerateStream(opl3_chip *chip, int16_t *sndptr, uint32_t numsamples);
 
-void OPL3_Generate4Ch(opl3_chip *chip, int16_t *buf4);
-void OPL3_Generate4ChResampled(opl3_chip *chip, int16_t *buf4);
+void OPL3Fast_Generate4Ch(opl3_chip *chip, int16_t *buf4);
+void OPL3Fast_Generate4ChResampled(opl3_chip *chip, int16_t *buf4);
 void OPL3_Generate4ChStream(opl3_chip *chip, int16_t *sndptr1, int16_t *sndptr2, uint32_t numsamples);
 
 #ifdef __cplusplus
