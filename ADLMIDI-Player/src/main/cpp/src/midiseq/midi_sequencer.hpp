@@ -153,6 +153,9 @@ public:
     typedef std::vector<DataBlock, dpmi_allocator<DataBlock> >                  MusTrackTitlesList;
     typedef std::vector<MIDI_MarkerEntry, dpmi_allocator<MIDI_MarkerEntry> >    MusMarkersList;
 
+    typedef std::vector<uint8_t, dpmi_allocator<uint8_t> >                      RawSongEntry;
+    typedef std::vector<RawSongEntry, dpmi_allocator<RawSongEntry> >            RawSongsList;
+
 private:
     /**********************************************************************************
      *                   Private structures and types definitions                     *
@@ -382,6 +385,8 @@ private:
         DataBlock data_block;
     };
 
+    typedef std::vector<MidiEvent, dpmi_allocator<MidiEvent> > MidiEventsList;
+
     /*!
      * \brief Individual tempo value used for the timeline calculation
      */
@@ -418,7 +423,7 @@ private:
      * @brief Sort events in this position
      * @param noteStates Buffer of currently pressed/released note keys in the track
      */
-    static void sortEvents(MidiTrackRow &row, std::vector<MidiEvent, dpmi_allocator<MidiEvent> > &eventsBank, bool *noteStates = NULL);
+    static void sortEvents(MidiTrackRow &row, MidiEventsList &eventsBank, bool *noteStates = NULL);
 
     /**
      * @brief Tempo change point entry. Used in the MIDI data building function only.
@@ -739,11 +744,13 @@ private:
     //! MIDI Output interface context
     const BW_MidiRtInterface *m_interface;
 
+    typedef std::vector<uint8_t, dpmi_allocator<uint8_t> > U8List;
+
     //! Storage of data block refered in tracks
-    std::vector<uint8_t, dpmi_allocator<uint8_t> > m_dataBank;
+    U8List m_dataBank;
 
     //! Array of all MIDI events across all tracks
-    std::vector<MidiEvent, dpmi_allocator<MidiEvent> > m_eventBank;
+    MidiEventsList m_eventBank;
 
     //! The number of track of multi-track file (for exmaple, XMI) to load
     int m_loadTrackNumber;
@@ -837,9 +844,6 @@ private:
     //! Complete mask that includes all supported devices by loaded files (if 0xFFFF, then file doesn't use track filtering)
     uint32_t m_deviceMaskAvailable;
 
-
-    typedef std::vector<uint8_t, dpmi_allocator<uint8_t> > RawSongEntry;
-    typedef std::vector<RawSongEntry, dpmi_allocator<RawSongEntry> > RawSongsList;
     //! The XMI-specific list of raw songs, converted into SMF format
     RawSongsList m_rawSongsData;
 
@@ -941,9 +945,6 @@ private:
     /**********************************************************************************
      *                                 Data bank                                      *
      **********************************************************************************/
-
-    typedef std::vector<uint8_t, dpmi_allocator<uint8_t> > U8List;
-
     static void insertDataToBank(MidiEvent &evt, U8List &bank, const uint8_t *data, size_t length);
     static void insertDataToBank(MidiEvent &evt, U8List &bank, FileAndMemReader &fr, size_t length);
     static void insertDataToBankWithByte(MidiEvent &evt, U8List &bank, uint8_t begin_byte, const uint8_t *data, size_t length);
@@ -1091,7 +1092,7 @@ private:
      * @return true if everything successfully processed, or false on any error
      */
     bool smf_buildOneTrack(FileAndMemReader &fr, const size_t track_idx, const size_t track_size,
-                           std::vector<TempoEvent, dpmi_allocator<TempoEvent> > &temposList, LoopPointParseState &loopState);
+                           TemposList &temposList, LoopPointParseState &loopState);
 
     /**
      * @brief Parse one event from raw MIDI track stream
@@ -1236,9 +1237,11 @@ private:
      */
     bool parseXMI(FileAndMemReader &fr);
 
+public:
     static int Convert_xmi2midi_multi(uint8_t *in, uint32_t insize,
                                       RawSongsList &out,
                                       uint32_t convert_type);
+private:
 #endif
 
 
