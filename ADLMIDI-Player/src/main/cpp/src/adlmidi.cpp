@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <new> // nothrow
 #include "adlmidi_midiplay.hpp"
 #include "adlmidi_opl3.hpp"
 #include "adlmidi_private.hpp"
@@ -756,6 +757,21 @@ ADLMIDI_EXPORT int adl_getChannelAllocMode(struct ADL_MIDIPlayer *device)
     return static_cast<int>(play->m_synth->m_channelAlloc);
 }
 
+ADLMIDI_EXPORT void adl_setDeviceFilterMask(struct ADL_MIDIPlayer *device, ADL_UInt32 mask)
+{
+#ifndef ADLMIDI_DISABLE_MIDI_SEQUENCER
+    if(!device)
+        return;
+
+    MidiPlayer *play = GET_MIDI_PLAYER(device);
+    assert(play);
+    play->m_sequencerDeviceMask = mask;
+#else
+    (void)device;
+    (void)mask;
+#endif
+}
+
 ADLMIDI_EXPORT int adl_openBankFile(struct ADL_MIDIPlayer *device, const char *filePath)
 {
     if(device)
@@ -1219,7 +1235,7 @@ ADLMIDI_EXPORT size_t adl_metaTrackTitleCount(struct ADL_MIDIPlayer *device)
 
     MidiPlayer *play = GET_MIDI_PLAYER(device);
     assert(play);
-    return play->m_sequencer->getTrackTitles().size();
+    return play->m_sequencer->getTrackTitles().size;
 #else
     ADL_UNUSED(device);
     return 0;
@@ -1234,9 +1250,9 @@ ADLMIDI_EXPORT const char *adl_metaTrackTitle(struct ADL_MIDIPlayer *device, siz
 
     MidiPlayer *play = GET_MIDI_PLAYER(device);
     assert(play);
-    const std::vector<BW_MidiSequencer::DataBlock, dpmi_allocator<BW_MidiSequencer::DataBlock> > &titles = play->m_sequencer->getTrackTitles();
+    const MidiSequencer::MusTrackTitlesList &titles = play->m_sequencer->getTrackTitles();
 
-    if(index >= titles.size())
+    if(index >= titles.size)
         return "INVALID";
 
     return reinterpret_cast<const char*>(play->m_sequencer->getData(titles[index]));
@@ -1256,7 +1272,7 @@ ADLMIDI_EXPORT size_t adl_metaMarkerCount(struct ADL_MIDIPlayer *device)
 
     MidiPlayer *play = GET_MIDI_PLAYER(device);
     assert(play);
-    return play->m_sequencer->getMarkers().size();
+    return play->m_sequencer->getMarkers().size;
 #else
     ADL_UNUSED(device);
     return 0;
@@ -1280,7 +1296,7 @@ ADLMIDI_EXPORT Adl_MarkerEntry adl_metaMarker(struct ADL_MIDIPlayer *device, siz
     assert(play);
 
     const MidiSequencer::MusMarkersList &markers = play->m_sequencer->getMarkers();
-    if(index >= markers.size())
+    if(index >= markers.size)
     {
         marker.label = "INVALID";
         marker.pos_time = 0.0;

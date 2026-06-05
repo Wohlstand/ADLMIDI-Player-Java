@@ -57,7 +57,7 @@ bool BW_MidiSequencer::parseMUS(FileAndMemReader &fr)
     uint8_t channel_cur = 0;
     uint64_t abs_position = 0;
     int32_t delay = 0;
-    std::vector<uint16_t> mus_instrs;
+    miditrack_arr<uint16_t> mus_instrs;
     TemposList temposList;
 
     const uint8_t controller_map[15] =
@@ -124,6 +124,10 @@ bool BW_MidiSequencer::parseMUS(FileAndMemReader &fr)
     fr.seek(mus_offSong, FileAndMemReader::SET);
 
     buildSmfSetupReset(1);
+
+    // Attempt to rougly reserve the events bank
+    m_eventBank.reserve((mus_lenSong / sizeof(MidiEvent)));
+    m_dataBank.reserve(1000);
 
     m_invDeltaTicks.nom = 1;
     m_invDeltaTicks.denom = 1000000l * 0x101;
@@ -310,7 +314,7 @@ bool BW_MidiSequencer::parseMUS(FileAndMemReader &fr)
                 size_t j = 0;
                 event.type = MidiEvent::T_PATCHCHANGE;
 
-                for( ; j < mus_instrs.size(); ++j)
+                for( ; j < mus_instrs.size; ++j)
                 {
                     if((bytes[1] & 0x7F) == mus_instrs[j])
                         break;

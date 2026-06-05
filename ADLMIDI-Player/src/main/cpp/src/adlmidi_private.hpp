@@ -70,16 +70,10 @@ typedef int32_t ssize_t;
 #   endif
 #endif
 
-#include <vector>
-#include <list>
 #include <string>
 //#ifdef __WATCOMC__
 //#include <myset.h> //TODO: Implemnet a workaround for OpenWatcom to fix a crash while using those containers
 //#include <mymap.h>
-//#else
-#include <map>
-#include <set>
-#include <new> // nothrow
 //#endif
 #include <cstdlib>
 #include <cstring>
@@ -237,9 +231,13 @@ extern void adlFromInstrument(const BanksDump::InstrumentEntry &instIn, OplInstM
 // DOS specific tricks
 #ifdef ENABLE_HW_OPL_DOS
 extern bool adl_dpmi_lock_memory(void *address, size_t size);
+extern bool adl_dpmi_lock_memory_code(void *address, size_t size);
 extern bool adl_dpmi_lock_region(void *begin, void *end);
+extern bool adl_dpmi_lock_code_region(void *begin, void *end);
 extern bool adl_dpmi_unlock_memory(void *address, size_t size);
+extern bool adl_dpmi_unlock_memory_code(void *address, size_t size);
 extern bool adl_dpmi_unlock_region(void *begin, void *end);
+extern bool adl_dpmi_unlock_code_region(void *begin, void *end);
 
 #define adl_dpmi_lock(obj)\
     (adl_dpmi_lock_memory((void*)&obj, sizeof(obj)))
@@ -264,24 +262,6 @@ public:
         adl_dpmi_unlock_memory(this, sizeof(T));
     }
 };
-
-template<class T>
-void adl_dpmi_lock_vector(std::vector<T> &v)
-{
-    if(v.empty())
-        return;
-
-    adl_dpmi_lock_memory(v.data(), v.size() * sizeof(T));
-}
-
-template<class T>
-void adl_dpmi_unlock_vector(std::vector<T> &v)
-{
-    if(v.empty())
-        return;
-
-    adl_dpmi_unlock_memory(v.data(), v.size() * sizeof(T));
-}
 
 extern void adl_lock_code(void);
 extern void adl_unlock_code(void);
@@ -386,7 +366,7 @@ struct adl_array
 
             // Delete old data
             for(size_t i = 0; i < size; ++i)
-                data[i].~T();
+                old_data[i].~T();
         }
         else
         {
