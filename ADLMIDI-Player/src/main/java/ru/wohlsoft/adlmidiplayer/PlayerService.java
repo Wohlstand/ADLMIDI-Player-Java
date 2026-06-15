@@ -513,7 +513,8 @@ public class PlayerService extends Service {
         adl_setSoftPanEnabled(MIDIDevice, AppSettings.getFullPanningStereoRaw());
         adl_setVolumeRangeModel(MIDIDevice, AppSettings.getVolumeModel());
         adl_setChannelAllocMode(MIDIDevice, AppSettings.getChanAlocMode());
-        adl_setLoopEnabled(MIDIDevice, 1);
+        adl_setLoopEnabled(MIDIDevice, AppSettings.getLoopEnabledRaw());
+        adl_setModeEMIDI(MIDIDevice, AppSettings.getModeEMIDIRaw());
     }
 
     public String getLastError()
@@ -607,6 +608,23 @@ public class PlayerService extends Service {
             return;
 
         adl_setAutoArpeggio(MIDIDevice, AppSettings.getAutoArpeggioRaw());
+    }
+
+    public void setLoopEnabled(boolean flag)
+    {
+        if(MIDIDevice == 0)
+            return;
+
+        // FIXME: Implement proper handling of song end to stop the foreground daemon!
+        adl_setLoopEnabled(MIDIDevice, AppSettings.getLoopEnabledRaw());
+    }
+
+    public void setModeEMIDI(boolean flag)
+    {
+        if(MIDIDevice == 0)
+            return;
+
+        adl_setModeEMIDI(MIDIDevice, AppSettings.getModeEMIDIRaw());
     }
 
     public void setEmulator(int emul)
@@ -857,6 +875,8 @@ public class PlayerService extends Service {
 //    extern void adl_setLoopEnabled(struct ADL_MIDIPlayer* device, int loopEn);
 //
     public static native void adl_setLoopEnabled(long device, int loopEn);
+
+    public static native void adl_setModeEMIDI(long device, int enabled);
 
     //    /*Set different volume range model */
 //    extern void adl_setVolumeRangeModel(struct ADL_MIDIPlayer *device, int volumeModel);

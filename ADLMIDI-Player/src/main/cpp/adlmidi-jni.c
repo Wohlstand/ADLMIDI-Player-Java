@@ -528,6 +528,22 @@ Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setLoopEnabled(
     pthread_mutex_unlock(&g_lock);
 }
 
+
+JNIEXPORT void JNICALL
+Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1setModeEMIDI(
+        JNIEnv *env,
+        jclass instance,
+        jlong device,
+        jint enabled
+)
+{
+    (void)env; (void)instance;
+    pthread_mutex_lock(&g_lock);
+    adl_setModeEMIDI(ADL_DEV, (int)enabled);
+    pthread_mutex_unlock(&g_lock);
+}
+
+
 JNIEXPORT jint JNICALL
 Java_ru_wohlsoft_adlmidiplayer_PlayerService_adl_1openBankFile(
     JNIEnv *env,

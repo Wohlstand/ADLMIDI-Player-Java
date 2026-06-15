@@ -144,12 +144,39 @@
             android:text="@string/autoArpeggio"
             tools:text="@string/autoArpeggio" />
 
+        <CheckBox
+            android:id="@+id/loopEnabled"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/autoArpeggio"
+            android:layout_alignEnd="@+id/autoArpeggio"
+            android:layout_alignRight="@+id/autoArpeggio"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:text="@string/loopEnabled"
+            tools:text="@string/loopEnabled" />
+
+        <CheckBox
+            android:id="@+id/modeEMIDI"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/loopEnabled"
+            android:layout_alignEnd="@+id/loopEnabled"
+            android:layout_alignRight="@+id/loopEnabled"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:text="@string/modeEMIDI"
+            tools:text="@string/modeEMIDI" />
 
         <TextView
             android:id="@+id/emulatorTypeLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/autoArpeggio"
+            android:layout_below="@+id/modeEMIDI"
             android:layout_alignParentStart="true"
             android:layout_alignParentLeft="true"
             android:layout_alignParentEnd="true"

@@ -21,6 +21,10 @@ public class AppSettings
 
     static private int                 m_ADL_autoArpeggio = 0;
 
+    static private int                 m_ADL_loopEnabled = 1;
+
+    static private int                 m_ADL_modeEMIDI = 0;
+
     static private int                 m_ADL_emulator = 2; // 2 is DosBox
     static private int                 m_adl_numChips = 2;
     static private int                 m_ADL_num4opChannels = -1;
@@ -46,6 +50,8 @@ public class AppSettings
             m_ADL_softPanEnabled = setup.getBoolean("flagSoftPan", m_ADL_softPanEnabled > 0) ? 1 : 0;
             m_ADL_runAtPcmRate = setup.getBoolean("flagRunAtPcmRate", m_ADL_runAtPcmRate > 0) ? 1 : 0;
             m_ADL_autoArpeggio = setup.getBoolean("flagAutoArpeggio", m_ADL_autoArpeggio > 0) ? 1 : 0;
+            m_ADL_loopEnabled = setup.getBoolean("flagLoopEnabled", m_ADL_loopEnabled > 0) ? 1 : 0;
+            m_ADL_modeEMIDI = setup.getBoolean("flagModeEMIDI", m_ADL_modeEMIDI > 0) ? 1 : 0;
 
             m_ADL_emulator = setup.getInt("emulator", m_ADL_emulator);
             m_adl_numChips = setup.getInt("numChips", m_adl_numChips);
@@ -208,6 +214,35 @@ public class AppSettings
     static public int getAutoArpeggioRaw()
     {
         return m_ADL_autoArpeggio;
+    }
+
+    static public void setLoopEnabled(boolean flag)
+    {
+        m_ADL_loopEnabled = flag ? 1 : 0;
+        m_setup.edit().putBoolean("flagLoopEnabled", flag).apply();
+    }
+    static public boolean getLoopEnabled()
+    {
+        return m_ADL_loopEnabled > 0;
+    }
+    static public int getLoopEnabledRaw()
+    {
+        return m_ADL_loopEnabled;
+    }
+
+
+    static public void setModeEMIDI(boolean flag)
+    {
+        m_ADL_modeEMIDI = flag ? 1 : 0;
+        m_setup.edit().putBoolean("flagModeEMIDI", flag).apply();
+    }
+    static public boolean getModeEMIDI()
+    {
+        return m_ADL_modeEMIDI > 0;
+    }
+    static public int getModeEMIDIRaw()
+    {
+        return m_ADL_modeEMIDI;
     }
 
 

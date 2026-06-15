@@ -502,6 +502,47 @@ public class Player extends AppCompatActivity
         });
 
         /*
+         * Loop enable
+         */
+        CheckBox loopEnabled = (CheckBox)findViewById(R.id.loopEnabled);
+        loopEnabled.setChecked(AppSettings.getLoopEnabled());
+        loopEnabled.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
+        {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked)
+            {
+                AppSettings.setLoopEnabled(isChecked);
+                if(m_bound)
+                    m_service.setLoopEnabled(isChecked);
+                Toast toast = Toast.makeText(getApplicationContext(),
+                        "Loop toggled!", Toast.LENGTH_SHORT);
+                toast.show();
+            }
+        });
+
+        /*
+         * EMIDI mode
+         */
+        CheckBox modeEMIDI = (CheckBox)findViewById(R.id.modeEMIDI);
+        modeEMIDI.setChecked(AppSettings.getModeEMIDI());
+        modeEMIDI.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
+        {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked)
+            {
+                AppSettings.setModeEMIDI(isChecked);
+                if(m_bound)
+                    m_service.setModeEMIDI(isChecked);
+                Toast toast = Toast.makeText(getApplicationContext(),
+                        "EMIDI mode toggled!", Toast.LENGTH_SHORT);
+                toast.show();
+                // To take changes, the song restart is required
+                OnRestartClick(null);
+            }
+        });
+
+
+        /*
          * Chips count
          */
         Button numChipsMinus = (Button) findViewById(R.id.numChipsMinus);

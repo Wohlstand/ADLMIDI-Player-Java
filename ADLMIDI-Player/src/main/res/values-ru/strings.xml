@@ -29,4 +29,6 @@
     <string name="noCustomBankLabel"><![CDATA[<Нет внешнего банка>]]></string>
     <string name="autoArpeggio">Авто-арпеджио</string>
     <string name="chanAllocationMode">Режим выборки каналов</string>
+    <string name="loopEnabled" >Вечный цикл</string>
+    <string name="modeEMIDI">Режим EMIDI (Apogee / 3D Relams)</string>
 </resources>

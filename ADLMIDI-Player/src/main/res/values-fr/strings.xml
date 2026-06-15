@@ -29,4 +29,6 @@
     <string name="noCustomBankLabel"><![CDATA[<No custom bank>]]></string>
     <string name="autoArpeggio">Arpège automatique</string>
     <string name="chanAllocationMode">Mode d\'allocation des canaux</string>
+    <string name="loopEnabled" >Activer le cycle perpétuel</string>
+    <string name="modeEMIDI">Activer le mode EMIDI (Apogee / 3D Relams)</string>
 </resources>
