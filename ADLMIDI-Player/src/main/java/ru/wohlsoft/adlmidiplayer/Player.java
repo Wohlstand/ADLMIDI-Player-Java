@@ -1219,6 +1219,7 @@ public class Player extends AppCompatActivity
                         {
                             cbl.setText(R.string.noCustomBankLabel);
                         }
+
                         if(m_bound)
                             m_service.openBank(m_lastBankPath);
                     }
@@ -1246,18 +1247,19 @@ public class Player extends AppCompatActivity
     public void openMusicFileDialog()
     {
         OpenFileDialog fileDialog = new OpenFileDialog(this)
-                .setFilter(".*\\.mid|.*\\.midi|.*\\.kar|.*\\.rmi|.*\\.imf|.*\\.cmf|.*\\.mus|.*\\.xmi|.*\\.klm|.*\\.hmi|.*\\.hmp|.*\\.hmq")
-                .setCurrentDirectory(m_lastPath)
-                .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
+            .setFilter(".*\\.mid|.*\\.midi|.*\\.kar|.*\\.rmi|.*\\.imf|.*\\.cmf|.*\\.mus|.*\\.xmi|.*\\.klm|.*\\.hmi|.*\\.hmp|.*\\.hmq")
+            .setCurrentDirectory(m_lastPath)
+            .setOpenDialogListener(new OpenFileDialog.OpenDialogListener()
+            {
+                @Override
+                public void OnSelectedFile(Context ctx, String fileName, String lastPath)
                 {
-                    @Override
-                    public void OnSelectedFile(Context ctx, String fileName, String lastPath) {
-                        processMusicFile(fileName, lastPath);
-                    }
+                    processMusicFile(fileName, lastPath);
+                }
 
-                    @Override
-                    public void OnSelectedDirectory(Context ctx, String lastPath) {}
-                });
+                @Override
+                public void OnSelectedDirectory(Context ctx, String lastPath) {}
+            });
         fileDialog.show();
     }
 
@@ -1321,13 +1323,16 @@ public class Player extends AppCompatActivity
         {
             //Reload bank for a case if CMF file was passed that cleans custom bank
             m_service.reloadBank();
-            if (!m_service.openMusic(m_lastMusicPath)) {
+            if (!m_service.openMusic(m_lastMusicPath))
+            {
                 AlertDialog.Builder b = new AlertDialog.Builder(Player.this);
                 b.setTitle("Failed to open file");
                 b.setMessage("Can't open music file because of " + m_service.getLastError());
                 b.setNegativeButton(android.R.string.ok, null);
                 b.show();
-            } else {
+            }
+            else
+            {
                 SeekBar musPos = (SeekBar) findViewById(R.id.musPos);
                 musPos.setMax(m_service.getSongLength());
                 musPos.setProgress(0);
@@ -1341,22 +1346,17 @@ public class Player extends AppCompatActivity
     {
         int fourOpsMax = chipsCount * 6;
 
-        if(chipsCount < 1) {
-            chipsCount = 1;
-        } else if(chipsCount > 100) {
-            chipsCount = 100;
-        }
+        m_chipsCount = Math.max(1, Math.min(100, chipsCount));
 
-        m_chipsCount = chipsCount;
         AppSettings.setChipsCount(m_chipsCount);
-        if(m_bound && !silent) {
+        if(m_bound && !silent)
+        {
             m_service.applySetup();
             Log.d(LOG_TAG, String.format(Locale.getDefault(), "Chips: Written=%d", m_chipsCount));
         }
 
-        if(m_fourOpsCount > fourOpsMax) {
+        if(m_fourOpsCount > fourOpsMax)
             onFourOpsCountUpdate(m_fourOpsCount, silent);
-        }
 
         TextView numChipsCounter = (TextView)findViewById(R.id.numChipsCount);
         numChipsCounter.setText(String.format(Locale.getDefault(), "%d", m_chipsCount));
@@ -1392,9 +1392,10 @@ public class Player extends AppCompatActivity
     {
         gainLevel = round(gainLevel, 1);
         AppSettings.setGaining(gainLevel);
-        if(m_bound && !silent) {
+
+        if(m_bound && !silent)
             m_service.gainingSet(gainLevel);
-        }
+
         TextView gainFactor = (TextView)findViewById(R.id.gainFactor);
         gainFactor.setText(String.format(Locale.getDefault(), "%.1f", gainLevel));
     }
