@@ -311,6 +311,7 @@ public class Player extends AppCompatActivity
             "YMFM OPL3 (good accuracy)",
             "Nuked OPL2 Lite (9 2op voices, better accuracy)",
             "Nuked CQM (Emulator of Creative's OPL3 clone)",
+            "DosBox OPL2 (accurate and fast)",
         };
 
         ArrayAdapter<String> adapterEMU = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, emulatorItems);
