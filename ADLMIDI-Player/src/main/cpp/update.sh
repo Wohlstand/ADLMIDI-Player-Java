@@ -10,6 +10,7 @@ cp -av ../../../../../libADLMIDI/include .
 cp -av ../../../../../libADLMIDI/src .
 cp -v ../../../../../libADLMIDI/CMakeLists.txt .
 cp -v ../../../../../libADLMIDI/libADLMIDIConfig.cmake.in .
+cp -v ../../../../../libADLMIDI/banks.ini .
 
 mkdir -p ./cmake
 cp -av ../../../../../libADLMIDI/cmake/checks ./cmake/
